@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>운영팀 업무일지</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-pending">
+    <section class="login-screen" id="loginScreen" aria-label="로그인">
+      <form class="login-panel" id="loginForm">
+        <div class="brand login-brand">
+          <span class="brand-mark">Ops</span>
+          <div>
+            <strong>운영팀 업무일지</strong>
+            <span>HongCafe Admin Login</span>
+          </div>
+        </div>
+        <label class="field">
+          <span>관리 프로그램 아이디</span>
+          <input name="username" autocomplete="username" required />
+        </label>
+        <label class="field">
+          <span>비밀번호</span>
+          <input name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <p class="login-error" id="loginError"></p>
+        <button type="submit" class="primary-button">로그인</button>
+      </form>
+    </section>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">Ops</span>
+          <div>
+            <strong>운영팀 업무일지</strong>
+            <span>HongCafe Ops</span>
+          </div>
+        </div>
+
+        <label class="field sidebar-role">
+          <span>현재 권한</span>
+          <select id="roleSelect">
+            <option value="teamLead">팀장</option>
+            <option value="partLead">파트장</option>
+            <option value="member">파트원</option>
+          </select>
+        </label>
+
+        <nav class="nav-list" aria-label="주요 메뉴">
+          <section class="nav-group">
+            <h2>업무 관리</h2>
+            <button class="nav-item active" data-view="dashboard" data-roles="teamLead,partLead,member">대시보드</button>
+            <button class="nav-item" data-view="todos" data-roles="teamLead,partLead,member">투두 리스트</button>
+            <button class="nav-item" data-view="taskArchive" data-roles="teamLead,partLead,member">완료 보관함</button>
+            <button class="nav-item" data-view="reports" data-roles="teamLead,partLead,member">보고함</button>
+          </section>
+          <section class="nav-group">
+            <h2>운영 자료</h2>
+            <button class="nav-item" data-view="duties" data-roles="teamLead,partLead,member">직무표</button>
+            <button class="nav-item" data-view="knowledge" data-roles="teamLead,partLead,member">숙지사항</button>
+            <button class="nav-item" data-view="manuals" data-roles="teamLead,partLead,member">업무 매뉴얼</button>
+          </section>
+          <section class="nav-group">
+            <h2>데이터 관리</h2>
+            <button class="nav-item" data-view="sheets" data-roles="teamLead,partLead,member">스프레드시트</button>
+            <button class="nav-item" data-view="counselors" data-roles="teamLead,partLead,member">상담사 관리</button>
+          </section>
+          <section class="nav-group">
+            <h2>보고/관리</h2>
+            <button class="nav-item" data-view="workReport" data-roles="teamLead,partLead,member">업무보고 생성</button>
+            <button class="nav-item" data-view="profileMaker" data-roles="teamLead,partLead,member">프로필 제작</button>
+            <button class="nav-item" data-view="org" data-roles="teamLead">조직/권한</button>
+          </section>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="currentDate"></p>
+            <h1 id="viewTitle">대시보드</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="session-user" id="sessionUser"></span>
+            <button class="secondary-button" id="logoutBtn">로그아웃</button>
+            <button class="icon-button" id="exportBtn" title="데이터 내보내기" aria-label="데이터 내보내기">↓</button>
+            <label class="icon-button file-import" title="데이터 가져오기" aria-label="데이터 가져오기">
+              ↑
+              <input id="importInput" type="file" accept="application/json" />
+            </label>
+            <button class="danger-button" id="resetBtn">초기화</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboard">
+          <div class="metric-grid" id="metrics"></div>
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>오늘 처리할 업무</h2>
+              </div>
+              <div class="stack-list" id="todayTasks"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h2>최근 보고</h2>
+              </div>
+              <div class="stack-list" id="recentReports"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="duties">
+          <div class="duty-layout">
+            <form class="panel form-panel duty-form" id="dutyForm">
+              <div class="panel-header">
+                <h2 id="dutyFormTitle">직무 등록</h2>
+              </div>
+              <input name="id" type="hidden" />
+              <label class="field">
+                <span>직무(Job)</span>
+                <input name="job" required placeholder="예: 신규 상담사 관리" />
+              </label>
+              <div class="form-row">
+                <label class="field">
+                  <span>책무</span>
+                  <input name="responsibility" placeholder="예: 상담사 모집" />
+                </label>
+                <label class="field">
+                  <span>과업</span>
+                  <input name="task" required placeholder="예: 모집용 스크립트 작성" />
+                </label>
+              </div>
+              <label class="field">
+                <span>과업 세부내용</span>
+                <textarea name="detail" rows="8" placeholder="업무 수행 순서, 체크 기준, 주의사항을 구체적으로 적어주세요."></textarea>
+              </label>
+              <div class="form-row three">
+                <label class="field">
+                  <span>담당 파트</span>
+                  <select name="part"></select>
+                </label>
+                <label class="field">
+                  <span>담당자</span>
+                  <select name="owner"></select>
+                </label>
+                <label class="field">
+                  <span>수행빈도</span>
+                  <select name="frequency">
+                    <option>수시</option>
+                    <option>일</option>
+                    <option>주</option>
+                    <option>월</option>
+                    <option>분기</option>
+                    <option>반기</option>
+                    <option>년</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row three">
+                <label class="field">
+                  <span>수행시간</span>
+                  <input name="duration" placeholder="예: 30분/1회" />
+                </label>
+                <label class="field">
+                  <span>중요도</span>
+                  <select name="importance">
+                    <option>5</option>
+                    <option>4</option>
+                    <option selected>3</option>
+                    <option>2</option>
+                    <option>1</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>난이도</span>
+                  <select name="difficulty">
+                    <option>5</option>
+                    <option>4</option>
+                    <option selected>3</option>
+                    <option>2</option>
+                    <option>1</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">
+                  <span>전결자</span>
+                  <input name="approver" placeholder="예: 팀장 1차 / 임원 2차" />
+                </label>
+                <label class="field">
+                  <span>협조부서/비고</span>
+                  <input name="note" placeholder="예: 디자인팀 협조 필요" />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="primary-button">저장</button>
+                <button type="button" class="secondary-button" id="cancelDutyEditBtn">취소</button>
+              </div>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <div>
+                  <p class="eyebrow" id="dutySummary">0개 직무</p>
+                  <h2>직무 분장표</h2>
+                </div>
+                <div class="inline-actions">
+                  <input id="dutySearch" class="search-input" placeholder="직무/과업/담당자 검색" />
+                  <select id="dutyFilter" class="compact-select"></select>
+                </div>
+              </div>
+              <div class="duty-detail" id="dutyDetail">직무를 선택하면 수행 세부내용이 표시됩니다.</div>
+              <div class="table-wrap duty-table-wrap">
+                <table class="duty-table">
+                  <thead>
+                    <tr>
+                      <th>직무(Job)</th>
+                      <th>책무</th>
+                      <th>과업</th>
+                      <th>담당</th>
+                      <th>파트</th>
+                      <th>빈도</th>
+                      <th>시간</th>
+                      <th>중요/난이도</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="dutyTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="todos">
+          <div class="section-grid task-workspace">
+            <form class="panel form-panel task-assign-panel" id="taskForm">
+              <div class="panel-header">
+                <h2>업무 배정</h2>
+              </div>
+              <p class="form-note" id="taskAssignNote">팀장은 파트장/파트원에게, 파트장은 같은 파트의 파트원에게 업무를 배정할 수 있습니다.</p>
+              <label class="field">
+                <span>업무명</span>
+                <input name="title" required placeholder="예: 신규 제휴 리스트 정리" />
+              </label>
+              <label class="field">
+                <span>담당자</span>
+                <select name="assignee"></select>
+              </label>
+              <label class="field">
+                <span>우선순위</span>
+                <select name="priority">
+                  <option>높음</option>
+                  <option selected>보통</option>
+                  <option>낮음</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>마감일</span>
+                <input name="dueDate" type="date" />
+              </label>
+              <label class="field">
+                <span>메모</span>
+                <textarea name="memo" rows="4" placeholder="처리 기준, 참고 링크, 요청사항"></textarea>
+              </label>
+              <button type="submit" class="primary-button">배정</button>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <div>
+                  <p class="eyebrow" id="taskSummary">0개 업무</p>
+                  <h2>업무 현황</h2>
+                </div>
+                <div class="inline-actions">
+                  <select id="taskFilter" class="compact-select">
+                    <option value="active">진행 업무</option>
+                    <option value="assignedToMe">내가 받은 업무</option>
+                    <option value="assignedByMe">내가 배정한 업무</option>
+                    <option value="대기">대기</option>
+                    <option value="진행중">진행중</option>
+                    <option value="완료 보고">완료 보고</option>
+                    <option value="반려">반려</option>
+                    <option value="all">전체</option>
+                  </select>
+                </div>
+              </div>
+              <div class="kanban" id="taskBoard"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="taskArchive">
+          <section class="panel wide-panel">
+            <div class="panel-header split">
+              <div>
+                <p class="eyebrow" id="taskArchiveSummary">0개 완료 업무</p>
+                <h2>완료 업무 보관함</h2>
+              </div>
+              <div class="inline-actions">
+                <select id="archiveMonthFilter" class="compact-select"></select>
+              </div>
+            </div>
+            <div class="archive-months" id="taskArchiveList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="knowledge">
+          <div class="section-grid">
+            <form class="panel form-panel" id="knowledgeForm">
+              <div class="panel-header">
+                <h2>숙지사항 등록</h2>
+              </div>
+              <label class="field">
+                <span>제목</span>
+                <input name="title" required placeholder="예: 섭외 메시지 톤 가이드" />
+              </label>
+              <label class="field">
+                <span>대상</span>
+                <select name="target">
+                  <option value="전체">전체</option>
+                  <option value="섭외파트">섭외파트</option>
+                  <option value="콘텐츠파트">콘텐츠파트</option>
+                  <option value="CS파트">CS파트</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>내용</span>
+                <textarea name="body" rows="7" required></textarea>
+              </label>
+              <button type="submit" class="primary-button">등록</button>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>숙지 현황</h2>
+              </div>
+              <div class="stack-list" id="knowledgeList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="manuals">
+          <div class="section-grid">
+            <form class="panel form-panel" id="manualForm">
+              <div class="panel-header">
+                <h2>매뉴얼 등록</h2>
+              </div>
+              <label class="field">
+                <span>제목</span>
+                <input name="title" required placeholder="예: 신규 프로젝트 섭외 플로우" />
+              </label>
+              <label class="field">
+                <span>분류</span>
+                <select name="category">
+                  <option>프로젝트</option>
+                  <option>섭외</option>
+                  <option>진행관리</option>
+                  <option>보고</option>
+                  <option>정산</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>본문</span>
+                <textarea name="body" rows="6" placeholder="업무 흐름, 체크 기준, 예외 처리"></textarea>
+              </label>
+              <label class="field">
+                <span>첨부 파일</span>
+                <input name="files" type="file" multiple />
+              </label>
+              <button type="submit" class="primary-button">저장</button>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <h2>업무 매뉴얼</h2>
+                <input id="manualSearch" class="search-input" placeholder="검색" />
+              </div>
+              <div class="stack-list" id="manualList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="sheets">
+          <div class="sheet-layout">
+            <section class="panel sheet-tools">
+              <div class="panel-header split">
+                <h2>시트 관리</h2>
+                <span class="sheet-count" id="sheetCount">0개</span>
+              </div>
+              <form id="sheetForm" class="sheet-form">
+                <label class="field">
+                  <span>시트명</span>
+                  <input name="name" required placeholder="예: 6월 1주 섭외현황" />
+                </label>
+                <label class="field">
+                  <span>템플릿</span>
+                  <select name="template">
+                    <option value="recruit">섭외 관리</option>
+                    <option value="project">프로젝트 진행</option>
+                    <option value="blank">빈 시트</option>
+                  </select>
+                </label>
+                <button type="submit" class="primary-button">새 시트</button>
+              </form>
+
+              <button class="secondary-button sheet-list-toggle" id="sheetListToggle">시트 목록</button>
+              <label class="field">
+                <span>빠른 선택</span>
+                <select id="sheetQuickSelect"></select>
+              </label>
+              <label class="field sheet-search">
+                <span>검색</span>
+                <input id="sheetSearch" placeholder="시트명 검색" />
+              </label>
+              <label class="field">
+                <span>정렬</span>
+                <select id="sheetSortMode">
+                  <option value="recent">최근 생성순</option>
+                  <option value="name">이름순</option>
+                  <option value="rows">행 많은 순</option>
+                </select>
+              </label>
+              <div class="sheet-tabs" id="sheetTabs"></div>
+            </section>
+            <section class="panel sheet-panel">
+              <div class="panel-header split">
+                <div>
+                  <p class="eyebrow" id="activeSheetMeta"></p>
+                  <h2 id="activeSheetName">스프레드시트</h2>
+                </div>
+                <div class="inline-actions">
+                  <button class="secondary-button" id="renameSheetBtn">이름 변경</button>
+                  <button class="secondary-button" id="duplicateSheetBtn">복제</button>
+                  <button class="danger-button" id="deleteSheetBtn">삭제</button>
+                  <button class="secondary-button" id="addColumnBtn">열 추가</button>
+                  <button class="secondary-button" id="addRowBtn">행 추가</button>
+                </div>
+              </div>
+
+              <div class="sheet-viewbar">
+                <div class="segmented-control" role="group" aria-label="시트 보기 방식">
+                  <button data-sheet-view="wrap">전체 내용 보기</button>
+                  <button data-sheet-view="compact">행 압축 보기</button>
+                </div>
+                <div class="selected-cell-preview" id="selectedCellPreview">셀을 선택하면 전체 내용이 여기에 표시됩니다.</div>
+                <button class="secondary-button" id="copyCellBtn">셀 복사</button>
+              </div>
+
+              <section class="import-panel">
+                <div class="panel-header split">
+                  <h2>붙여넣기 가져오기</h2>
+                  <button class="secondary-button" id="clearPasteBtn">비우기</button>
+                </div>
+                <textarea id="pasteTableInput" rows="6" placeholder="엑셀이나 구글시트에서 표 범위를 복사한 뒤 여기에 붙여넣으세요."></textarea>
+                <div class="import-options">
+                  <label><input id="useFirstRowAsHeader" type="checkbox" checked /> 첫 줄을 컬럼명으로 사용</label>
+                  <label><input id="keepEmptyRows" type="checkbox" checked /> 빈 행 유지</label>
+                  <label class="field">
+                    <span>가져오기 방식</span>
+                    <select id="pasteImportMode">
+                      <option value="new">새 시트로 만들기</option>
+                      <option value="append">현재 시트 아래에 추가</option>
+                      <option value="replace">현재 시트 덮어쓰기</option>
+                    </select>
+                  </label>
+                  <label class="field import-name-field" id="pasteSheetNameField">
+                    <span>새 시트명</span>
+                    <input id="pasteSheetName" placeholder="예: 기존 섭외현황 이식" />
+                  </label>
+                  <button class="primary-button" id="importPasteBtn">가져오기</button>
+                </div>
+                <p class="form-note" id="pastePreviewNote"></p>
+                <p class="form-note" id="pasteImportNote"></p>
+              </section>
+
+              <div class="table-wrap sheet-wrap">
+                <table id="sheetTable"></table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="counselors">
+          <div class="counselor-layout">
+            <form class="panel form-panel counselor-form" id="counselorForm">
+              <div class="panel-header">
+                <h2 id="counselorFormTitle">상담사 등록</h2>
+              </div>
+              <input name="id" type="hidden" />
+              <div class="form-row">
+                <label class="field">
+                  <span>예명</span>
+                  <input name="alias" required placeholder="예: 홍길동" />
+                </label>
+                <label class="field">
+                  <span>현재상태</span>
+                  <input name="currentStatus" placeholder="예: 관리필요" />
+                </label>
+              </div>
+              <div class="form-row three">
+                <label class="field">
+                  <span>분야</span>
+                  <input name="field" placeholder="예: 전화" />
+                </label>
+                <label class="field">
+                  <span>세부분야</span>
+                  <input name="subField" placeholder="예: 타로" />
+                </label>
+                <label class="field">
+                  <span>등록일</span>
+                  <input name="registeredAt" placeholder="예: 2026.06.11" />
+                </label>
+              </div>
+              <label class="field">
+                <span>관리사유</span>
+                <input name="reason" placeholder="예: 접속저조" />
+              </label>
+              <label class="field">
+                <span>최근 관리 이력</span>
+                <textarea name="recentHistory" rows="3"></textarea>
+              </label>
+              <label class="field">
+                <span>금주 관리내용</span>
+                <textarea name="weeklyAction" rows="3"></textarea>
+              </label>
+              <div class="form-row">
+                <label class="field">
+                  <span>관리 결과</span>
+                  <input name="result" placeholder="예: 모니터링중" />
+                </label>
+                <label class="field">
+                  <span>누적관리 횟수</span>
+                  <input name="manageCount" readonly placeholder="이전 내역 기준 자동 계산" />
+                </label>
+              </div>
+              <label class="field">
+                <span>비고</span>
+                <input name="note" />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="primary-button">저장</button>
+                <button type="button" class="secondary-button" id="cancelCounselorEditBtn">취소</button>
+              </div>
+            </form>
+
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <div>
+                  <p class="eyebrow" id="counselorSummary">0명</p>
+                  <h2>상담사 관리 목록</h2>
+                </div>
+                <div class="inline-actions">
+                  <input id="counselorSearch" class="search-input" placeholder="예명/관리사유 검색" />
+                  <select id="counselorStatusFilter" class="compact-select"></select>
+                </div>
+              </div>
+
+              <section class="paste-import compact-import">
+                <div class="panel-header split">
+                  <h3>이전 업무보고 불러오기</h3>
+                  <button type="button" class="secondary-button" id="importCounselorReportBtn">불러오기</button>
+                </div>
+                <input id="counselorReportImportInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <p class="form-note">작성 완료된 업무보고 엑셀을 불러오면 상담사 관리 이력이 누적되고 관리 횟수가 자동 계산됩니다.</p>
+              </section>
+
+              <section class="paste-import compact-import">
+                <div class="panel-header split">
+                  <h3>표 붙여넣기 가져오기</h3>
+                  <button type="button" class="secondary-button" id="clearCounselorPasteBtn">비우기</button>
+                </div>
+                <textarea id="counselorPasteInput" rows="5" placeholder="상담사 관리 엑셀 범위를 복사해서 붙여넣으세요. 첫 줄이 컬럼명이면 자동으로 맞춰 가져옵니다."></textarea>
+                <div class="import-options">
+                  <label><input id="counselorFirstRowHeader" type="checkbox" checked /> 첫 줄을 컬럼명으로 사용</label>
+                  <label><input id="replaceCounselorsOnImport" type="checkbox" /> 기존 목록을 비우고 가져오기</label>
+                  <button type="button" class="primary-button" id="importCounselorsBtn">가져오기</button>
+                </div>
+                <p class="form-note" id="counselorImportNote"></p>
+              </section>
+
+              <div class="table-wrap counselor-table-wrap">
+                <table class="counselor-table">
+                  <thead>
+                    <tr>
+                      <th>책무</th>
+                      <th>과업</th>
+                      <th>분야</th>
+                      <th>세부분야</th>
+                      <th>예명</th>
+                      <th>현재상태</th>
+                      <th>등록일</th>
+                      <th>관리사유</th>
+                      <th>최근 관리 이력</th>
+                      <th>금주 관리내용</th>
+                      <th>관리 결과</th>
+                      <th>누적관리 횟수</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="counselorTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="workReport">
+          <div class="report-builder">
+            <form class="panel form-panel" id="workReportForm">
+              <div class="panel-header">
+                <h2>업무보고 내용 설정</h2>
+              </div>
+              <label class="field">
+                <span>보고 제목</span>
+                <input name="title" required />
+              </label>
+              <label class="field">
+                <span>담당자 문구</span>
+                <input name="managerLine" required />
+              </label>
+              <label class="field">
+                <span>전달사항 제목</span>
+                <input name="noticeTitle" required />
+              </label>
+              <label class="field">
+                <span>전달사항</span>
+                <textarea name="notices" rows="8" required></textarea>
+              </label>
+              <label class="field">
+                <span>상담사 관리 요약</span>
+                <input name="counselorSummaryLine" />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="primary-button">설정 저장</button>
+                <button type="button" class="secondary-button" id="downloadWorkReportBtn">엑셀 다운로드</button>
+              </div>
+              <p class="form-note" id="workReportNote"></p>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <div>
+                  <p class="eyebrow" id="workReportSummary">상담사 0명</p>
+                  <h2>다운로드 미리보기</h2>
+                </div>
+              </div>
+              <div class="report-preview" id="workReportPreview"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="profileMaker">
+          <div class="profile-maker-shell">
+            <iframe class="profile-maker-frame" src="/profile-maker/index.html" title="프로필 제작"></iframe>
+          </div>
+        </section>
+        <section class="view" id="reports">
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>보고 대기</h2>
+              </div>
+              <div class="stack-list" id="pendingReports"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h2>보고 이력</h2>
+              </div>
+              <div class="stack-list" id="reportHistory"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="org">
+          <div class="section-grid">
+            <form class="panel form-panel" id="userForm">
+              <div class="panel-header">
+                <h2>사용자 권한 등록</h2>
+              </div>
+              <label class="field">
+                <span>관리 프로그램 이메일</span>
+                <input name="adminId" type="email" required placeholder="user@example.com" />
+              </label>
+              <label class="field">
+                <span>이름</span>
+                <input name="name" required placeholder="예: 홍길동" />
+              </label>
+              <label class="field">
+                <span>권한</span>
+                <select name="role">
+                  <option value="teamLead">팀장</option>
+                  <option value="partLead">파트장</option>
+                  <option value="member">파트원</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>파트</span>
+                <select name="part">
+                  <option>운영 1파트</option>
+                  <option>운영 2파트</option>
+                  <option>운영 3파트</option>
+                </select>
+              </label>
+              <button type="submit" class="primary-button">저장</button>
+              <p class="form-note" id="userFormNote"></p>
+            </form>
+            <section class="panel wide-panel">
+              <div class="panel-header split">
+                <h2>사용자 권한 목록</h2>
+                <button class="secondary-button" id="refreshUsersBtn">새로고침</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>이메일</th>
+                      <th>이름</th>
+                      <th>권한</th>
+                      <th>파트</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="userTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+          <div class="two-column org-summary">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>조직 구조</h2>
+              </div>
+              <div id="orgTree" class="org-tree"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h2>권한 기준</h2>
+              </div>
+              <div class="permission-grid">
+                <div><strong>팀장</strong><span>전체 업무 배정, 보고 확인, 시트/매뉴얼 관리</span></div>
+                <div><strong>파트장</strong><span>소속 파트 업무 배정, 파트원 보고 확인</span></div>
+                <div><strong>파트원</strong><span>본인 업무 수행, 숙지 완료, 완료 보고</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="emptyStateTemplate">
+      <div class="empty-state">등록된 항목이 없습니다.</div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

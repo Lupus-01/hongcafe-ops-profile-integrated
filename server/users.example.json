@@ -1,0 +1,20 @@
+[
+  {
+    "adminId": "legacy-admin-id",
+    "name": "김팀장",
+    "role": "teamLead",
+    "part": "운영팀"
+  },
+  {
+    "adminId": "legacy-part-lead-id",
+    "name": "이파트장",
+    "role": "partLead",
+    "part": "섭외파트"
+  },
+  {
+    "adminId": "legacy-member-id",
+    "name": "박파트원",
+    "role": "member",
+    "part": "섭외파트"
+  }
+]

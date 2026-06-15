@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HongCafe Agent Office</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="office-app">
+        <aside class="panel panel-left">
+            <div class="brand-block">
+                <p class="eyebrow">HongCafe AI Ops</p>
+                <h1>가상 에이전트 오피스</h1>
+                <p class="muted">서버 연결, 업무 지시, 에이전트 상태 관찰을 한 화면에서 관리하는 MVP입니다.</p>
+            </div>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>서버 연결</h2>
+                    <span id="connection-badge" class="badge badge-offline">Offline</span>
+                </div>
+                <label class="field">
+                    <span>서버 별칭</span>
+                    <input id="server-name" type="text" value="iwinv-main">
+                </label>
+                <label class="field">
+                    <span>호스트</span>
+                    <input id="server-host" type="text" value="api.your-server.com">
+                </label>
+                <label class="field">
+                    <span>연결 메모</span>
+                    <input id="server-note" type="text" value="OpenAI 오케스트레이터 배포 예정">
+                </label>
+                <button id="connect-btn" class="btn btn-primary">서버 연결 준비</button>
+                <p class="helper">현재는 UI 기반 시뮬레이션입니다. 이후 이 영역에 실제 API/WebSocket 연결을 붙이면 됩니다.</p>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>업무 지시</h2>
+                    <span class="badge badge-neutral">Commander</span>
+                </div>
+                <label class="field">
+                    <span>메인 요청</span>
+                    <textarea id="mission-input" rows="5">홍카페용 AI 가상 사무실을 만들고, PM이 작업을 분배하고 개발/QA 에이전트가 협업하도록 구성해줘.</textarea>
+                </label>
+                <div class="button-row">
+                    <button id="dispatch-btn" class="btn btn-accent">업무 시작</button>
+                    <button id="review-btn" class="btn btn-secondary">리뷰 라운드</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>작업 큐</h2>
+                    <span id="queue-count" class="badge badge-neutral">0건</span>
+                </div>
+                <ul id="task-queue" class="queue-list"></ul>
+            </section>
+        </aside>
+
+        <main class="panel panel-center">
+            <div class="top-strip">
+                <div>
+                    <p class="eyebrow">Live Office</p>
+                    <h2>픽셀 사무실</h2>
+                </div>
+                <div class="top-strip-meta">
+                    <div class="meta-pill">
+                        <span>활성 에이전트</span>
+                        <strong id="active-count">0</strong>
+                    </div>
+                    <div class="meta-pill">
+                        <span>서브 에이전트</span>
+                        <strong id="subagent-count">0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <section class="office-scene card">
+                <div class="office-grid">
+                    <div class="zone zone-wall wall-top"></div>
+                    <div class="zone zone-wall wall-right"></div>
+                    <div class="zone zone-floor floor-main"></div>
+                    <div class="zone desk desk-pm"><span>PM Desk</span></div>
+                    <div class="zone desk desk-dev"><span>Dev Desk</span></div>
+                    <div class="zone desk desk-qa"><span>QA Desk</span></div>
+                    <div class="zone meeting-table"><span>Review</span></div>
+                    <div class="zone plant plant-a"></div>
+                    <div class="zone plant plant-b"></div>
+                    <div class="zone whiteboard"><span>Backlog</span></div>
+                    <div id="agent-layer" class="agent-layer"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>라이브 로그</h2>
+                    <span class="badge badge-neutral">Observer</span>
+                </div>
+                <ul id="event-log" class="log-list"></ul>
+            </section>
+        </main>
+
+        <aside class="panel panel-right">
+            <section class="card">
+                <div class="section-title">
+                    <h2>에이전트 상세</h2>
+                    <span id="selected-role" class="badge badge-neutral">선택 없음</span>
+                </div>
+                <div id="agent-detail" class="agent-detail empty">
+                    왼쪽 사무실에서 에이전트를 클릭하면 상세 정보가 표시됩니다.
+                </div>
+                <div class="button-stack">
+                    <button id="spawn-subagent-btn" class="btn btn-primary" disabled>서브 에이전트 추가</button>
+                    <button id="focus-btn" class="btn btn-secondary" disabled>집중 모드 전환</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>팀 로스터</h2>
+                    <span class="badge badge-neutral">Realtime</span>
+                </div>
+                <div id="roster" class="roster"></div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>산출물 미리보기</h2>
+                    <span class="badge badge-neutral">Draft</span>
+                </div>
+                <div id="output-preview" class="output-preview"></div>
+            </section>
+        </aside>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

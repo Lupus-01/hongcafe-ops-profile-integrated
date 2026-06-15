@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상담사 프로필 빌더 V8</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="pb-layout pb-theme-sinjeom" id="pb-app">
+        <aside class="pb-sidebar">
+            <div class="pb-sidebar-header">
+                <h2>프로필 빌더 <span>V8</span></h2>
+                <p>PPT 또는 Excel 내용을 바탕으로 상담사 소개 페이지를 자동 구성합니다.</p>
+            </div>
+
+            <div class="pb-section">
+                <div class="pb-theme-selectors">
+                    <button class="pb-theme-btn" data-theme="pb-theme-tarot" data-color="#6335B4" data-bg="#f4f0fa">타로</button>
+                    <button class="pb-theme-btn" data-theme="pb-theme-saju" data-color="#D67A00" data-bg="#fdf8f2">사주</button>
+                    <button class="pb-theme-btn active" data-theme="pb-theme-sinjeom" data-color="#C21129" data-bg="#fdf0f1">신점</button>
+                </div>
+            </div>
+
+            <section class="pb-section pb-ai-panel">
+                <div class="pb-ai-header">
+                    <h3>문서 업로드 생성</h3>
+                    <span class="pb-ai-badge">지원 .pptx / .xlsx</span>
+                </div>
+                <div class="pb-ai-form">
+                    <label class="pb-ai-field">
+                        <span>결과 템플릿</span>
+                        <select id="pb-ppt-template">
+                            <option value="tarot-ppt">타로형 결과</option>
+                            <option value="saju-ppt">사주형 결과</option>
+                            <option value="sinjeom-ppt" selected>신점형 결과</option>
+                        </select>
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>PPT / Excel 파일 업로드</span>
+                        <input id="pb-ppt-file" type="file" accept=".pptx,.xlsx,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>이미지 생성 스타일</span>
+                        <input id="pb-ppt-image-style" type="text" placeholder="예: 부드러운 스튜디오 조명, 따뜻한 톤, 프리미엄 브랜드 무드">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>이미지 생성 방식</span>
+                        <div class="pb-toggle-group" data-toggle-target="pb-ppt-generate-image">
+                            <button class="pb-toggle-btn is-active" type="button" data-value="on">이미지 ON</button>
+                            <button class="pb-toggle-btn" type="button" data-value="off">이미지 OFF</button>
+                        </div>
+                        <input id="pb-ppt-generate-image" type="checkbox" checked hidden>
+                    </label>
+                    <p id="pb-ppt-generate-image-help" class="pb-ai-inline-help">이미지를 끄면 사진 영역 없이 텍스트 전용 프로필로 정리됩니다.</p>
+                    <button id="pb-ppt-generate-btn" class="pb-action-btn primary" type="button">문서로 결과 생성</button>
+                    <p id="pb-ppt-status" class="pb-ai-status">PPT 또는 Excel 내용을 읽어 웹용 소개 페이지로 재구성합니다.</p>
+                    <div id="pb-ppt-image-issue" class="pb-issue-panel" hidden></div>
+                </div>
+            </section>
+
+            <section class="pb-section pb-ai-panel">
+                <div class="pb-ai-header">
+                    <h3>직접 입력 생성</h3>
+                    <span class="pb-ai-badge">백업 입력 방식</span>
+                </div>
+                <div class="pb-ai-form">
+                    <label class="pb-ai-field">
+                        <span>분야</span>
+                        <select id="pb-ai-template">
+                            <option value="tarot-ppt">타로</option>
+                            <option value="saju-ppt">사주</option>
+                            <option value="sinjeom-ppt" selected>신점</option>
+                        </select>
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>상담사명</span>
+                        <input id="pb-ai-name" type="text" placeholder="예: 해월 선생님">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>대표 전문분야</span>
+                        <input id="pb-ai-specialty" type="text" placeholder="예: 속마음, 관계 흐름, 진로 방향">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>상담 톤</span>
+                        <input id="pb-ai-tone" type="text" placeholder="예: 차분하고 현실적인 조언">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>경력/강점</span>
+                        <textarea id="pb-ai-career" rows="3" placeholder="예: 12년 상담 경력, 현실적인 해석, 속마음 상담 강점"></textarea>
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>프로필 이미지 스타일</span>
+                        <input id="pb-ai-image-style" type="text" placeholder="예: 부드러운 스튜디오 조명, 단정한 아이보리 톤">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span>이미지 생성 방식</span>
+                        <div class="pb-toggle-group" data-toggle-target="pb-ai-generate-image">
+                            <button class="pb-toggle-btn is-active" type="button" data-value="on">이미지 ON</button>
+                            <button class="pb-toggle-btn" type="button" data-value="off">이미지 OFF</button>
+                        </div>
+                        <input id="pb-ai-generate-image" type="checkbox" checked hidden>
+                    </label>
+                    <p id="pb-ai-generate-image-help" class="pb-ai-inline-help">이미지를 끄면 사진 영역 없이 텍스트 전용 프로필로 정리됩니다.</p>
+                    <button id="pb-ai-generate-btn" class="pb-action-btn" type="button">직접 입력으로 생성</button>
+                    <p id="pb-ai-status" class="pb-ai-status">직접 입력한 정보로 AI 소개 페이지를 생성합니다.</p>
+                    <div id="pb-ai-image-issue" class="pb-issue-panel" hidden></div>
+                </div>
+            </section>
+
+            <section class="pb-section pb-ai-panel pb-typo-panel">
+                <div class="pb-ai-header">
+                    <h3>타이포 설정</h3>
+                    <span class="pb-ai-badge">결과 스타일</span>
+                </div>
+                <div class="pb-ai-form">
+                    <label class="pb-ai-field">
+                        <span>폰트</span>
+                        <select id="pb-font-family">
+                            <option value="'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif" selected>Pretendard</option>
+                            <option value="'Noto Serif KR', 'Nanum Myeongjo', serif">Noto Serif KR</option>
+                            <option value="'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">고딕 계열</option>
+                            <option value="'Nanum Myeongjo', 'Batang', serif">명조 계열</option>
+                        </select>
+                    </label>
+                    <label class="pb-ai-field">
+                        <span class="pb-range-label">제목 크기 <strong id="pb-title-size-value">42px</strong></span>
+                        <input id="pb-title-size" type="range" min="32" max="56" step="1" value="42">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span class="pb-range-label">본문 크기 <strong id="pb-body-size-value">16px</strong></span>
+                        <input id="pb-body-size" type="range" min="14" max="22" step="1" value="16">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span class="pb-range-label">포인트 크기 <strong id="pb-point-size-value">17px</strong></span>
+                        <input id="pb-point-size" type="range" min="15" max="24" step="1" value="17">
+                    </label>
+                    <label class="pb-ai-field">
+                        <span class="pb-range-label">줄 간격 <strong id="pb-line-height-value">1.8</strong></span>
+                        <input id="pb-line-height" type="range" min="1.4" max="2.2" step="0.1" value="1.8">
+                    </label>
+                </div>
+            </section>
+
+            <section class="pb-section pb-ai-panel">
+                <div class="pb-ai-header">
+                    <h3>생성 히스토리</h3>
+                    <span class="pb-ai-badge">최근 작업</span>
+                </div>
+                <div class="pb-ai-form">
+                    <div id="pb-history-list" class="pb-history-list"></div>
+                    <p id="pb-history-empty" class="pb-ai-status">아직 저장된 생성 결과가 없습니다.</p>
+                </div>
+            </section>
+
+            <section class="pb-section pb-ai-panel">
+                <div class="pb-ai-header">
+                    <h3>부분 재생성</h3>
+                    <span class="pb-ai-badge">슬롯 단위</span>
+                </div>
+                <div class="pb-ai-form">
+                    <div class="pb-slot-actions">
+                        <button class="pb-action-btn secondary pb-slot-regenerate-btn" type="button" data-slot-key="headline">헤드라인 다시</button>
+                        <button class="pb-action-btn secondary pb-slot-regenerate-btn" type="button" data-slot-key="intro">인트로 다시</button>
+                        <button class="pb-action-btn secondary pb-slot-regenerate-btn" type="button" data-slot-key="bulletPoints">포인트 다시</button>
+                        <button class="pb-action-btn secondary pb-slot-regenerate-btn" type="button" data-slot-key="closing">마무리 다시</button>
+                    </div>
+                    <p id="pb-slot-status" class="pb-ai-status">결과가 생성되면 필요한 부분만 다시 만들 수 있습니다.</p>
+                </div>
+            </section>
+
+            <div class="pb-section pb-flex-fill pb-palette-container">
+                <div class="pb-palette-group">
+                    <h3 class="pb-subtitle">프로필 & 소개</h3>
+                    <div class="pb-tools-grid">
+                        <div class="pb-tool" draggable="true" data-type="hero">대표 프로필</div>
+                        <div class="pb-tool" draggable="true" data-type="tarot-ppt">타로형</div>
+                        <div class="pb-tool" draggable="true" data-type="saju-ppt">사주형</div>
+                        <div class="pb-tool" draggable="true" data-type="sinjeom-ppt">신점형</div>
+                    </div>
+                </div>
+
+                <div class="pb-palette-group">
+                    <h3 class="pb-subtitle">콘텐츠</h3>
+                    <div class="pb-tools-grid">
+                        <div class="pb-tool" draggable="true" data-type="text">본문 텍스트</div>
+                        <div class="pb-tool" draggable="true" data-type="image">가이드 이미지</div>
+                        <div class="pb-tool" draggable="true" data-type="divider">기본 구분선</div>
+                        <div class="pb-tool" draggable="true" data-type="spacer">여백</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pb-actions">
+                <button id="pb-preview-btn" class="pb-action-btn" type="button">미리보기</button>
+                <button id="pb-clear-btn" class="pb-action-btn danger" type="button">전체 초기화</button>
+                <button id="pb-code-generate-btn" class="pb-action-btn secondary" type="button">코드 생성</button>
+                <button id="pb-export-btn" class="pb-action-btn primary" type="button">프로필 이미지 저장</button>
+            </div>
+        </aside>
+
+        <main class="pb-canvas-wrapper">
+            <div class="pb-canvas" id="pb-canvas">
+                <div class="pb-empty-state">
+                    <div class="pb-empty-icon">DOC</div>
+                    <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
+                </div>
+            </div>
+        </main>
+
+        <input type="file" id="pb-image-uploader" accept="image/*" hidden>
+
+        <div class="pb-modal" id="pb-modal">
+            <div class="pb-modal-content">
+                <div class="pb-modal-header">
+                    <h3>고객 화면 미리보기</h3>
+                    <button id="pb-close-modal" class="pb-close-btn" type="button">&times;</button>
+                </div>
+                <div class="pb-modal-body" id="pb-preview-area"></div>
+            </div>
+        </div>
+
+        <div class="pb-modal" id="pb-code-modal">
+            <div class="pb-modal-content pb-code-modal-content">
+                <div class="pb-modal-header pb-dark-header">
+                    <h3><span style="color:#e5c07b;">&lt;/&gt;</span> Exported HTML &amp; CSS</h3>
+                    <button id="pb-close-code-modal" class="pb-close-btn dark" type="button">&times;</button>
+                </div>
+                <div class="pb-modal-body pb-dark-body">
+                    <div class="pb-code-toolbar">
+                        <span>profile.html</span>
+                        <button id="pb-copy-btn" class="pb-copy-badge" type="button">복사하기</button>
+                    </div>
+                    <textarea id="pb-code-output" readonly spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/vendor/html2canvas/html2canvas.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
