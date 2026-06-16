@@ -410,19 +410,22 @@ button {
 
 body[data-view="sheets"] .view.active,
 body[data-view="counselors"] .view.active,
-body[data-view="duties"] .view.active {
+body[data-view="duties"] .view.active,
+body[data-view="workReport"] .view.active {
   padding: 8px;
 }
 
 body[data-view="sheets"] .panel,
 body[data-view="counselors"] .panel,
-body[data-view="duties"] .panel {
+body[data-view="duties"] .panel,
+body[data-view="workReport"] .panel {
   padding: 10px;
 }
 
 body[data-view="sheets"] .panel-header,
 body[data-view="counselors"] .panel-header,
-body[data-view="duties"] .panel-header {
+body[data-view="duties"] .panel-header,
+body[data-view="workReport"] .panel-header {
   margin-bottom: 8px;
 }
 
@@ -793,23 +796,57 @@ th:last-child {
   min-width: 0;
 }
 
-.counselor-layout,
-.report-builder {
-  display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-  gap: 10px;
+.counselor-workspace > .counselor-form {
+  grid-template-columns: repeat(6, minmax(145px, 1fr));
+  position: static;
+  max-height: none;
+  overflow: visible;
 }
 
-.counselor-form {
-  align-self: start;
-  position: sticky;
-  top: 10px;
-  max-height: calc(100vh - 48px);
-  overflow: auto;
+.counselor-workspace > .counselor-form .field:has(textarea) {
+  grid-column: span 2;
+}
+
+.counselor-workspace > .counselor-form .form-actions {
+  grid-column: span 2;
+  flex-wrap: wrap;
+}
+
+.counselor-workspace > .wide-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-content: start;
+  min-height: calc(100vh - 340px);
+}
+
+.counselor-workspace > .wide-panel > .panel-header,
+.counselor-workspace > .wide-panel > .counselor-table-wrap {
+  grid-column: 1 / -1;
+}
+
+.report-workspace > #workReportForm {
+  grid-template-columns: minmax(180px, 1fr) minmax(210px, 1.1fr) minmax(180px, 1fr) minmax(240px, 1.2fr) auto;
+}
+
+.report-workspace > #workReportForm .field:has(textarea) {
+  grid-column: span 2;
+}
+
+.report-workspace > #workReportForm textarea {
+  min-height: 96px;
+}
+
+.report-workspace > #workReportForm .form-actions {
+  flex-wrap: wrap;
+}
+
+.report-workspace > .wide-panel {
+  min-height: calc(100vh - 300px);
 }
 
 .compact-import {
-  margin-bottom: 10px;
+  margin-bottom: 0;
   padding: 10px;
   background: var(--surface-soft);
   border: 1px solid var(--line);
@@ -822,7 +859,8 @@ th:last-child {
 }
 
 .counselor-table-wrap {
-  max-height: calc(100vh - 310px);
+  min-height: 360px;
+  max-height: calc(100vh - 390px);
 }
 
 .counselor-table th {
@@ -867,6 +905,9 @@ th:last-child {
 .report-preview {
   display: grid;
   gap: 12px;
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .report-preview article {
@@ -1510,9 +1551,7 @@ th:last-child {
 
   .section-grid,
   .two-column,
-  .sheet-layout,
-  .counselor-layout,
-  .report-builder {
+  .sheet-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1521,6 +1560,14 @@ th:last-child {
   .knowledge-workspace > .form-panel,
   .manual-workspace > .form-panel,
   .duty-workspace > .duty-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .counselor-workspace > .wide-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .report-workspace > #workReportForm {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1556,6 +1603,11 @@ th:last-child {
 
   .sheet-viewbar {
     grid-template-columns: 1fr;
+  }
+
+  .counselor-table-wrap,
+  .report-preview {
+    max-height: none;
   }
 }
 
@@ -1593,6 +1645,22 @@ th:last-child {
 
   .stacked-workspace > .form-panel .field:has(textarea) {
     grid-column: auto;
+  }
+
+  .counselor-workspace > .counselor-form .form-actions {
+    grid-column: auto;
+  }
+
+  .report-workspace > #workReportForm {
+    grid-template-columns: 1fr;
+  }
+
+  .report-workspace > #workReportForm .field:has(textarea) {
+    grid-column: auto;
+  }
+
+  .counselor-table-wrap {
+    min-height: 320px;
   }
 
   .compact-select,
