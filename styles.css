@@ -465,6 +465,12 @@ body[data-view="duties"] .panel-header {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.stacked-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 .panel {
   min-width: 0;
   padding: 12px;
@@ -492,6 +498,63 @@ body[data-view="duties"] .panel-header {
 
 .form-panel {
   align-self: start;
+}
+
+.stacked-workspace > .form-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.stacked-workspace > .form-panel .panel-header,
+.stacked-workspace > .form-panel > .form-note {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.stacked-workspace > .form-panel .field {
+  margin-bottom: 0;
+}
+
+.stacked-workspace > .form-panel .form-row {
+  display: contents;
+}
+
+.stacked-workspace > .form-panel .form-actions,
+.stacked-workspace > .form-panel > button {
+  align-self: end;
+}
+
+.stacked-workspace > .wide-panel {
+  min-height: calc(100vh - 260px);
+}
+
+.stacked-workspace > .wide-panel > .stack-list,
+.stacked-workspace > .wide-panel > .kanban {
+  max-height: calc(100vh - 330px);
+}
+
+.stacked-workspace > .wide-panel > .stack-list {
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.task-workspace > .task-assign-panel {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(140px, 0.8fr) minmax(150px, 0.8fr) minmax(260px, 1.4fr) auto;
+}
+
+.knowledge-workspace > .form-panel,
+.manual-workspace > .form-panel {
+  grid-template-columns: minmax(220px, 1.3fr) minmax(160px, 0.8fr) minmax(320px, 2fr) minmax(180px, 1fr) auto;
+}
+
+.duty-workspace > .duty-form {
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+}
+
+.stacked-workspace > .form-panel .field:has(textarea) {
+  grid-column: span 2;
 }
 
 .form-row {
@@ -870,17 +933,9 @@ th:last-child {
   font-size: 12px;
 }
 
-.duty-layout {
-  display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-  gap: 10px;
-}
-
 .duty-form {
-  position: sticky;
-  top: 10px;
-  max-height: calc(100vh - 48px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .duty-detail {
@@ -970,7 +1025,7 @@ th:last-child {
 }
 
 .duty-table-wrap {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 360px);
   border: 1px solid #b9c7d8;
   border-radius: 4px;
   background: #ffffff;
@@ -1456,10 +1511,17 @@ th:last-child {
   .section-grid,
   .two-column,
   .sheet-layout,
-  .duty-layout,
   .counselor-layout,
   .report-builder {
     grid-template-columns: 1fr;
+  }
+
+  .stacked-workspace > .form-panel,
+  .task-workspace > .task-assign-panel,
+  .knowledge-workspace > .form-panel,
+  .manual-workspace > .form-panel,
+  .duty-workspace > .duty-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sheet-tools {
@@ -1519,6 +1581,18 @@ th:last-child {
 
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stacked-workspace > .form-panel,
+  .task-workspace > .task-assign-panel,
+  .knowledge-workspace > .form-panel,
+  .manual-workspace > .form-panel,
+  .duty-workspace > .duty-form {
+    grid-template-columns: 1fr;
+  }
+
+  .stacked-workspace > .form-panel .field:has(textarea) {
+    grid-column: auto;
   }
 
   .compact-select,
