@@ -1908,12 +1908,6 @@ function bindEvents() {
     reader.readAsText(file);
   });
 
-  $("#resetBtn").addEventListener("click", () => {
-    if (!confirm("저장된 업무 데이터를 초기화할까요?")) return;
-    state = clone(defaultData);
-    renderAll();
-  });
-
   document.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;

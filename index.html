@@ -94,7 +94,6 @@
               ↑
               <input id="importInput" type="file" accept="application/json" />
             </label>
-            <button class="danger-button" id="resetBtn">초기화</button>
           </div>
         </header>
 
@@ -407,23 +406,25 @@
                 <button type="submit" class="primary-button">새 시트</button>
               </form>
 
-              <button class="secondary-button sheet-list-toggle" id="sheetListToggle">시트 목록</button>
-              <label class="field">
-                <span>빠른 선택</span>
-                <select id="sheetQuickSelect"></select>
-              </label>
-              <label class="field sheet-search">
-                <span>검색</span>
-                <input id="sheetSearch" placeholder="시트명 검색" />
-              </label>
-              <label class="field">
-                <span>정렬</span>
-                <select id="sheetSortMode">
-                  <option value="recent">최근 생성순</option>
-                  <option value="name">이름순</option>
-                  <option value="rows">행 많은 순</option>
-                </select>
-              </label>
+              <div class="sheet-filterbar">
+                <button class="secondary-button sheet-list-toggle" id="sheetListToggle">시트 목록</button>
+                <label class="field">
+                  <span>빠른 선택</span>
+                  <select id="sheetQuickSelect"></select>
+                </label>
+                <label class="field sheet-search">
+                  <span>검색</span>
+                  <input id="sheetSearch" placeholder="시트명 검색" />
+                </label>
+                <label class="field">
+                  <span>정렬</span>
+                  <select id="sheetSortMode">
+                    <option value="recent">최근 생성순</option>
+                    <option value="name">이름순</option>
+                    <option value="rows">행 많은 순</option>
+                  </select>
+                </label>
+              </div>
               <div class="sheet-tabs" id="sheetTabs"></div>
             </section>
             <section class="panel sheet-panel">

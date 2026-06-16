@@ -1046,20 +1046,34 @@ th:last-child {
 
 .sheet-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 .sheet-tools {
-  align-self: start;
   position: sticky;
-  top: 10px;
-  max-height: calc(100vh - 48px);
-  overflow: auto;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  overflow: visible;
+}
+
+.sheet-tools .panel-header {
+  margin-bottom: 0;
 }
 
 .sheet-form {
-  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 220px) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 0;
+}
+
+.sheet-form .field {
+  margin-bottom: 0;
 }
 
 .sheet-count {
@@ -1067,27 +1081,40 @@ th:last-child {
   font-size: 13px;
 }
 
+.sheet-filterbar {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 240px) minmax(260px, 1fr) minmax(170px, 220px);
+  gap: 10px;
+  align-items: end;
+}
+
+.sheet-filterbar .field {
+  margin-bottom: 0;
+}
+
 .sheet-list-toggle {
-  width: 100%;
-  margin-bottom: 10px;
+  width: auto;
+  min-width: 112px;
+  margin-bottom: 0;
 }
 
 .sheet-search {
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .sheet-tabs {
-  display: grid;
-  gap: 5px;
-  max-height: 360px;
-  overflow: auto;
-  padding-right: 4px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
 }
 
 .sheet-tab {
   display: grid;
   gap: 2px;
-  width: 100%;
+  flex: 0 0 190px;
+  width: 190px;
   min-height: 34px;
   padding: 6px 9px;
   text-align: left;
@@ -1129,7 +1156,7 @@ th:last-child {
 }
 
 .sheet-panel {
-  min-height: 660px;
+  min-height: calc(100vh - 150px);
 }
 
 .sheet-viewbar {
@@ -1241,13 +1268,14 @@ th:last-child {
 }
 
 .sheet-wrap {
-  max-height: calc(100vh - 300px);
+  max-height: calc(100vh - 330px);
+  min-height: 430px;
 }
 
 #sheetTable th,
 #sheetTable td {
-  min-width: 142px;
-  max-width: 260px;
+  min-width: 180px;
+  max-width: 360px;
   background: #ffffff;
 }
 
@@ -1439,6 +1467,15 @@ th:last-child {
     max-height: none;
   }
 
+  .sheet-form,
+  .sheet-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sheet-list-toggle {
+    min-height: 38px;
+  }
+
   .duty-form,
   .counselor-form {
     position: static;
@@ -1487,6 +1524,21 @@ th:last-child {
   .compact-select,
   .search-input {
     max-width: none;
+  }
+
+  .sheet-form,
+  .sheet-filterbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet-tab {
+    flex-basis: 170px;
+    width: 170px;
+  }
+
+  .sheet-wrap {
+    max-height: none;
+    min-height: 360px;
   }
 }
 
