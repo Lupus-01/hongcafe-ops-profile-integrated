@@ -94,7 +94,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/users" && req.method === "POST") {
-      if (!ensureTeamLead(req, res)) return;
+      if (!ensureOrgManager(req, res)) return;
       const body = await readJsonBody(req);
       const user = saveUserMapping(body);
       sendJson(res, 201, { user });
@@ -102,7 +102,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
-      if (!ensureTeamLead(req, res)) return;
+      if (!ensureOrgManager(req, res)) return;
       const adminId = decodeURIComponent(url.pathname.replace("/api/users/", ""));
       deleteUserMapping(adminId, getSessionUser(req));
       sendJson(res, 200, { ok: true });
@@ -512,9 +512,18 @@ function writeUsers(users) {
 
 function normalizePart(part) {
   const value = String(part || "").trim();
-  const legacyParts = new Set(["운영 1파트", "운영 2파트", "운영 3파트", "섭외파트", "콘텐츠파트", "CS파트"]);
-  if (!value || legacyParts.has(value)) return "운영팀";
+  const partMap = {
+    "": "운영 1파트",
+    섭외파트: "운영 1파트",
+    콘텐츠파트: "운영 2파트",
+    CS파트: "운영 3파트",
+  };
+  if (Object.prototype.hasOwnProperty.call(partMap, value)) return partMap[value];
   return value;
+}
+
+function partForRole(role, part) {
+  return role === "teamLead" ? "운영팀" : normalizePart(part);
 }
 
 function saveUserMapping(body) {
@@ -546,9 +555,9 @@ function normalizeUserMapping(body) {
   const adminId = String(body?.adminId || "").trim();
   const name = String(body?.name || "").trim();
   const role = String(body?.role || "").trim();
-  const part = normalizePart(body?.part);
+  const part = partForRole(role, body?.part);
   const allowedRoles = new Set(["teamLead", "partLead", "member"]);
-  const allowedParts = new Set(["운영팀"]);
+  const allowedParts = new Set(["운영팀", "운영 1파트", "운영 2파트", "운영 3파트"]);
 
   if (!adminId) throw badRequest("이메일/아이디를 입력해주세요.");
   if (!name) throw badRequest("이름을 입력해주세요.");
@@ -563,7 +572,7 @@ function sanitizeUser(user) {
     adminId: user.adminId,
     name: user.name,
     role: user.role,
-    part: normalizePart(user.part),
+    part: partForRole(user.role, user.part),
   };
 }
 
@@ -628,6 +637,10 @@ function ensureOrgViewer(req, res) {
   }
 
   return true;
+}
+
+function ensureOrgManager(req, res) {
+  return ensureOrgViewer(req, res);
 }
 
 function setSessionCookie(res, sessionId) {

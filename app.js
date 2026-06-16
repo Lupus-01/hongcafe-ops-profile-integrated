@@ -9,8 +9,12 @@ const COUNSELOR_REPORT_IMPORT_URL = "/api/reports/import-counselors";
 
 const statusFlow = ["대기", "진행중", "완료 보고", "확인 완료", "반려"];
 const activeTaskStatuses = ["대기", "진행중", "완료 보고", "반려"];
-const opsParts = ["운영팀"];
-const legacyOpsParts = ["운영 1파트", "운영 2파트", "운영 3파트", "섭외파트", "콘텐츠파트", "CS파트"];
+const opsParts = ["운영 1파트", "운영 2파트", "운영 3파트"];
+const legacyPartMap = {
+  섭외파트: "운영 1파트",
+  콘텐츠파트: "운영 2파트",
+  CS파트: "운영 3파트",
+};
 const counselorFields = [
   "responsibility",
   "task",
@@ -186,8 +190,15 @@ function clone(value) {
 
 function normalizePart(part) {
   const value = String(part || "").trim();
-  if (!value || legacyOpsParts.includes(value)) return "운영팀";
+  if (!value) return "운영 1파트";
+  if (value === "운영팀") return "운영팀";
+  if (opsParts.includes(value)) return value;
+  if (legacyPartMap[value]) return legacyPartMap[value];
   return value;
+}
+
+function partForRole(role, part) {
+  return role === "teamLead" ? "운영팀" : normalizePart(part);
 }
 
 function mergeDefaultState(saved) {
@@ -338,7 +349,7 @@ function showAuthenticatedApp() {
 function applyCurrentUser() {
   if (!currentUser) return;
 
-  currentUser.part = normalizePart(currentUser.part);
+  currentUser.part = partForRole(currentUser.role, currentUser.part);
   state.activeRole = currentUser.role;
   const roleSelect = $("#roleSelect");
   roleSelect.value = currentUser.role;
@@ -530,14 +541,14 @@ function getUsers() {
       id: user.adminId,
       name: user.name,
       role: roleLabel(user.role),
-      part: normalizePart(user.part),
+      part: partForRole(user.role, user.part),
     }));
   }
 
   return [
     state.org.teamLead,
     ...state.org.parts.flatMap((part) => [part.lead, ...part.members]),
-  ].map((user) => ({ ...user, part: normalizePart(user.part) }));
+  ].map((user) => ({ ...user, part: partForRole(user.role === "팀장" ? "teamLead" : user.role === "파트장" ? "partLead" : "member", user.part) }));
 }
 
 function getRoleUser() {
@@ -546,13 +557,13 @@ function getRoleUser() {
       id: currentUser.adminId,
       name: currentUser.name,
       role: roleLabel(currentUser.role),
-      part: normalizePart(currentUser.part),
+      part: partForRole(currentUser.role, currentUser.part),
     };
   }
 
   if (state.activeRole === "teamLead") return { ...state.org.teamLead, part: "운영팀" };
-  if (state.activeRole === "partLead") return { ...state.org.parts[0].lead, part: "운영팀" };
-  return { ...state.org.parts[0].members[0], part: "운영팀" };
+  if (state.activeRole === "partLead") return { ...state.org.parts[0].lead, part: "운영 1파트" };
+  return { ...state.org.parts[0].members[0], part: "운영 1파트" };
 }
 
 function normalizeTask(task) {
@@ -715,7 +726,7 @@ function fillSelects() {
   $$("select[name='part']").forEach((select) => {
     const current = normalizePart(select.value);
     select.innerHTML = dutyPartOptions;
-    select.value = opsParts.includes(current) ? current : "운영팀";
+    select.value = opsParts.includes(current) ? current : "운영 1파트";
   });
   $("#dutyFilter").innerHTML = partOptions;
   $("select[name='assignee']").innerHTML = userOptions;
@@ -851,7 +862,7 @@ function renderTasks() {
   $("#taskAssignNote").textContent = canCreateTasks()
     ? state.activeRole === "teamLead"
       ? "팀장은 운영팀 전체의 파트장과 파트원에게 업무를 배정할 수 있습니다."
-      : "파트장은 운영팀 파트원에게 업무를 배정할 수 있습니다."
+      : "파트장은 자기 파트의 파트원에게 업무를 배정할 수 있습니다."
     : "파트원은 업무 배정 권한이 없으며, 배정받은 업무만 확인할 수 있습니다.";
 
   let tasks = visibleTasks();
@@ -1189,20 +1200,42 @@ function reportItem(report) {
 
 function renderOrg() {
   const users = userMappings.length
-    ? userMappings.map((user) => ({ ...user, roleName: roleLabel(user.role), part: normalizePart(user.part) }))
-    : getUsers().map((user) => ({ adminId: user.id, name: user.name, roleName: user.role, part: normalizePart(user.part) }));
+    ? userMappings.map((user) => ({ ...user, roleName: roleLabel(user.role), part: partForRole(user.role, user.part) }))
+    : getUsers().map((user) => ({ adminId: user.id, name: user.name, roleName: user.role, part: user.part }));
   const teamLeads = users.filter((user) => user.roleName === "팀장");
-  const partLeads = users.filter((user) => user.roleName === "파트장");
-  const members = users.filter((user) => user.roleName === "파트원");
   const teamLeadNodes = teamLeads.length
     ? teamLeads.map((leader) => `<div class="org-node"><strong>${escapeHtml(leader.name)} · 팀장</strong><span>운영팀 총괄</span></div>`).join("")
     : '<div class="org-node"><strong>팀장 미지정</strong><span>운영팀 총괄</span></div>';
-  const partLeadNodes = partLeads.length
-    ? partLeads.map((leader) => `<div class="org-node"><strong>${escapeHtml(leader.name)} · 파트장</strong><span>운영팀</span></div>`).join("")
-    : '<div class="empty-state">파트장이 없습니다.</div>';
-  const memberNodes = members.length
-    ? members.map((member) => `<div class="org-node"><strong>${escapeHtml(member.name)} · 파트원</strong><span>운영팀</span></div>`).join("")
-    : '<div class="empty-state">파트원이 없습니다.</div>';
+  const partNodes = opsParts
+    .map((part) => {
+      const partLeads = users.filter((user) => user.roleName === "파트장" && user.part === part);
+      const members = users.filter((user) => user.roleName === "파트원" && user.part === part);
+      const partLeadNodes = partLeads.length
+        ? partLeads.map((leader) => `<div class="org-node"><strong>${escapeHtml(leader.name)} · 파트장</strong><span>${escapeHtml(part)}</span></div>`).join("")
+        : '<div class="empty-state">파트장이 없습니다.</div>';
+      const memberNodes = members.length
+        ? members.map((member) => `<div class="org-node"><strong>${escapeHtml(member.name)} · 파트원</strong><span>${escapeHtml(part)}</span></div>`).join("")
+        : '<div class="empty-state">파트원이 없습니다.</div>';
+      return `
+        <div class="org-node">
+          <strong>${escapeHtml(part)}</strong>
+          <span>파트장은 해당 파트의 파트원에게 업무를 배정할 수 있습니다.</span>
+          <div class="org-children">
+            <div class="org-node">
+              <strong>파트장</strong>
+              <span>${escapeHtml(part)}</span>
+              <div class="org-children">${partLeadNodes}</div>
+            </div>
+            <div class="org-node">
+              <strong>파트원</strong>
+              <span>${escapeHtml(part)}</span>
+              <div class="org-children">${memberNodes}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 
   $("#orgTree").innerHTML = `
     <div class="org-node">
@@ -1210,22 +1243,7 @@ function renderOrg() {
       <span>팀장은 별도 파트 없이 운영팀 전체 업무를 관리합니다.</span>
       <div class="org-children">
         ${teamLeadNodes}
-        <div class="org-node">
-          <strong>업무 배정 대상</strong>
-          <span>팀장은 아래 파트장 및 파트원에게 업무를 배정할 수 있습니다.</span>
-          <div class="org-children">
-            <div class="org-node">
-              <strong>파트장</strong>
-              <span>운영팀</span>
-              <div class="org-children">${partLeadNodes}</div>
-            </div>
-            <div class="org-node">
-              <strong>파트원</strong>
-              <span>운영팀</span>
-              <div class="org-children">${memberNodes}</div>
-            </div>
-          </div>
-        </div>
+        ${partNodes}
       </div>
     </div>
   `;
@@ -1233,12 +1251,12 @@ function renderOrg() {
 
 function renderUserManagement() {
   const isTeamLead = currentUser?.role === "teamLead" || !serverSyncEnabled;
-  const canViewUsers = isTeamLead || currentUser?.role === "partLead";
-  $("#userForm").style.display = isTeamLead ? "block" : "none";
-  $("#refreshUsersBtn").style.display = canViewUsers ? "inline-flex" : "none";
+  const canManageUsers = isTeamLead || currentUser?.role === "partLead";
+  $("#userForm").style.display = canManageUsers ? "block" : "none";
+  $("#refreshUsersBtn").style.display = canManageUsers ? "inline-flex" : "none";
   syncUserPartField();
 
-  if (!canViewUsers) {
+  if (!canManageUsers) {
     $("#userTable").innerHTML = '<tr><td colspan="5">팀장 또는 파트장 권한으로만 조직/권한을 확인할 수 있습니다.</td></tr>';
     return;
   }
@@ -1251,16 +1269,12 @@ function renderUserManagement() {
           <td>${user.adminId}</td>
           <td>${user.name}</td>
           <td>${roleLabel(user.role)}</td>
-          <td>${normalizePart(user.part)}</td>
+          <td>${partForRole(user.role, user.part)}</td>
           <td>
-            ${
-              isTeamLead
-                ? `<div class="mini-actions">
-                    <button data-edit-user="${user.adminId}">수정</button>
-                    <button class="danger-text" data-delete-user="${user.adminId}">삭제</button>
-                  </div>`
-                : '<span class="muted-text">조회 전용</span>'
-            }
+            <div class="mini-actions">
+              <button data-edit-user="${user.adminId}">수정</button>
+              <button class="danger-text" data-delete-user="${user.adminId}">삭제</button>
+            </div>
           </td>
         </tr>
       `,
@@ -1272,8 +1286,18 @@ function renderUserManagement() {
 function syncUserPartField() {
   const form = $("#userForm");
   if (!form) return;
-  form.elements.part.value = "운영팀";
-  form.elements.part.disabled = true;
+  const role = form.elements.role.value;
+  const current = normalizePart(form.elements.part.value);
+  if (role === "teamLead") {
+    form.elements.part.innerHTML = '<option value="운영팀">운영팀</option>';
+    form.elements.part.value = "운영팀";
+    form.elements.part.disabled = true;
+    return;
+  }
+
+  form.elements.part.innerHTML = opsParts.map((part) => `<option value="${part}">${part}</option>`).join("");
+  form.elements.part.value = opsParts.includes(current) ? current : "운영 1파트";
+  form.elements.part.disabled = false;
 }
 
 function statusPill(status) {
@@ -1689,7 +1713,7 @@ function bindEvents() {
 
     try {
       const data = Object.fromEntries(new FormData(event.target));
-      data.part = "운영팀";
+      data.part = partForRole(data.role, data.part);
       await saveUserMapping(data);
       event.target.reset();
       syncUserPartField();
@@ -1980,22 +2004,20 @@ function bindEvents() {
 
     const editUserId = target.dataset.editUser;
     if (editUserId) {
-      if (currentUser?.role !== "teamLead" && serverSyncEnabled) return;
       const user = userMappings.find((item) => item.adminId === editUserId);
       if (!user) return;
       const form = $("#userForm");
       form.elements.adminId.value = user.adminId;
       form.elements.name.value = user.name;
       form.elements.role.value = user.role;
-      form.elements.part.value = normalizePart(user.part);
       syncUserPartField();
+      form.elements.part.value = partForRole(user.role, user.part);
       $("#userFormNote").textContent = "수정 후 저장을 누르면 반영됩니다.";
       return;
     }
 
     const deleteUserId = target.dataset.deleteUser;
     if (deleteUserId) {
-      if (currentUser?.role !== "teamLead" && serverSyncEnabled) return;
       if (!confirm(`${deleteUserId} 권한을 삭제할까요?`)) return;
       try {
         await deleteUserMapping(deleteUserId);
