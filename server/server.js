@@ -88,7 +88,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/users" && req.method === "GET") {
-      if (!ensureTeamLead(req, res)) return;
+      if (!ensureOrgViewer(req, res)) return;
       sendJson(res, 200, { users: readUsers().map(sanitizeUser) });
       return;
     }
@@ -609,6 +609,21 @@ function ensureTeamLead(req, res) {
 
   if (user.role !== "teamLead") {
     sendJson(res, 403, { error: "팀장 권한이 필요합니다." });
+    return false;
+  }
+
+  return true;
+}
+
+function ensureOrgViewer(req, res) {
+  const user = getSessionUser(req);
+  if (!user) {
+    sendJson(res, 401, { error: "Login required." });
+    return false;
+  }
+
+  if (user.role !== "teamLead" && user.role !== "partLead") {
+    sendJson(res, 403, { error: "팀장 또는 파트장 권한이 필요합니다." });
     return false;
   }
 

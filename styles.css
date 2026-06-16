@@ -691,6 +691,11 @@ th:last-child {
   color: var(--danger);
 }
 
+.muted-text {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .kanban {
   display: grid;
   grid-template-columns: repeat(4, minmax(210px, 1fr));

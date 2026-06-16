@@ -264,7 +264,7 @@ async function readResponseBody(response) {
 
 async function loadUsers() {
   userMappings = [];
-  if (!serverSyncEnabled || currentUser?.role !== "teamLead") return;
+  if (!serverSyncEnabled || !["teamLead", "partLead"].includes(currentUser?.role)) return;
 
   try {
     const response = await fetch(USERS_URL);
@@ -1233,12 +1233,13 @@ function renderOrg() {
 
 function renderUserManagement() {
   const isTeamLead = currentUser?.role === "teamLead" || !serverSyncEnabled;
+  const canViewUsers = isTeamLead || currentUser?.role === "partLead";
   $("#userForm").style.display = isTeamLead ? "block" : "none";
-  $("#refreshUsersBtn").style.display = isTeamLead ? "inline-flex" : "none";
+  $("#refreshUsersBtn").style.display = canViewUsers ? "inline-flex" : "none";
   syncUserPartField();
 
-  if (!isTeamLead) {
-    $("#userTable").innerHTML = '<tr><td colspan="5">팀장 권한으로만 사용자 권한을 관리할 수 있습니다.</td></tr>';
+  if (!canViewUsers) {
+    $("#userTable").innerHTML = '<tr><td colspan="5">팀장 또는 파트장 권한으로만 조직/권한을 확인할 수 있습니다.</td></tr>';
     return;
   }
 
@@ -1252,10 +1253,14 @@ function renderUserManagement() {
           <td>${roleLabel(user.role)}</td>
           <td>${normalizePart(user.part)}</td>
           <td>
-            <div class="mini-actions">
-              <button data-edit-user="${user.adminId}">수정</button>
-              <button class="danger-text" data-delete-user="${user.adminId}">삭제</button>
-            </div>
+            ${
+              isTeamLead
+                ? `<div class="mini-actions">
+                    <button data-edit-user="${user.adminId}">수정</button>
+                    <button class="danger-text" data-delete-user="${user.adminId}">삭제</button>
+                  </div>`
+                : '<span class="muted-text">조회 전용</span>'
+            }
           </td>
         </tr>
       `,
@@ -1975,6 +1980,7 @@ function bindEvents() {
 
     const editUserId = target.dataset.editUser;
     if (editUserId) {
+      if (currentUser?.role !== "teamLead" && serverSyncEnabled) return;
       const user = userMappings.find((item) => item.adminId === editUserId);
       if (!user) return;
       const form = $("#userForm");
@@ -1989,6 +1995,7 @@ function bindEvents() {
 
     const deleteUserId = target.dataset.deleteUser;
     if (deleteUserId) {
+      if (currentUser?.role !== "teamLead" && serverSyncEnabled) return;
       if (!confirm(`${deleteUserId} 권한을 삭제할까요?`)) return;
       try {
         await deleteUserMapping(deleteUserId);
