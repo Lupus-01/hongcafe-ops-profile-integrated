@@ -8,25 +8,30 @@
   </head>
   <body class="auth-pending">
     <section class="login-screen" id="loginScreen" aria-label="로그인">
-      <form class="login-panel" id="loginForm">
-        <div class="brand login-brand">
-          <span class="brand-mark">Ops</span>
-          <div>
-            <strong>운영팀 업무일지</strong>
-            <span>HongCafe Admin Login</span>
+      <div class="login-wrap">
+        <h1 class="login-title">운영팀_업무일지</h1>
+        <form class="login-panel" id="loginForm">
+          <p class="login-message">로그인 해 주십시오.</p>
+          <label class="login-field">
+            <span class="sr-only">관리자 메일주소</span>
+            <input name="username" autocomplete="username" required placeholder="관리자 메일주소" />
+            <span class="login-field-icon login-mail-icon" aria-hidden="true"></span>
+          </label>
+          <label class="login-field">
+            <span class="sr-only">비밀번호</span>
+            <input name="password" type="password" autocomplete="current-password" required placeholder="비밀번호" />
+            <span class="login-field-icon login-lock-icon" aria-hidden="true"></span>
+          </label>
+          <p class="login-error" id="loginError"></p>
+          <div class="login-actions">
+            <label class="login-remember">
+              <input type="checkbox" />
+              <span>로그인 유지</span>
+            </label>
+            <button type="submit" class="primary-button login-submit">로그인</button>
           </div>
-        </div>
-        <label class="field">
-          <span>관리 프로그램 아이디</span>
-          <input name="username" autocomplete="username" required />
-        </label>
-        <label class="field">
-          <span>비밀번호</span>
-          <input name="password" type="password" autocomplete="current-password" required />
-        </label>
-        <p class="login-error" id="loginError"></p>
-        <button type="submit" class="primary-button">로그인</button>
-      </form>
+        </form>
+      </div>
     </section>
     <div class="app-shell">
       <aside class="sidebar">
