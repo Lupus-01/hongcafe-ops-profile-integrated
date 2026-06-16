@@ -510,6 +510,13 @@ function writeUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
+function normalizePart(part) {
+  const value = String(part || "").trim();
+  const legacyParts = new Set(["운영 1파트", "운영 2파트", "운영 3파트", "섭외파트", "콘텐츠파트", "CS파트"]);
+  if (!value || legacyParts.has(value)) return "운영팀";
+  return value;
+}
+
 function saveUserMapping(body) {
   const user = normalizeUserMapping(body);
   const users = readUsers();
@@ -539,9 +546,9 @@ function normalizeUserMapping(body) {
   const adminId = String(body?.adminId || "").trim();
   const name = String(body?.name || "").trim();
   const role = String(body?.role || "").trim();
-  const part = String(body?.part || "").trim();
+  const part = normalizePart(body?.part);
   const allowedRoles = new Set(["teamLead", "partLead", "member"]);
-  const allowedParts = new Set(["운영 1파트", "운영 2파트", "운영 3파트"]);
+  const allowedParts = new Set(["운영팀"]);
 
   if (!adminId) throw badRequest("이메일/아이디를 입력해주세요.");
   if (!name) throw badRequest("이름을 입력해주세요.");
@@ -556,7 +563,7 @@ function sanitizeUser(user) {
     adminId: user.adminId,
     name: user.name,
     role: user.role,
-    part: user.part,
+    part: normalizePart(user.part),
   };
 }
 
