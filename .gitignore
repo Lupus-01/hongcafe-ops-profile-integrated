@@ -6,6 +6,7 @@ dist/
 .env.*
 !.env.example
 *.log
+profile-maker-api/.profile-usage.json
 server/data/*.json
 server/uploads/*
 !server/uploads/.gitkeep
