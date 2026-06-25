@@ -948,11 +948,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         clone.querySelectorAll('.pb-presentation').forEach((section) => {
-            let backgroundValue = 'linear-gradient(180deg, #fdf6f7 0%, #f8e8eb 100%)';
+            let backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(252, 232, 235, 0.95) 100%), linear-gradient(180deg, #fdf6f7 0%, #f8e8eb 100%)';
             if (section.classList.contains('pb-presentation--tarot')) {
-                backgroundValue = 'linear-gradient(180deg, #faf8fe 0%, #efe8fb 100%)';
+                backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(241, 234, 252, 0.95) 100%), linear-gradient(180deg, #faf8fe 0%, #efe8fb 100%)';
             } else if (section.classList.contains('pb-presentation--saju')) {
-                backgroundValue = 'linear-gradient(180deg, #fdf9f3 0%, #f5ebdc 100%)';
+                backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(251, 241, 226, 0.95) 100%), linear-gradient(180deg, #fdf9f3 0%, #f5ebdc 100%)';
             }
 
             setInlineStyles(section, {
@@ -969,14 +969,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 0.95fr) minmax(168px, 0.68fr)',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(176px, 188px)',
             gap: '18px',
             'align-items': 'center',
             'margin-bottom': '18px',
             padding: '20px',
             'border-radius': '26px',
             background: 'rgba(255,255,255,0.74)',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 32px rgba(78, 49, 30, 0.05)'
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 32px rgba(78, 49, 30, 0.05)',
+            overflow: 'hidden',
+            'box-sizing': 'border-box'
         }));
 
         clone.querySelectorAll('.pb-presentation-copy, .pb-presentation-side').forEach((node) => setInlineStyles(node, {
@@ -996,22 +998,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setInlineStyles(node, {
             display: 'inline-block',
-            padding: '7px 12px',
+            padding: '7px 11px',
             'border-radius': '999px',
             background: 'rgba(255,255,255,0.72)',
             color: currentBrandColor,
-            'font-size': '11px',
-            'font-weight': '700',
+            'font-size': '12px',
+            'font-weight': '800',
+            'line-height': '1.35',
             'letter-spacing': '0',
-            'text-transform': 'uppercase',
             'max-width': '100%',
             'overflow-wrap': 'anywhere'
         }));
 
         clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'font-size': `min(${titleSize}, 36px)`,
-            'line-height': '1.12',
+            'font-size': '34px',
+            'line-height': '1.08',
             'letter-spacing': '0',
             'font-weight': '800',
             'word-break': 'keep-all',
@@ -1025,6 +1027,11 @@ document.addEventListener('DOMContentLoaded', () => {
             color: '#554840',
             'word-break': 'keep-all',
             'overflow-wrap': 'anywhere'
+        }));
+
+        clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setInlineStyles(node, {
+            'font-size': '14.5px',
+            'line-height': '1.72'
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
@@ -1118,6 +1125,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(node, {
                 display: 'block',
                 width: '100%',
+                'max-width': isPortrait ? '188px' : '100%',
+                'min-width': '0',
                 overflow: 'hidden',
                 position: 'relative',
                 margin: '0',
@@ -1127,8 +1136,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 30px rgba(78, 49, 30, 0.07)',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
-                'min-height': isPortrait ? '286px' : '250px',
-                height: isPortrait ? '320px' : '270px'
+                'justify-self': isPortrait ? 'end' : 'stretch',
+                'aspect-ratio': isPortrait ? '4 / 5' : '4 / 5',
+                'min-height': isPortrait ? '282px' : '250px',
+                height: isPortrait ? '282px' : '270px'
             });
 
             if (!hasImage) {
