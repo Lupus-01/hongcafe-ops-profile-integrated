@@ -1059,24 +1059,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(160px, 0.78fr) minmax(0, 1fr)',
-            gap: '16px',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(190px, 1.05fr) minmax(0, 0.86fr)',
+            gap: '20px',
             'align-items': 'stretch',
             'margin-bottom': '18px'
         }));
 
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            padding: '18px 18px 18px 34px',
+            padding: '16px 16px 16px 30px',
             display: 'flex',
             'flex-direction': 'column',
-            gap: '10px',
+            gap: '9px',
             'border-radius': '22px',
             background: 'rgba(255,255,255,0.72)',
             'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)',
-            'font-size': pointSize,
+            'font-size': '14.5px',
             'font-weight': '700',
-            'line-height': '1.55',
+            'line-height': '1.48',
             color: '#3a2f28',
             'overflow-wrap': 'anywhere'
         }));
@@ -1137,9 +1137,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-sizing': 'border-box',
                 'text-align': 'center',
                 'justify-self': isPortrait ? 'end' : 'stretch',
-                'aspect-ratio': isPortrait ? '4 / 5' : '4 / 5',
-                'min-height': isPortrait ? '282px' : '250px',
-                height: isPortrait ? '282px' : '270px'
+                'aspect-ratio': isPortrait ? '4 / 5' : '1 / 1.08',
+                'min-height': isPortrait ? '282px' : '286px',
+                height: isPortrait ? '282px' : '286px'
             });
 
             if (!hasImage) {
