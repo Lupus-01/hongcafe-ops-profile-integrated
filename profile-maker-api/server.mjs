@@ -37,7 +37,7 @@ const TEMPLATE_GUIDES = {
         cardFallbackBody: '타로는 현재 감정의 위치와 관계의 변화를 상징으로 읽어내는 상담입니다. 막연한 예측보다 지금 선택해야 할 방향과 마음의 흐름을 차분하게 정리합니다.',
         closingFallbackTitle: '흐릿한 마음에 선명한 방향을 더합니다',
         closingFallbackBody: '복잡하게 얽힌 고민도 하나씩 펼쳐보면 지금 필요한 선택이 보입니다. 부담 없이 마음을 정리할 수 있도록 섬세한 리딩으로 돕겠습니다.',
-        imageMood: 'soft tarot reader portrait, elegant Korean spiritual consultant, studio portrait, gentle lighting',
+        imageMood: 'tarot card deck close-up, elegant hands-free symbolic objects, soft premium brand visual, bright refined composition, distinct from a consultation room scene',
         moodScene: 'warm tarot reading table, candle light, elegant cards, premium editorial still life'
     },
     'saju-ppt': {
@@ -49,7 +49,7 @@ const TEMPLATE_GUIDES = {
         cardFallbackBody: '사주는 타고난 성향과 시기의 흐름을 함께 살펴 현재의 고민을 구조적으로 이해하게 돕습니다. 직업, 관계, 재물, 변화의 때를 현실적인 언어로 풀어냅니다.',
         closingFallbackTitle: '지금의 운세 흐름을 차분히 정리합니다',
         closingFallbackBody: '흐름을 알면 막연한 불안보다 준비할 수 있는 선택이 선명해집니다. 사주의 균형을 바탕으로 현재와 다음 방향을 안정감 있게 안내합니다.',
-        imageMood: 'professional saju consultant portrait, refined Korean fortune consultant, calm warm lighting, editorial portrait',
+        imageMood: 'saju destiny chart, elegant Korean paper, brush, calendar and time symbolism, clean premium editorial close-up, distinct from a consultation desk scene',
         moodScene: 'refined saju consultation desk, Korean traditional mood, elegant paper and pen, premium editorial still life'
     },
     'sinjeom-ppt': {
@@ -61,7 +61,7 @@ const TEMPLATE_GUIDES = {
         cardFallbackBody: '신점은 답답하게 막힌 흐름 속에서 놓치기 쉬운 신호를 짚어내는 상담입니다. 감각적인 메시지를 현실적인 조언으로 정리해 마음의 방향을 세웁니다.',
         closingFallbackTitle: '무거운 마음의 짐을 내려놓으세요',
         closingFallbackBody: '복잡한 상황일수록 지금 필요한 말과 방향이 중요합니다. 날카로운 직관과 따뜻한 해석으로 고민의 핵심을 차분히 풀어드립니다.',
-        imageMood: 'confident Korean spiritual advisor portrait, premium studio portrait, calm warm light, elegant styling, trustworthy and refined',
+        imageMood: 'clean Korean spiritual symbolic objects, soft light, fabric, brass bell or ritual details, premium serene close-up, mystical but refined, distinct from a consultation room scene',
         moodScene: 'Korean spiritual consultation room, warm candle light, elegant ritual table, premium editorial still life, mystical but clean'
     }
 };
@@ -448,15 +448,17 @@ async function generatePortraitImage(payload, extraPrompt = '') {
     const guide = getTemplateGuide(payload.templateType);
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
     const portraitPrompt = `
-Create one premium portrait photo for a ${guide.labelEn} consultant profile page.
-Reference style: ${payload.imageStyle || 'clean Korean studio portrait, premium consultation brand look'}
-Extra context from uploaded material: ${safeExtraPrompt || 'Build a refined, calm, trustworthy profile portrait.'}
+Create one premium hero visual image for a ${guide.labelEn} consultant profile page.
+Reference style: ${payload.imageStyle || 'clean Korean premium consultation brand visual'}
+Extra context from uploaded material: ${safeExtraPrompt || 'Build a refined, calm, trustworthy category hero visual.'}
 
 Requirements:
-- realistic professional portrait
-- one person only
-- upper body framing
-- calm confident expression
+- no people
+- no face
+- no portrait
+- category-relevant symbolic objects only
+- polished editorial close-up composition
+- visually different from the supporting mood scene image
 - premium website hero image quality
 - no text
 - no watermark

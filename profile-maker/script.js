@@ -633,7 +633,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <section class="pb-presentation pb-presentation--${template.variant}" data-template-type="${type}">
                 <div class="pb-presentation-hero">
                     <div class="pb-presentation-copy">
-                        <div class="pb-presentation-eyebrow" contenteditable="true" data-slot="eyebrow">${template.eyebrow}</div>
                         <h2 class="pb-presentation-title" contenteditable="true" data-slot="headline">${template.headline}</h2>
                         <p class="pb-presentation-intro" contenteditable="true" data-slot="intro">${template.intro}</p>
                     </div>
@@ -969,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(176px, 188px)',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(214px, 238px)',
             gap: '18px',
             'align-items': 'center',
             'margin-bottom': '18px',
@@ -984,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-copy, .pb-presentation-side').forEach((node) => setInlineStyles(node, {
             display: 'flex',
             'flex-direction': 'column',
-            gap: node.classList.contains('pb-presentation-side') ? '14px' : '12px',
+            gap: node.classList.contains('pb-presentation-side') ? '14px' : '14px',
             'min-width': '0'
         }));
 
@@ -1012,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'font-size': '34px',
+            'font-size': '36px',
             'line-height': '1.08',
             'letter-spacing': '0',
             'font-weight': '800',
@@ -1125,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(node, {
                 display: 'block',
                 width: '100%',
-                'max-width': isPortrait ? '188px' : '100%',
+                'max-width': isPortrait ? '238px' : '100%',
                 'min-width': '0',
                 overflow: 'hidden',
                 position: 'relative',
@@ -1137,9 +1136,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-sizing': 'border-box',
                 'text-align': 'center',
                 'justify-self': isPortrait ? 'end' : 'stretch',
-                'aspect-ratio': isPortrait ? '4 / 5' : '1 / 1.08',
-                'min-height': isPortrait ? '282px' : '286px',
-                height: isPortrait ? '282px' : '286px'
+                'aspect-ratio': isPortrait ? '1 / 0.82' : '1 / 1.08',
+                'min-height': isPortrait ? '196px' : '286px',
+                height: isPortrait ? '196px' : '286px'
             });
 
             if (!hasImage) {
@@ -1154,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             height: '100%',
             display: 'block',
             'max-width': '100%',
-            'object-fit': isPortraitImage ? 'contain' : 'cover',
+            'object-fit': 'cover',
             'object-position': 'center',
             background: isPortraitImage
                 ? 'radial-gradient(circle at top, rgba(255,255,255,0.78), rgba(255,255,255,0.18) 58%), rgba(244, 238, 232, 0.72)'

@@ -589,7 +589,7 @@ body {
 
 .pb-presentation-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(176px, 188px);
+    grid-template-columns: minmax(0, 1fr) minmax(214px, 238px);
     gap: 18px;
     align-items: center;
     margin-bottom: 18px;
@@ -607,7 +607,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 12px;
+    gap: 14px;
     min-width: 0;
     padding: 0;
     border-radius: 0;
@@ -632,7 +632,7 @@ body {
 
 .pb-presentation-title {
     margin: 0;
-    font-size: min(var(--pb-title-size), 34px);
+    font-size: min(var(--pb-title-size), 36px);
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 800;
@@ -667,10 +667,10 @@ body {
 
 .pb-presentation-portrait {
     width: 100%;
-    max-width: 188px;
+    max-width: 238px;
     min-width: 0;
-    min-height: 282px;
-    aspect-ratio: 4 / 5;
+    min-height: 196px;
+    aspect-ratio: 1 / 0.82;
     border-radius: 22px;
     justify-self: end;
     box-sizing: border-box;
@@ -715,7 +715,7 @@ body {
 }
 
 .pb-presentation-portrait .pb-uploaded-img {
-    object-fit: contain;
+    object-fit: cover;
     max-width: 100%;
     background:
         radial-gradient(circle at top, rgba(255,255,255,0.78), rgba(255,255,255,0.18) 58%),
