@@ -653,12 +653,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="pb-upload-placeholder">${template.moodPlaceholder}</div>
                         <img class="pb-uploaded-img" src="" alt="${template.moodPlaceholder}">
                     </div>
-                    <div class="pb-presentation-side">
-                        <ul class="pb-presentation-points" data-slot="bulletPoints">
-                            ${template.points.map((point) => `<li contenteditable="true">${point}</li>`).join('')}
-                        </ul>
+                    <div class="pb-presentation-detail">
+                        <div class="pb-presentation-side">
+                            <ul class="pb-presentation-points" data-slot="bulletPoints">
+                                ${template.points.map((point) => `<li contenteditable="true">${point}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <p class="pb-presentation-card-body" contenteditable="true" data-slot="cardBody">${template.cardBody}</p>
                     </div>
-                    <p class="pb-presentation-card-body" contenteditable="true" data-slot="cardBody">${template.cardBody}</p>
                 </div>
                 <div class="pb-presentation-closing">
                     <h3 contenteditable="true" data-slot="closingTitle">${template.closingTitle}</h3>
@@ -968,9 +970,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(214px, 238px)',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 0.86fr) minmax(210px, 1.14fr)',
             gap: '18px',
-            'align-items': 'center',
+            'align-items': 'stretch',
             'margin-bottom': '18px',
             padding: '20px',
             'border-radius': '26px',
@@ -1058,21 +1060,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(190px, 1.05fr) minmax(0, 0.86fr)',
-            gap: '20px',
+            'grid-template-columns': '1fr',
+            gap: '16px',
             'align-items': 'stretch',
             'margin-bottom': '18px'
         }));
 
+        clone.querySelectorAll('.pb-presentation-detail').forEach((node) => setInlineStyles(node, {
+            'grid-column': '1 / -1',
+            display: 'flex',
+            'flex-direction': 'column',
+            gap: '14px',
+            padding: '18px 20px',
+            'border-radius': '22px',
+            background: 'rgba(255,255,255,0.72)',
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
+        }));
+
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            padding: '16px 16px 16px 30px',
+            padding: '0 0 0 20px',
             display: 'flex',
             'flex-direction': 'column',
             gap: '9px',
-            'border-radius': '22px',
-            background: 'rgba(255,255,255,0.72)',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none',
             'font-size': '14.5px',
             'font-weight': '700',
             'line-height': '1.48',
@@ -1103,10 +1116,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
             'grid-column': '1 / -1',
-            padding: '18px 20px',
-            'border-radius': '22px',
-            background: 'rgba(255,255,255,0.72)',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
+            padding: '14px 0 0',
+            'border-top': '1px solid rgba(124, 88, 70, 0.1)',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
@@ -1124,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(node, {
                 display: 'block',
                 width: '100%',
-                'max-width': isPortrait ? '238px' : '100%',
+                'max-width': '100%',
                 'min-width': '0',
                 overflow: 'hidden',
                 position: 'relative',
@@ -1135,10 +1149,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 30px rgba(78, 49, 30, 0.07)',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
-                'justify-self': isPortrait ? 'end' : 'stretch',
-                'aspect-ratio': isPortrait ? '1 / 0.82' : '1 / 1.08',
-                'min-height': isPortrait ? '196px' : '286px',
-                height: isPortrait ? '196px' : '286px'
+                'justify-self': 'stretch',
+                'aspect-ratio': isPortrait ? 'auto' : '16 / 10',
+                'min-height': isPortrait ? '260px' : '320px',
+                height: isPortrait ? '100%' : '320px'
             });
 
             if (!hasImage) {
