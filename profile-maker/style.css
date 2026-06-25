@@ -589,7 +589,7 @@ body {
 
 .pb-presentation-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(138px, 0.58fr);
+    grid-template-columns: minmax(0, 0.95fr) minmax(168px, 0.68fr);
     gap: 18px;
     align-items: center;
     margin-bottom: 18px;
@@ -630,7 +630,7 @@ body {
 
 .pb-presentation-title {
     margin: 0;
-    font-size: var(--pb-title-size);
+    font-size: min(var(--pb-title-size), 36px);
     line-height: 1.12;
     letter-spacing: 0;
     font-weight: 800;
@@ -659,7 +659,7 @@ body {
 }
 
 .pb-presentation-portrait {
-    min-height: 250px;
+    min-height: 286px;
     aspect-ratio: 4 / 5;
     border-radius: 22px;
     box-shadow:
@@ -700,6 +700,13 @@ body {
     display: none;
     object-fit: cover;
     object-position: center;
+}
+
+.pb-presentation-portrait .pb-uploaded-img {
+    object-fit: contain;
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,0.78), rgba(255,255,255,0.18) 58%),
+        rgba(244, 238, 232, 0.72);
 }
 
 .pb-presentation-section {

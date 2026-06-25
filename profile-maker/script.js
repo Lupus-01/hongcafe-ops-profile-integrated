@@ -969,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(138px, 0.58fr)',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 0.95fr) minmax(168px, 0.68fr)',
             gap: '18px',
             'align-items': 'center',
             'margin-bottom': '18px',
@@ -1010,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'font-size': titleSize,
+            'font-size': `min(${titleSize}, 36px)`,
             'line-height': '1.12',
             'letter-spacing': '0',
             'font-weight': '800',
@@ -1127,8 +1127,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 30px rgba(78, 49, 30, 0.07)',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
-                'min-height': isPortrait ? '250px' : '250px',
-                height: isPortrait ? '300px' : '270px'
+                'min-height': isPortrait ? '286px' : '250px',
+                height: isPortrait ? '320px' : '270px'
             });
 
             if (!hasImage) {
@@ -1136,14 +1136,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        clone.querySelectorAll('.pb-presentation-portrait .pb-uploaded-img, .pb-presentation-photo .pb-uploaded-img').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-portrait .pb-uploaded-img, .pb-presentation-photo .pb-uploaded-img').forEach((node) => {
+            const isPortraitImage = Boolean(node.closest('.pb-presentation-portrait'));
+            setInlineStyles(node, {
             width: '100%',
             height: '100%',
             display: 'block',
             'max-width': '100%',
-            'object-fit': 'cover',
-            'object-position': 'center'
-        }));
+            'object-fit': isPortraitImage ? 'contain' : 'cover',
+            'object-position': 'center',
+            background: isPortraitImage
+                ? 'radial-gradient(circle at top, rgba(255,255,255,0.78), rgba(255,255,255,0.18) 58%), rgba(244, 238, 232, 0.72)'
+                : 'transparent'
+            });
+        });
 
         clone.querySelectorAll('.pb-brand-poster').forEach((node) => setInlineStyles(node, {
             width: '100%',
