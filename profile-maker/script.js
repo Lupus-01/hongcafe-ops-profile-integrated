@@ -647,6 +647,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="pb-presentation-body" contenteditable="true" data-slot="sectionBody">${template.sectionBody}</p>
                 </div>
                 <div class="pb-presentation-grid">
+                    <div class="pb-presentation-card">
+                        <h3 contenteditable="true" data-slot="cardTitle">${template.cardTitle}</h3>
+                    </div>
                     <div class="pb-presentation-photo pb-image-uploadable">
                         <div class="pb-upload-placeholder">${template.moodPlaceholder}</div>
                         <img class="pb-uploaded-img" src="" alt="${template.moodPlaceholder}">
@@ -655,11 +658,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <ul class="pb-presentation-points" data-slot="bulletPoints">
                             ${template.points.map((point) => `<li contenteditable="true">${point}</li>`).join('')}
                         </ul>
-                        <div class="pb-presentation-card">
-                            <h3 contenteditable="true" data-slot="cardTitle">${template.cardTitle}</h3>
-                            <p contenteditable="true" data-slot="cardBody">${template.cardBody}</p>
-                        </div>
                     </div>
+                    <p class="pb-presentation-card-body" contenteditable="true" data-slot="cardBody">${template.cardBody}</p>
                 </div>
                 <div class="pb-presentation-closing">
                     <h3 contenteditable="true" data-slot="closingTitle">${template.closingTitle}</h3>
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function normalizeExportRichText(root) {
-        root.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3, .pb-presentation-intro, .pb-presentation-body, .pb-presentation-chip, .pb-presentation-card p, .pb-presentation-closing p, .pb-brand-poster-headline, .pb-brand-poster-subheadline, .pb-brand-poster-summary, .pb-brand-poster-highlight, .pb-brand-poster-closing, .pb-brand-poster-cta, .pb-brand-poster-info-card p, .pb-brand-poster-info-card strong').forEach((node) => {
+        root.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3, .pb-presentation-intro, .pb-presentation-body, .pb-presentation-chip, .pb-presentation-card-body, .pb-presentation-closing p, .pb-brand-poster-headline, .pb-brand-poster-subheadline, .pb-brand-poster-summary, .pb-brand-poster-highlight, .pb-brand-poster-closing, .pb-brand-poster-cta, .pb-brand-poster-info-card p, .pb-brand-poster-info-card strong').forEach((node) => {
             node.innerHTML = node.innerHTML
                 .replace(/<(\/?)(div|p)[^>]*>/gi, (_, closing) => (closing ? '<br>' : ''))
                 .replace(/(<br>\s*){2,}/gi, '<br>')
@@ -958,22 +958,40 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(section, {
                 border: '1px solid rgba(124, 88, 70, 0.08)',
                 'border-radius': '28px',
-                padding: '28px',
+                padding: '24px',
                 color: '#2a211c',
                 'box-shadow': '0 24px 40px rgba(78, 49, 30, 0.08)',
+                overflow: 'hidden',
+                position: 'relative',
                 background: backgroundValue
             });
         });
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            'margin-bottom': '26px'
+            display: 'grid',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1fr) minmax(138px, 0.58fr)',
+            gap: '18px',
+            'align-items': 'center',
+            'margin-bottom': '18px',
+            padding: '20px',
+            'border-radius': '26px',
+            background: 'rgba(255,255,255,0.74)',
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 32px rgba(78, 49, 30, 0.05)'
         }));
 
         clone.querySelectorAll('.pb-presentation-copy, .pb-presentation-side').forEach((node) => setInlineStyles(node, {
             display: 'flex',
             'flex-direction': 'column',
-            gap: node.classList.contains('pb-presentation-side') ? '20px' : '14px'
+            gap: node.classList.contains('pb-presentation-side') ? '14px' : '12px',
+            'min-width': '0'
+        }));
+
+        clone.querySelectorAll('.pb-presentation-copy').forEach((node) => setInlineStyles(node, {
+            'justify-content': 'center',
+            padding: '0',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setInlineStyles(node, {
@@ -984,29 +1002,37 @@ document.addEventListener('DOMContentLoaded', () => {
             color: currentBrandColor,
             'font-size': '11px',
             'font-weight': '700',
-            'letter-spacing': '0.12em',
-            'text-transform': 'uppercase'
+            'letter-spacing': '0',
+            'text-transform': 'uppercase',
+            'max-width': '100%',
+            'overflow-wrap': 'anywhere'
         }));
 
         clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
             margin: '0',
             'font-size': titleSize,
             'line-height': '1.12',
-            'letter-spacing': '-0.04em',
+            'letter-spacing': '0',
             'font-weight': '800',
-            'word-break': 'keep-all'
+            'word-break': 'keep-all',
+            'overflow-wrap': 'anywhere'
         }));
 
-        clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card p, .pb-presentation-closing p').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p').forEach((node) => setInlineStyles(node, {
             margin: '0',
             'font-size': bodySize,
             'line-height': lineHeight,
             color: '#554840',
-            'word-break': 'keep-all'
+            'word-break': 'keep-all',
+            'overflow-wrap': 'anywhere'
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '26px'
+            'margin-bottom': '18px',
+            padding: '18px 20px',
+            'border-radius': '24px',
+            background: 'rgba(255,255,255,0.68)',
+            'box-shadow': '0 12px 26px rgba(78, 49, 30, 0.05)'
         }));
 
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setInlineStyles(node, {
@@ -1014,55 +1040,79 @@ document.addEventListener('DOMContentLoaded', () => {
             'margin-bottom': '14px',
             padding: '10px 16px',
             'border-radius': '14px',
-            background: 'rgba(255,255,255,0.78)',
-            'box-shadow': '0 10px 24px rgba(78, 49, 30, 0.05)',
+            background: currentBrandLight,
+            'box-shadow': 'none',
             'font-size': chipSize,
             'font-weight': '800',
-            color: '#2a211c'
+            color: '#2a211c',
+            'max-width': '100%',
+            'box-sizing': 'border-box',
+            'overflow-wrap': 'anywhere'
         }));
 
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            'margin-bottom': '28px'
+            display: 'grid',
+            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(160px, 0.78fr) minmax(0, 1fr)',
+            gap: '16px',
+            'align-items': 'stretch',
+            'margin-bottom': '18px'
         }));
 
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'padding-left': '20px',
+            padding: '18px 18px 18px 34px',
             display: 'flex',
             'flex-direction': 'column',
-            gap: '12px',
+            gap: '10px',
+            'border-radius': '22px',
+            background: 'rgba(255,255,255,0.72)',
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)',
             'font-size': pointSize,
             'font-weight': '700',
             'line-height': '1.55',
-            color: '#3a2f28'
+            color: '#3a2f28',
+            'overflow-wrap': 'anywhere'
         }));
 
         clone.querySelectorAll('.pb-presentation-card').forEach((node) => setInlineStyles(node, {
-            padding: '22px',
-            'border-radius': '22px',
-            background: 'rgba(255,255,255,0.72)',
-            'box-shadow': '0 14px 30px rgba(78, 49, 30, 0.06)'
+            'grid-column': '1 / -1',
+            padding: '2px 4px 0'
         }));
 
         clone.querySelectorAll('.pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => setInlineStyles(node, {
             margin: '0 0 12px',
             'font-size': subtitleSize,
             'line-height': '1.18',
-            'letter-spacing': '-0.04em',
+            'letter-spacing': '0',
             'font-weight': '800',
             color: '#251d19',
-            'word-break': 'keep-all'
+            'word-break': 'keep-all',
+            'overflow-wrap': 'anywhere'
+        }));
+
+        clone.querySelectorAll('.pb-presentation-card h3').forEach((node) => setInlineStyles(node, {
+            margin: '0',
+            'max-width': '88%'
+        }));
+
+        clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
+            'grid-column': '1 / -1',
+            padding: '18px 20px',
+            'border-radius': '22px',
+            background: 'rgba(255,255,255,0.72)',
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '22px 24px',
+            padding: '20px 22px',
             'border-radius': '24px',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.62))'
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.62))',
+            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
         }));
 
         clone.querySelectorAll('.pb-presentation-portrait, .pb-presentation-photo').forEach((node) => {
-            const hasImage = Boolean(node.querySelector('.pb-uploaded-img'));
+            const image = node.querySelector('.pb-uploaded-img');
+            const hasImage = Boolean(image?.getAttribute('src'));
             const isPortrait = node.classList.contains('pb-presentation-portrait');
 
             setInlineStyles(node, {
@@ -1070,13 +1120,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 width: '100%',
                 overflow: 'hidden',
                 position: 'relative',
-                margin: isPortrait ? '20px 0 0' : '0 0 22px',
+                margin: '0',
                 padding: hasImage ? '0' : (isPortrait ? '32px 24px' : '40px 24px'),
                 background: hasImage ? 'rgba(255,255,255,0.6)' : 'linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.42))',
-                'border-radius': isPortrait ? '28px' : '24px',
-                'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)',
+                'border-radius': '24px',
+                'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 30px rgba(78, 49, 30, 0.07)',
                 'box-sizing': 'border-box',
-                'text-align': 'center'
+                'text-align': 'center',
+                'min-height': isPortrait ? '250px' : '250px',
+                height: isPortrait ? '300px' : '270px'
             });
 
             if (!hasImage) {
@@ -1086,10 +1138,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-portrait .pb-uploaded-img, .pb-presentation-photo .pb-uploaded-img').forEach((node) => setInlineStyles(node, {
             width: '100%',
-            height: 'auto',
+            height: '100%',
             display: 'block',
             'max-width': '100%',
-            'object-fit': 'contain'
+            'object-fit': 'cover',
+            'object-position': 'center'
         }));
 
         clone.querySelectorAll('.pb-brand-poster').forEach((node) => setInlineStyles(node, {
