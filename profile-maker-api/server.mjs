@@ -332,9 +332,12 @@ ${guide.expertiseGuide}
 - headline은 8~16자 내외의 짧은 핵심 제목으로 쓰고, 최대 2줄 안에 들어갈 분량으로 작성한다.
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - "복잡한 관계의 흐름을 읽고 현실적인 해답을 드리는 희우입니다"처럼 이름이 들어간 설명형 문장은 headline이 아니라 intro에 넣는다.
-- intro는 상담사 이름과 경력/강점을 담되 2개의 짧은 문장으로만 작성한다.
+- intro는 상담사 이름과 경력/강점을 담되 2개의 자연스러운 문장으로 작성하고, 너무 짧은 단답형 문장으로 끝내지 않는다.
+- sectionBody는 상담사가 어떤 고민을 어떤 관점으로 정리해주는지 2문장으로 구체적으로 설명한다.
+- bulletPoints는 3개를 유지하되 각 항목에 분야 전문성, 상담 방식, 기대되는 정리 포인트가 드러나게 작성한다.
 - cardTitle/cardBody는 연결 안내가 아니라 ${guide.labelKo} 분야의 전문성, 상담 방식, 해석 강점을 꾸며서 설명한다.
-- closingTitle/closingBody는 연락 유도 없이 브랜드 마무리 문구로 작성한다.
+- cardBody는 상담의 깊이와 실제 도움 방향이 보이도록 2개의 밀도 있는 문장으로 작성한다.
+- closingTitle/closingBody는 연락 유도 없이 브랜드 마무리 문구로 작성하되, 상담사의 태도와 신뢰감이 느껴지게 2문장으로 정리한다.
 
 반환 스키마:
 {
@@ -342,12 +345,12 @@ ${guide.expertiseGuide}
   "headline": "메인 제목",
   "intro": "상단 소개 문단 2문장",
   "sectionTitle": "중간 섹션 제목",
-  "sectionBody": "중간 설명 본문 2문장",
-  "bulletPoints": ["${guide.labelKo} 전문 포인트 1", "${guide.labelKo} 전문 포인트 2", "${guide.labelKo} 전문 포인트 3"],
+  "sectionBody": "상담 관점과 해석 방식을 담은 중간 설명 본문 2문장",
+  "bulletPoints": ["${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 1", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 2", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 3"],
   "cardTitle": "${guide.labelKo} 전문성 카드 제목",
-  "cardBody": "${guide.labelKo} 상담 방식과 해석 강점 설명 2문장",
+  "cardBody": "${guide.labelKo} 상담 방식과 해석 강점을 구체적으로 설명하는 2문장",
   "closingTitle": "브랜드형 마무리 제목",
-  "closingBody": "연락 안내 없이 신뢰감을 주는 마무리 설명 2문장"
+  "closingBody": "연락 안내 없이 상담사의 태도와 신뢰감을 정리하는 마무리 설명 2문장"
 }
 `.trim();
 
@@ -376,6 +379,8 @@ ${guide.expertiseGuide}
 - 예약, 문의, 전화 연결, 상담 신청 방법 같은 행동 유도 문구를 쓰지 않는다.
 - cardTitle/cardBody는 연결 안내가 아니라 ${guide.labelKo} 분야의 전문성, 상담 방식, 해석 강점을 꾸며서 설명한다.
 - closingTitle/closingBody는 연락 유도 없이 상담사의 분위기와 신뢰감을 정리하는 마무리로 작성한다.
+- PPT 원문이 짧더라도 결과가 빈약해 보이지 않도록 상담사의 전문성, 해석 관점, 상담 후 정리되는 지점을 자연스럽게 보강한다.
+- 원문을 과장하지 말고, 업로드 자료에서 읽히는 톤과 분야 정보를 바탕으로 소개 페이지에 어울리는 깊이를 더한다.
 
 PPT 원문:
 ${pptInfo.combinedText}
@@ -386,12 +391,12 @@ ${pptInfo.combinedText}
   "headline": "메인 제목",
   "intro": "상단 소개 문단 2~3문장",
   "sectionTitle": "중간 섹션 제목",
-  "sectionBody": "중간 설명 본문 2~3문장",
-  "bulletPoints": ["${guide.labelKo} 전문 포인트 1", "${guide.labelKo} 전문 포인트 2", "${guide.labelKo} 전문 포인트 3"],
+  "sectionBody": "상담 관점과 해석 방식을 담은 중간 설명 본문 2~3문장",
+  "bulletPoints": ["${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 1", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 2", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 3"],
   "cardTitle": "${guide.labelKo} 전문성 카드 제목",
-  "cardBody": "${guide.labelKo} 상담 방식과 해석 강점 설명 2문장",
+  "cardBody": "${guide.labelKo} 상담 방식과 해석 강점을 구체적으로 설명하는 2문장",
   "closingTitle": "브랜드형 마무리 제목",
-  "closingBody": "연락 안내 없이 신뢰감을 주는 마무리 설명 2문장"
+  "closingBody": "연락 안내 없이 상담사의 태도와 신뢰감을 정리하는 마무리 설명 2문장"
 }
 
 추가 지침:
@@ -400,7 +405,9 @@ ${pptInfo.combinedText}
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - 상담사 이름이 들어간 설명형 문장은 headline이 아니라 intro에 자연스럽게 녹여 넣는다.
 - intro는 2개의 짧은 문장으로만 작성한다.
-- bulletPoints는 분야 전문성이 보이도록 짧고 읽기 쉽게 작성한다.
+- intro는 2개의 문장으로 쓰되 상담사의 이름, 경력, 강점이 자연스럽게 연결되도록 작성한다.
+- sectionBody와 cardBody는 단순 홍보 문구가 아니라 상담의 관점과 해석 방식이 구체적으로 보이게 작성한다.
+- bulletPoints는 분야 전문성이 보이도록 짧고 읽기 쉽게 작성하되, 너무 일반적인 표현만 반복하지 않는다.
 - 상담사 이름이 PPT에 드러나면 intro에 자연스럽게 녹여 넣는다.
 `.trim();
 

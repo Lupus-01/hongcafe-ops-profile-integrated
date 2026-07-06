@@ -724,10 +724,11 @@ body {
 }
 
 .pb-presentation-section {
-    margin-bottom: 12px;
-    padding: 2px 2px 8px;
-    border-radius: 0;
-    background: transparent;
+    margin-bottom: 14px;
+    padding: 16px 18px 16px 20px;
+    border-left: 4px solid var(--pb-primary);
+    border-radius: 18px;
+    background: linear-gradient(90deg, var(--pb-primary-light), rgba(255, 255, 255, 0.34));
     box-shadow: none;
 }
 
@@ -771,10 +772,11 @@ body {
 
 .pb-presentation.is-text-only-choice .pb-presentation-section {
     margin-top: 2px;
-    margin-bottom: 22px;
-    padding: 8px 4px 12px;
-    border-radius: 0;
-    background: transparent;
+    margin-bottom: 14px;
+    padding: 16px 18px 16px 20px;
+    border-left: 4px solid var(--pb-primary);
+    border-radius: 18px;
+    background: linear-gradient(90deg, var(--pb-primary-light), rgba(255, 255, 255, 0.34));
     box-shadow: none;
 }
 
@@ -786,15 +788,14 @@ body {
 }
 
 .pb-presentation.is-text-only-choice .pb-presentation-points {
-    padding: 0 0 0 20px;
+    padding: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
 }
 
 .pb-presentation.is-text-only-choice .pb-presentation-card,
-.pb-presentation.is-text-only-choice .pb-presentation-card-body,
-.pb-presentation.is-text-only-choice .pb-presentation-closing {
+.pb-presentation.is-text-only-choice .pb-presentation-card-body {
     background: transparent;
     box-shadow: none;
 }
@@ -808,10 +809,10 @@ body {
 
 .pb-presentation-points {
     margin: 0;
-    padding: 0 0 0 20px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
@@ -820,6 +821,24 @@ body {
     line-height: 1.48;
     color: #3a2f28;
     overflow-wrap: anywhere;
+    list-style: none;
+}
+
+.pb-presentation-points li {
+    position: relative;
+    padding-left: 22px;
+}
+
+.pb-presentation-points li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.68em;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--pb-primary);
+    box-shadow: 0 0 0 4px var(--pb-primary-light);
 }
 
 .pb-presentation-card {
@@ -832,10 +851,10 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 10px;
-    padding: 2px 2px 0;
-    border-radius: 0;
-    background: transparent;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.48);
     box-shadow: none;
 }
 
@@ -858,7 +877,7 @@ body {
 
 .pb-presentation-card-body {
     grid-column: 1 / -1;
-    padding: 10px 0 0;
+    padding: 14px 0 0;
     border-top: 1px solid rgba(124, 88, 70, 0.1);
     border-radius: 0;
     background: transparent;
@@ -866,9 +885,10 @@ body {
 }
 
 .pb-presentation-closing {
-    padding: 2px 2px 0;
-    border-radius: 0;
-    background: transparent;
+    padding: 16px 18px;
+    border-left: 4px solid rgba(124, 88, 70, 0.22);
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.18));
     box-shadow: none;
 }
 

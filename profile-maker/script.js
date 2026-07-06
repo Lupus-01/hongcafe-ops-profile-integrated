@@ -1036,10 +1036,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '12px',
-            padding: '2px 2px 8px',
-            'border-radius': '0',
-            background: 'transparent',
+            'margin-bottom': '14px',
+            padding: '16px 18px 16px 20px',
+            'border-left': `4px solid ${currentBrandColor}`,
+            'border-radius': '18px',
+            background: `linear-gradient(90deg, ${currentBrandLight}, rgba(255,255,255,0.34))`,
             'box-shadow': 'none'
         }));
 
@@ -1071,19 +1072,19 @@ document.addEventListener('DOMContentLoaded', () => {
             display: 'flex',
             'flex-direction': 'column',
             'justify-content': 'flex-start',
-            gap: '10px',
-            padding: '2px 2px 0',
-            'border-radius': '0',
-            background: 'transparent',
+            gap: '14px',
+            padding: '16px 18px',
+            'border-radius': '18px',
+            background: 'rgba(255,255,255,0.48)',
             'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            padding: '0 0 0 20px',
+            padding: '0',
             display: 'flex',
             'flex-direction': 'column',
-            gap: '8px',
+            gap: '10px',
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
@@ -1091,7 +1092,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'font-weight': '700',
             'line-height': '1.48',
             color: '#3a2f28',
-            'overflow-wrap': 'anywhere'
+            'overflow-wrap': 'anywhere',
+            'list-style': 'none'
+        }));
+
+        clone.querySelectorAll('.pb-presentation-points li').forEach((node) => setInlineStyles(node, {
+            position: 'relative',
+            'padding-left': '22px'
         }));
 
         clone.querySelectorAll('.pb-presentation-card').forEach((node) => setInlineStyles(node, {
@@ -1117,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
             'grid-column': '1 / -1',
-            padding: '10px 0 0',
+            padding: '14px 0 0',
             'border-top': '1px solid rgba(124, 88, 70, 0.1)',
             'border-radius': '0',
             background: 'transparent',
@@ -1125,9 +1132,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '2px 2px 0',
-            'border-radius': '0',
-            background: 'transparent',
+            padding: '16px 18px',
+            'border-left': '4px solid rgba(124, 88, 70, 0.22)',
+            'border-radius': '18px',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0.58), rgba(255,255,255,0.18))',
             'box-shadow': 'none'
         }));
 
