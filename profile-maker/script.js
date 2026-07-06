@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUploadTargetImg = null;
     let currentUploadPlaceholder = null;
     let currentBrandColor = '#C21129';
-    let currentBrandBg = '#fdf0f1';
+    let currentBrandBg = '#f8f7f5';
     let currentBrandLight = '#fbe6e8';
     let currentMode = 'profile';
     let currentBrandLogoDataUrl = '';
@@ -79,9 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_PROFILE_HISTORY = 8;
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
-        titleSize: 46,
-        bodySize: 18,
-        pointSize: 18,
+        titleSize: 50,
+        bodySize: 19,
+        pointSize: 19,
         lineHeight: 1.65
     };
 
@@ -1054,8 +1054,8 @@ document.addEventListener('DOMContentLoaded', () => {
             width: '720px',
             'max-width': '720px',
             margin: '0 auto',
-            padding: '24px 18px',
-            'border-radius': '24px',
+            padding: '14px 10px',
+            'border-radius': '18px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
             'box-shadow': 'none',
@@ -1064,36 +1064,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         clone.querySelectorAll('.pb-presentation').forEach((section) => {
-            let backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(252, 232, 235, 0.95) 100%), linear-gradient(180deg, #fdf6f7 0%, #f8e8eb 100%)';
-            if (section.classList.contains('pb-presentation--tarot')) {
-                backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(241, 234, 252, 0.95) 100%), linear-gradient(180deg, #faf8fe 0%, #efe8fb 100%)';
-            } else if (section.classList.contains('pb-presentation--saju')) {
-                backgroundValue = 'radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.78) 42%, rgba(251, 241, 226, 0.95) 100%), linear-gradient(180deg, #fdf9f3 0%, #f5ebdc 100%)';
-            }
-
             setInlineStyles(section, {
-                border: '1px solid rgba(124, 88, 70, 0.08)',
-                'border-radius': '28px',
-                padding: '20px',
+                border: '0',
+                'border-radius': '0',
+                padding: '10px',
                 color: '#2a211c',
                 'box-shadow': 'none',
                 overflow: 'hidden',
                 position: 'relative',
                 'box-sizing': 'border-box',
-                background: backgroundValue
+                background: 'transparent'
             });
         });
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
             'grid-template-columns': '1fr',
-            gap: '12px',
+            gap: '10px',
             'align-items': 'stretch',
-            'margin-bottom': '12px',
-            padding: '14px',
-            'border-radius': '22px',
-            background: 'rgba(255,255,255,0.74)',
-            border: '1px solid rgba(124, 88, 70, 0.08)',
+            'margin-bottom': '10px',
+            padding: '4px 0 0',
+            'border-radius': '0',
+            background: 'transparent',
+            border: '0',
             'box-shadow': 'none',
             overflow: 'hidden',
             'box-sizing': 'border-box'
@@ -1153,12 +1146,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '14px',
-            padding: '15px 17px',
-            border: '1px solid rgba(124, 88, 70, 0.08)',
+            'margin-bottom': '12px',
+            padding: '13px 15px',
+            border: '0',
             'border-left': `4px solid ${currentBrandColor}`,
             'border-radius': '18px',
-            background: 'rgba(255,255,255,0.46)',
+            background: 'rgba(255,255,255,0.58)',
             'box-shadow': 'none',
             'box-sizing': 'border-box',
             overflow: 'hidden'
@@ -1182,9 +1175,9 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
             display: 'grid',
             'grid-template-columns': '1fr',
-            gap: '10px',
+            gap: '8px',
             'align-items': 'stretch',
-            'margin-bottom': '12px'
+            'margin-bottom': '10px'
         }));
 
         clone.querySelectorAll('.pb-presentation-detail').forEach((node) => setInlineStyles(node, {
@@ -1192,11 +1185,11 @@ document.addEventListener('DOMContentLoaded', () => {
             display: 'flex',
             'flex-direction': 'column',
             'justify-content': 'flex-start',
-            gap: '14px',
-            padding: '15px 17px',
-            border: '1px solid rgba(124, 88, 70, 0.08)',
+            gap: '12px',
+            padding: '13px 15px',
+            border: '0',
             'border-radius': '18px',
-            background: 'rgba(255,255,255,0.48)',
+            background: 'rgba(255,255,255,0.62)',
             'box-shadow': 'none',
             'box-sizing': 'border-box',
             overflow: 'hidden'
@@ -1269,11 +1262,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '15px 17px',
-            border: '1px solid rgba(124, 88, 70, 0.08)',
+            padding: '13px 15px',
+            border: '0',
             'border-left': '4px solid rgba(124, 88, 70, 0.22)',
             'border-radius': '18px',
-            background: 'rgba(255,255,255,0.44)',
+            background: 'rgba(255,255,255,0.6)',
             'box-shadow': 'none',
             'box-sizing': 'border-box',
             overflow: 'hidden'
@@ -1299,15 +1292,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 margin: '0',
                 padding: hasImage ? '0' : (isPortrait ? '32px 24px' : '40px 24px'),
                 background: hasImage ? '#ffffff' : 'rgba(255,255,255,0.56)',
-                border: '1px solid rgba(124, 88, 70, 0.08)',
-                'border-radius': '24px',
+                border: '0',
+                'border-radius': '18px',
                 'box-shadow': 'none',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
                 'justify-self': 'stretch',
-                'aspect-ratio': isPortrait ? '16 / 8.8' : '16 / 8.9',
-                'min-height': isPortrait ? '300px' : '310px',
-                height: isPortrait ? '300px' : '310px'
+                'aspect-ratio': isPortrait ? '16 / 8.6' : '16 / 8.8',
+                'min-height': isPortrait ? '330px' : '345px',
+                height: isPortrait ? '330px' : '345px'
             });
 
             if (!hasImage) {
@@ -1322,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             height: '100%',
             display: 'block',
             'max-width': '100%',
-            'border-radius': '23px',
+            'border-radius': '18px',
             'object-fit': 'cover',
             'object-position': 'center',
             'vertical-align': 'top',
