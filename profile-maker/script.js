@@ -351,27 +351,83 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyTypographySettings() {
-        const fontFamily = fontFamilySelect?.value || defaultTypography.fontFamily;
+        const typography = getTypographySettings();
+
+        canvas.style.setProperty('--pb-font-family', typography.fontFamily);
+        canvas.style.setProperty('--pb-title-size', `${typography.titleSize}px`);
+        canvas.style.setProperty('--pb-body-size', `${typography.bodySize}px`);
+        canvas.style.setProperty('--pb-point-size', `${typography.pointSize}px`);
+        canvas.style.setProperty('--pb-body-line-height', String(typography.lineHeight));
+        canvas.style.setProperty('--pb-subtitle-size', `${typography.subtitleSize}px`);
+        canvas.style.setProperty('--pb-chip-size', `${typography.chipSize}px`);
+
+        if (titleSizeValue) titleSizeValue.textContent = `${typography.titleSize}px`;
+        if (bodySizeValue) bodySizeValue.textContent = `${typography.bodySize}px`;
+        if (pointSizeValue) pointSizeValue.textContent = `${typography.pointSize}px`;
+        if (lineHeightValue) lineHeightValue.textContent = typography.lineHeight.toFixed(1);
+    }
+
+    function getTypographySettings() {
         const titleSize = Number(titleSizeInput?.value || defaultTypography.titleSize);
         const bodySize = Number(bodySizeInput?.value || defaultTypography.bodySize);
         const pointSize = Number(pointSizeInput?.value || defaultTypography.pointSize);
         const lineHeight = Number(lineHeightInput?.value || defaultTypography.lineHeight);
 
-        canvas.style.setProperty('--pb-font-family', fontFamily);
-        canvas.style.setProperty('--pb-title-size', `${titleSize}px`);
-        canvas.style.setProperty('--pb-body-size', `${bodySize}px`);
-        canvas.style.setProperty('--pb-point-size', `${pointSize}px`);
-        canvas.style.setProperty('--pb-body-line-height', String(lineHeight));
-        canvas.style.setProperty('--pb-subtitle-size', `${Math.max(bodySize + 14, 32)}px`);
-        canvas.style.setProperty('--pb-chip-size', `${Math.max(bodySize, 15)}px`);
+        return {
+            fontFamily: fontFamilySelect?.value || defaultTypography.fontFamily,
+            titleSize,
+            bodySize,
+            pointSize,
+            lineHeight,
+            subtitleSize: Math.max(bodySize + 14, 32),
+            chipSize: Math.max(bodySize, 15)
+        };
+    }
 
-        if (titleSizeValue) titleSizeValue.textContent = `${titleSize}px`;
-        if (bodySizeValue) bodySizeValue.textContent = `${bodySize}px`;
-        if (pointSizeValue) pointSizeValue.textContent = `${pointSize}px`;
-        if (lineHeightValue) lineHeightValue.textContent = lineHeight.toFixed(1);
+    function enhanceTypographySteppers() {
+        [
+            { input: titleSizeInput, step: 1 },
+            { input: bodySizeInput, step: 1 },
+            { input: pointSizeInput, step: 1 },
+            { input: lineHeightInput, step: 0.1 }
+        ].forEach(({ input, step }) => {
+            if (!input || input.closest('.pb-range-control')) return;
+
+            const control = document.createElement('div');
+            control.className = 'pb-range-control';
+            const decrease = document.createElement('button');
+            const increase = document.createElement('button');
+
+            decrease.type = 'button';
+            increase.type = 'button';
+            decrease.className = 'pb-range-step';
+            increase.className = 'pb-range-step';
+            decrease.textContent = '-';
+            increase.textContent = '+';
+            decrease.setAttribute('aria-label', '값 줄이기');
+            increase.setAttribute('aria-label', '값 키우기');
+
+            input.parentNode.insertBefore(control, input);
+            control.appendChild(decrease);
+            control.appendChild(input);
+            control.appendChild(increase);
+
+            const moveValue = (direction) => {
+                const min = Number(input.min || 0);
+                const max = Number(input.max || 100);
+                const current = Number(input.value || 0);
+                const next = Math.min(max, Math.max(min, current + direction * step));
+                input.value = step < 1 ? next.toFixed(1) : String(Math.round(next));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+
+            decrease.addEventListener('click', () => moveValue(-1));
+            increase.addEventListener('click', () => moveValue(1));
+        });
     }
 
     function bindTypographyControls() {
+        enhanceTypographySteppers();
         [fontFamilySelect, titleSizeInput, bodySizeInput, pointSizeInput, lineHeightInput]
             .filter(Boolean)
             .forEach((control) => {
@@ -1074,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'font-size': '42px',
+            'font-size': titleSize,
             'line-height': '1.08',
             'letter-spacing': '0',
             'font-weight': '800',
@@ -1092,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setInlineStyles(node, {
-            'font-size': '16.5px',
+            'font-size': bodySize,
             'line-height': '1.6'
         }));
 
@@ -1155,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
-            'font-size': '16.5px',
+            'font-size': pointSize,
             'font-weight': '700',
             'line-height': '1.48',
             color: '#3a2f28',
@@ -1714,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const clone = getCleanCanvasClone();
+        applyEditorFriendlyExportStyles(clone);
         const wrapper = document.createElement('div');
         wrapper.appendChild(clone);
         codeOutput.value = wrapper.innerHTML.trim();
