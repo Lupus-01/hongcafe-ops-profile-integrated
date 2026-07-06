@@ -939,8 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setInlineStyles(clone, {
             width: '100%',
-            'max-width': '540px',
-            padding: '40px 30px',
+            'max-width': '720px',
+            padding: '48px 42px',
             'border-radius': '24px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
@@ -959,7 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(section, {
                 border: '1px solid rgba(124, 88, 70, 0.08)',
                 'border-radius': '28px',
-                padding: '24px',
+                padding: '30px',
                 color: '#2a211c',
                 'box-shadow': '0 24px 40px rgba(78, 49, 30, 0.08)',
                 overflow: 'hidden',
@@ -1037,10 +1037,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
             'margin-bottom': '18px',
-            padding: '18px 20px',
-            'border-radius': '24px',
-            background: 'rgba(255,255,255,0.68)',
-            'box-shadow': '0 12px 26px rgba(78, 49, 30, 0.05)'
+            padding: '8px 4px 12px',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setInlineStyles(node, {
@@ -1071,10 +1071,10 @@ document.addEventListener('DOMContentLoaded', () => {
             display: 'flex',
             'flex-direction': 'column',
             gap: '14px',
-            padding: '18px 20px',
-            'border-radius': '22px',
-            background: 'rgba(255,255,255,0.72)',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
+            padding: '4px 4px 0',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
@@ -1111,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-card h3').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'max-width': '88%'
+            'max-width': '100%'
         }));
 
         clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
@@ -1124,10 +1124,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '20px 22px',
-            'border-radius': '24px',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.62))',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08)'
+            padding: '8px 4px 0',
+            'border-radius': '0',
+            background: 'transparent',
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-portrait, .pb-presentation-photo').forEach((node) => {
@@ -1151,8 +1151,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'text-align': 'center',
                 'justify-self': 'stretch',
                 'aspect-ratio': isPortrait ? 'auto' : '16 / 10',
-                'min-height': isPortrait ? '260px' : '320px',
-                height: isPortrait ? '100%' : '320px'
+                'min-height': isPortrait ? '340px' : '380px',
+                height: isPortrait ? '100%' : '380px'
             });
 
             if (!hasImage) {
@@ -1879,8 +1879,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const stage = document.createElement('div');
         const clone = getVisualCanvasClone();
 
-        clone.style.width = '540px';
-        clone.style.maxWidth = '540px';
+        clone.style.width = '720px';
+        clone.style.maxWidth = '720px';
         clone.style.margin = '0 auto';
         clone.style.boxShadow = 'none';
 
