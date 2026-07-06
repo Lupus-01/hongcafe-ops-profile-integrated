@@ -937,7 +937,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function appendProfileExportCaptureStyles(root) {
+        if (root.querySelector('[data-pb-export-capture-style]')) return;
+
+        const style = document.createElement('style');
+        style.setAttribute('data-pb-export-capture-style', 'true');
+        style.textContent = `
+            .pb-export-capture,
+            .pb-export-capture * {
+                box-sizing: border-box !important;
+            }
+
+            .pb-export-capture .pb-presentation-points li::before {
+                content: none !important;
+                display: none !important;
+            }
+
+            .pb-export-capture .pb-upload-placeholder,
+            .pb-export-capture .pb-delete-btn {
+                display: none !important;
+            }
+
+            .pb-export-capture .pb-uploaded-img {
+                display: block !important;
+                vertical-align: top !important;
+            }
+        `;
+        root.prepend(style);
+    }
+
+    function waitForExportImages(root) {
+        const images = Array.from(root.querySelectorAll('img')).filter((image) => image.getAttribute('src'));
+        return Promise.all(images.map((image) => {
+            if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+            if (typeof image.decode === 'function') {
+                return image.decode().catch(() => {});
+            }
+
+            return new Promise((resolve) => {
+                image.addEventListener('load', resolve, { once: true });
+                image.addEventListener('error', resolve, { once: true });
+            });
+        }));
+    }
+
     function applyEditorFriendlyExportStyles(clone) {
+        clone.classList.add('pb-export-capture');
+        appendProfileExportCaptureStyles(clone);
+
         const computedCanvas = window.getComputedStyle(canvas);
         const fontFamily = computedCanvas.getPropertyValue('--pb-font-family').trim() || defaultTypography.fontFamily;
         const titleSize = computedCanvas.getPropertyValue('--pb-title-size').trim() || `${defaultTypography.titleSize}px`;
@@ -948,12 +995,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const chipSize = computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px';
 
         setInlineStyles(clone, {
-            width: '100%',
+            width: '720px',
             'max-width': '720px',
+            margin: '0 auto',
             padding: '24px 18px',
             'border-radius': '24px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
+            'box-shadow': 'none',
             'font-family': fontFamily,
             color: '#2a211c'
         });
@@ -971,9 +1020,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 'border-radius': '28px',
                 padding: '20px',
                 color: '#2a211c',
-                'box-shadow': '0 24px 40px rgba(78, 49, 30, 0.08)',
+                'box-shadow': 'none',
                 overflow: 'hidden',
                 position: 'relative',
+                'box-sizing': 'border-box',
                 background: backgroundValue
             });
         });
@@ -987,7 +1037,8 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '14px',
             'border-radius': '22px',
             background: 'rgba(255,255,255,0.74)',
-            'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 32px rgba(78, 49, 30, 0.05)',
+            border: '1px solid rgba(124, 88, 70, 0.08)',
+            'box-shadow': 'none',
             overflow: 'hidden',
             'box-sizing': 'border-box'
         }));
@@ -1173,6 +1224,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-portrait, .pb-presentation-photo').forEach((node) => {
+            if (node.closest('.pb-presentation.is-text-only-choice')) {
+                node.remove();
+                return;
+            }
+
             const image = node.querySelector('.pb-uploaded-img');
             const hasImage = Boolean(image?.getAttribute('src'));
             const isPortrait = node.classList.contains('pb-presentation-portrait');
@@ -1186,9 +1242,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 position: 'relative',
                 margin: '0',
                 padding: hasImage ? '0' : (isPortrait ? '32px 24px' : '40px 24px'),
-                background: hasImage ? 'rgba(255,255,255,0.6)' : 'linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.42))',
+                background: hasImage ? '#ffffff' : 'rgba(255,255,255,0.56)',
+                border: '1px solid rgba(124, 88, 70, 0.08)',
                 'border-radius': '24px',
-                'box-shadow': 'inset 0 0 0 1px rgba(124, 88, 70, 0.08), 0 16px 30px rgba(78, 49, 30, 0.07)',
+                'box-shadow': 'none',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
                 'justify-self': 'stretch',
@@ -1209,8 +1266,10 @@ document.addEventListener('DOMContentLoaded', () => {
             height: '100%',
             display: 'block',
             'max-width': '100%',
+            'border-radius': '23px',
             'object-fit': 'cover',
             'object-position': 'center',
+            'vertical-align': 'top',
             background: isPortraitImage
                 ? 'radial-gradient(circle at top, rgba(255,255,255,0.78), rgba(255,255,255,0.18) 58%), rgba(244, 238, 232, 0.72)'
                 : 'transparent'
@@ -1919,32 +1978,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const stage = document.createElement('div');
-        const clone = getVisualCanvasClone();
-
-        clone.style.width = '720px';
-        clone.style.maxWidth = '720px';
-        clone.style.margin = '0 auto';
-        clone.style.boxShadow = 'none';
-
-        clone.querySelectorAll('.pb-image-uploadable').forEach((uploadable) => {
-            const img = uploadable.querySelector('.pb-uploaded-img');
-            const placeholder = uploadable.querySelector('.pb-upload-placeholder');
-            const hasImage = Boolean(img && img.getAttribute('src'));
-
-            if (hasImage) {
-                if (placeholder) placeholder.remove();
-                return;
-            }
-
-            if (uploadable.closest('.pb-presentation.is-text-only-choice')) {
-                uploadable.remove();
-                return;
-            }
-
-            if (placeholder) {
-                placeholder.innerHTML = '';
-            }
-        });
+        const clone = getCleanCanvasClone();
+        applyEditorFriendlyExportStyles(clone);
 
         stage.style.position = 'fixed';
         stage.style.left = '-10000px';
@@ -1957,11 +1992,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(stage);
 
         try {
+            await waitForExportImages(clone);
+
             const rendered = await window.html2canvas(clone, {
                 backgroundColor: null,
                 scale: 2,
                 useCORS: true,
-                logging: false
+                logging: false,
+                width: clone.offsetWidth,
+                height: clone.scrollHeight,
+                windowWidth: clone.scrollWidth,
+                windowHeight: clone.scrollHeight
             });
 
             const link = document.createElement('a');
