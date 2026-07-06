@@ -6,12 +6,12 @@
     --pb-text-main: #1a1a1a;
     --pb-text-sub: #8b95a1;
     --pb-font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-    --pb-title-size: 42px;
-    --pb-body-size: 16px;
-    --pb-point-size: 17px;
-    --pb-body-line-height: 1.8;
-    --pb-subtitle-size: 32px;
-    --pb-chip-size: 16px;
+    --pb-title-size: 46px;
+    --pb-body-size: 18px;
+    --pb-point-size: 18px;
+    --pb-body-line-height: 1.65;
+    --pb-subtitle-size: 34px;
+    --pb-chip-size: 17px;
 }
 
 .pb-theme-tarot { --pb-bg: #f8f6fc; --pb-primary: #6335B4; --pb-primary-light: #ece5f7; }
@@ -65,7 +65,7 @@ body {
 
 /* 캔버스 */
 .pb-canvas-wrapper { flex: 1; padding: 50px; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start; }
-.pb-canvas { width: 100%; max-width: 720px; min-height: 800px; background-color: var(--pb-bg); padding: 48px 42px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.04); position: relative; transition: background-color 0.4s ease; box-sizing: border-box; }
+.pb-canvas { width: 100%; max-width: 720px; min-height: 800px; background-color: var(--pb-bg); padding: 30px 24px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.04); position: relative; transition: background-color 0.4s ease; box-sizing: border-box; }
 .pb-canvas,
 .pb-canvas * { font-family: var(--pb-font-family); }
 .pb-empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--pb-text-sub); pointer-events: none; }
@@ -562,7 +562,7 @@ body {
 .pb-presentation {
     border: 1px solid rgba(124, 88, 70, 0.08);
     border-radius: 28px;
-    padding: 30px;
+    padding: 22px;
     color: #2a211c;
     box-shadow: 0 24px 40px rgba(78, 49, 30, 0.08);
     overflow: hidden;
@@ -589,12 +589,12 @@ body {
 
 .pb-presentation-hero {
     display: grid;
-    grid-template-columns: minmax(0, 0.86fr) minmax(210px, 1.14fr);
-    gap: 18px;
+    grid-template-columns: minmax(0, 0.92fr) minmax(260px, 1.08fr);
+    gap: 12px;
     align-items: stretch;
-    margin-bottom: 18px;
-    padding: 20px;
-    border-radius: 26px;
+    margin-bottom: 14px;
+    padding: 14px;
+    border-radius: 22px;
     background: rgba(255, 255, 255, 0.74);
     box-shadow:
         inset 0 0 0 1px rgba(124, 88, 70, 0.08),
@@ -607,7 +607,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 14px;
+    gap: 10px;
     min-width: 0;
     padding: 0;
     border-radius: 0;
@@ -632,7 +632,7 @@ body {
 
 .pb-presentation-title {
     margin: 0;
-    font-size: min(var(--pb-title-size), 36px);
+    font-size: min(var(--pb-title-size), 42px);
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 800;
@@ -641,8 +641,8 @@ body {
 }
 
 .pb-presentation-hero .pb-presentation-intro {
-    font-size: min(var(--pb-body-size), 14.5px);
-    line-height: 1.72;
+    font-size: min(var(--pb-body-size), 16.5px);
+    line-height: 1.6;
 }
 
 .pb-presentation-intro,
@@ -669,9 +669,9 @@ body {
     width: 100%;
     max-width: none;
     min-width: 0;
-    min-height: 340px;
+    min-height: 310px;
     height: 100%;
-    border-radius: 22px;
+    border-radius: 20px;
     justify-self: stretch;
     box-sizing: border-box;
     box-shadow:
@@ -681,9 +681,9 @@ body {
 
 .pb-presentation-photo {
     width: 100%;
-    min-height: 380px;
-    aspect-ratio: 16 / 10;
-    border-radius: 24px;
+    min-height: 330px;
+    aspect-ratio: 1 / 1;
+    border-radius: 22px;
     box-shadow:
         inset 0 0 0 1px rgba(124, 88, 70, 0.08),
         0 16px 30px rgba(78, 49, 30, 0.07);
@@ -724,8 +724,8 @@ body {
 }
 
 .pb-presentation-section {
-    margin-bottom: 18px;
-    padding: 8px 4px 12px;
+    margin-bottom: 14px;
+    padding: 2px 2px 8px;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
@@ -733,9 +733,9 @@ body {
 
 .pb-presentation-chip {
     display: inline-block;
-    margin-bottom: 14px;
-    padding: 10px 16px;
-    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
     background: var(--pb-primary-light);
     box-shadow: none;
     font-size: var(--pb-chip-size);
@@ -748,10 +748,10 @@ body {
 
 .pb-presentation-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    gap: 12px;
     align-items: stretch;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 }
 
 .pb-presentation.is-text-only-choice .pb-presentation-hero,
@@ -811,11 +811,11 @@ body {
     padding: 0 0 0 20px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 8px;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    font-size: min(var(--pb-point-size), 14.5px);
+    font-size: min(var(--pb-point-size), 16.5px);
     font-weight: 700;
     line-height: 1.48;
     color: #3a2f28;
@@ -824,15 +824,16 @@ body {
 
 .pb-presentation-card {
     grid-column: 1 / -1;
-    padding: 2px 4px 0;
+    padding: 0;
 }
 
 .pb-presentation-detail {
-    grid-column: 1 / -1;
+    grid-column: auto;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 4px 4px 0;
+    justify-content: center;
+    gap: 12px;
+    padding: 2px 2px 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
@@ -856,8 +857,8 @@ body {
 }
 
 .pb-presentation-card-body {
-    grid-column: 1 / -1;
-    padding: 14px 0 0;
+    grid-column: auto;
+    padding: 12px 0 0;
     border-top: 1px solid rgba(124, 88, 70, 0.1);
     border-radius: 0;
     background: transparent;
@@ -865,7 +866,7 @@ body {
 }
 
 .pb-presentation-closing {
-    padding: 8px 4px 0;
+    padding: 2px 2px 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
