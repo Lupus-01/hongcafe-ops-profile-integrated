@@ -970,10 +970,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 0.92fr) minmax(260px, 1.08fr)',
+            'grid-template-columns': '1fr',
             gap: '12px',
             'align-items': 'stretch',
-            'margin-bottom': '14px',
+            'margin-bottom': '12px',
             padding: '14px',
             'border-radius': '22px',
             background: 'rgba(255,255,255,0.74)',
@@ -1036,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '14px',
+            'margin-bottom': '12px',
             padding: '2px 2px 8px',
             'border-radius': '0',
             background: 'transparent',
@@ -1060,18 +1060,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
             display: 'grid',
-            'grid-template-columns': node.closest('.is-text-only-choice') ? '1fr' : 'minmax(0, 1.08fr) minmax(0, 0.92fr)',
-            gap: '12px',
+            'grid-template-columns': '1fr',
+            gap: '10px',
             'align-items': 'stretch',
-            'margin-bottom': '14px'
+            'margin-bottom': '12px'
         }));
 
         clone.querySelectorAll('.pb-presentation-detail').forEach((node) => setInlineStyles(node, {
-            'grid-column': node.closest('.is-text-only-choice') ? '1 / -1' : 'auto',
+            'grid-column': '1 / -1',
             display: 'flex',
             'flex-direction': 'column',
-            'justify-content': 'center',
-            gap: '12px',
+            'justify-content': 'flex-start',
+            gap: '10px',
             padding: '2px 2px 0',
             'border-radius': '0',
             background: 'transparent',
@@ -1116,8 +1116,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
-            'grid-column': node.closest('.is-text-only-choice') ? '1 / -1' : 'auto',
-            padding: '12px 0 0',
+            'grid-column': '1 / -1',
+            padding: '10px 0 0',
             'border-top': '1px solid rgba(124, 88, 70, 0.1)',
             'border-radius': '0',
             background: 'transparent',
@@ -1151,9 +1151,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-sizing': 'border-box',
                 'text-align': 'center',
                 'justify-self': 'stretch',
-                'aspect-ratio': isPortrait ? 'auto' : '16 / 10',
-                'min-height': isPortrait ? '310px' : '330px',
-                height: isPortrait ? '100%' : '330px'
+                'aspect-ratio': isPortrait ? '16 / 8.8' : '16 / 8.9',
+                'min-height': isPortrait ? '300px' : '310px',
+                height: isPortrait ? '300px' : '310px'
             });
 
             if (!hasImage) {
