@@ -65,7 +65,7 @@ body {
 
 /* 캔버스 */
 .pb-canvas-wrapper { flex: 1; padding: 50px; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start; }
-.pb-canvas { width: 100%; max-width: 720px; min-height: 800px; background-color: var(--pb-bg); padding: 30px 24px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.04); position: relative; transition: background-color 0.4s ease; box-sizing: border-box; }
+.pb-canvas { width: 100%; max-width: 720px; min-height: 800px; background-color: var(--pb-bg); padding: 24px 18px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.04); position: relative; transition: background-color 0.4s ease; box-sizing: border-box; }
 .pb-canvas,
 .pb-canvas * { font-family: var(--pb-font-family); }
 .pb-empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--pb-text-sub); pointer-events: none; }
@@ -562,7 +562,7 @@ body {
 .pb-presentation {
     border: 1px solid rgba(124, 88, 70, 0.08);
     border-radius: 28px;
-    padding: 22px;
+    padding: 20px;
     color: #2a211c;
     box-shadow: 0 24px 40px rgba(78, 49, 30, 0.08);
     overflow: hidden;
@@ -725,11 +725,14 @@ body {
 
 .pb-presentation-section {
     margin-bottom: 14px;
-    padding: 16px 18px 16px 20px;
+    padding: 15px 17px;
+    border: 1px solid rgba(124, 88, 70, 0.08);
     border-left: 4px solid var(--pb-primary);
     border-radius: 18px;
-    background: linear-gradient(90deg, var(--pb-primary-light), rgba(255, 255, 255, 0.34));
+    background: rgba(255, 255, 255, 0.46);
     box-shadow: none;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .pb-presentation-chip {
@@ -773,11 +776,14 @@ body {
 .pb-presentation.is-text-only-choice .pb-presentation-section {
     margin-top: 2px;
     margin-bottom: 14px;
-    padding: 16px 18px 16px 20px;
+    padding: 15px 17px;
+    border: 1px solid rgba(124, 88, 70, 0.08);
     border-left: 4px solid var(--pb-primary);
     border-radius: 18px;
-    background: linear-gradient(90deg, var(--pb-primary-light), rgba(255, 255, 255, 0.34));
+    background: rgba(255, 255, 255, 0.46);
     box-shadow: none;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .pb-presentation.is-text-only-choice .pb-presentation-side {
@@ -834,11 +840,11 @@ body {
     position: absolute;
     left: 0;
     top: 0.68em;
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 999px;
     background: var(--pb-primary);
-    box-shadow: 0 0 0 4px var(--pb-primary-light);
+    box-shadow: none;
 }
 
 .pb-presentation-card {
@@ -852,10 +858,13 @@ body {
     flex-direction: column;
     justify-content: flex-start;
     gap: 14px;
-    padding: 16px 18px;
+    padding: 15px 17px;
+    border: 1px solid rgba(124, 88, 70, 0.08);
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.48);
     box-shadow: none;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .pb-presentation-card h3,
@@ -885,11 +894,14 @@ body {
 }
 
 .pb-presentation-closing {
-    padding: 16px 18px;
+    padding: 15px 17px;
+    border: 1px solid rgba(124, 88, 70, 0.08);
     border-left: 4px solid rgba(124, 88, 70, 0.22);
     border-radius: 18px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.18));
+    background: rgba(255, 255, 255, 0.44);
     box-shadow: none;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 @media (max-width: 640px) {

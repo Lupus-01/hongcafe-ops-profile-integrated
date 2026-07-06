@@ -927,6 +927,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function stabilizeExportListMarkers(root) {
+        root.querySelectorAll('.pb-presentation-points li').forEach((item) => {
+            if (item.querySelector('.pb-export-point-marker')) return;
+            const marker = document.createElement('span');
+            marker.className = 'pb-export-point-marker';
+            marker.setAttribute('aria-hidden', 'true');
+            item.prepend(marker);
+        });
+    }
+
     function applyEditorFriendlyExportStyles(clone) {
         const computedCanvas = window.getComputedStyle(canvas);
         const fontFamily = computedCanvas.getPropertyValue('--pb-font-family').trim() || defaultTypography.fontFamily;
@@ -940,7 +950,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setInlineStyles(clone, {
             width: '100%',
             'max-width': '720px',
-            padding: '30px 24px',
+            padding: '24px 18px',
             'border-radius': '24px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
@@ -959,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(section, {
                 border: '1px solid rgba(124, 88, 70, 0.08)',
                 'border-radius': '28px',
-                padding: '22px',
+                padding: '20px',
                 color: '#2a211c',
                 'box-shadow': '0 24px 40px rgba(78, 49, 30, 0.08)',
                 overflow: 'hidden',
@@ -1037,11 +1047,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
             'margin-bottom': '14px',
-            padding: '16px 18px 16px 20px',
+            padding: '15px 17px',
+            border: '1px solid rgba(124, 88, 70, 0.08)',
             'border-left': `4px solid ${currentBrandColor}`,
             'border-radius': '18px',
-            background: `linear-gradient(90deg, ${currentBrandLight}, rgba(255,255,255,0.34))`,
-            'box-shadow': 'none'
+            background: 'rgba(255,255,255,0.46)',
+            'box-shadow': 'none',
+            'box-sizing': 'border-box',
+            overflow: 'hidden'
         }));
 
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setInlineStyles(node, {
@@ -1073,10 +1086,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'flex-direction': 'column',
             'justify-content': 'flex-start',
             gap: '14px',
-            padding: '16px 18px',
+            padding: '15px 17px',
+            border: '1px solid rgba(124, 88, 70, 0.08)',
             'border-radius': '18px',
             background: 'rgba(255,255,255,0.48)',
-            'box-shadow': 'none'
+            'box-shadow': 'none',
+            'box-sizing': 'border-box',
+            overflow: 'hidden'
         }));
 
         clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
@@ -1098,7 +1114,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-points li').forEach((node) => setInlineStyles(node, {
             position: 'relative',
-            'padding-left': '22px'
+            'padding-left': '0',
+            display: 'flex',
+            'align-items': 'flex-start',
+            gap: '12px'
+        }));
+
+        stabilizeExportListMarkers(clone);
+        clone.querySelectorAll('.pb-export-point-marker').forEach((node) => setInlineStyles(node, {
+            display: 'inline-block',
+            width: '7px',
+            height: '7px',
+            'min-width': '7px',
+            'margin-top': '0.68em',
+            'border-radius': '999px',
+            background: currentBrandColor
         }));
 
         clone.querySelectorAll('.pb-presentation-card').forEach((node) => setInlineStyles(node, {
@@ -1132,11 +1162,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '16px 18px',
+            padding: '15px 17px',
+            border: '1px solid rgba(124, 88, 70, 0.08)',
             'border-left': '4px solid rgba(124, 88, 70, 0.22)',
             'border-radius': '18px',
-            background: 'linear-gradient(90deg, rgba(255,255,255,0.58), rgba(255,255,255,0.18))',
-            'box-shadow': 'none'
+            background: 'rgba(255,255,255,0.44)',
+            'box-shadow': 'none',
+            'box-sizing': 'border-box',
+            overflow: 'hidden'
         }));
 
         clone.querySelectorAll('.pb-presentation-portrait, .pb-presentation-photo').forEach((node) => {
