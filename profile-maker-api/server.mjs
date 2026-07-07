@@ -12,12 +12,23 @@ import { GoogleGenAI } from '@google/genai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const LOW_COST_TEXT_MODELS = new Set([
+    'gemini-2.5-flash-lite'
+]);
+const LOW_COST_IMAGE_MODELS = new Set([
+    'gemini-3.1-flash-lite-image',
+    'gemini-2.5-flash-image'
+]);
+
 const PORT = Number(process.env.PROFILE_API_PORT || 3100);
-const DAILY_PROFILE_LIMIT = Number(process.env.DAILY_PROFILE_LIMIT || 50);
+const DAILY_PROFILE_LIMIT = Number(process.env.DAILY_PROFILE_LIMIT || 20);
+const DAILY_IMAGE_LIMIT = Number(process.env.DAILY_IMAGE_LIMIT || 20);
+const MAX_DOCUMENT_TEXT_CHARS = Number(process.env.MAX_DOCUMENT_TEXT_CHARS || 5000);
+const ENABLE_AI_IMAGES = process.env.ENABLE_AI_IMAGES !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const TEXT_MODEL = process.env.TEXT_MODEL || 'gemini-3.1-flash-lite';
-const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-2.5-flash-image';
+const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-2.5-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
+const IMAGE_MODEL = getAllowedModel(process.env.IMAGE_MODEL, 'gemini-3.1-flash-lite-image', LOW_COST_IMAGE_MODELS, 'IMAGE_MODEL');
 const usageFilePath = path.join(__dirname, '.profile-usage.json');
 
 const app = express();
@@ -72,6 +83,16 @@ app.use('/vendor/html2canvas', express.static(path.join(__dirname, '..', 'node_m
 app.use('/profile-maker', express.static(path.join(__dirname, '..', 'profile-maker')));
 app.use(express.static(path.join(__dirname, '..', 'profile-maker')));
 
+function getAllowedModel(requestedModel, fallbackModel, allowedModels, envName) {
+    const model = String(requestedModel || fallbackModel).trim();
+    if (allowedModels.has(model)) return model;
+
+    if (requestedModel) {
+        console.warn(`[cost-guard] ${envName}=${model} is not in the low-cost allowlist. Using ${fallbackModel} instead.`);
+    }
+    return fallbackModel;
+}
+
 function getKstDateString() {
     return new Intl.DateTimeFormat('sv-SE', {
         timeZone: 'Asia/Seoul',
@@ -105,6 +126,40 @@ function incrementUsage() {
     usage[today] = count + 1;
     saveUsage(usage);
     return { used: usage[today], limit: DAILY_PROFILE_LIMIT };
+}
+
+function getImageUsageState() {
+    const usage = loadUsage();
+    const today = getKstDateString();
+    const imageKey = `${today}:images`;
+    const count = Number(usage[imageKey] || 0);
+    return { usage, today, imageKey, count };
+}
+
+function incrementImageUsage() {
+    const { usage, imageKey, count } = getImageUsageState();
+    usage[imageKey] = count + 1;
+    saveUsage(usage);
+    return { used: usage[imageKey], limit: DAILY_IMAGE_LIMIT };
+}
+
+function ensureImageGenerationAllowed() {
+    if (!ENABLE_AI_IMAGES) {
+        throw new Error('AI 이미지 생성이 서버 설정에서 꺼져 있습니다. 텍스트 결과를 만든 뒤 직접 이미지를 업로드해주세요.');
+    }
+
+    const { count } = getImageUsageState();
+    if (count >= DAILY_IMAGE_LIMIT) {
+        throw new Error(`오늘 이미지 생성 한도 ${DAILY_IMAGE_LIMIT}장을 모두 사용했습니다. 텍스트 결과를 만든 뒤 직접 이미지를 업로드해주세요.`);
+    }
+
+    return incrementImageUsage();
+}
+
+function getLimitedDocumentText(value) {
+    const text = String(value || '');
+    if (text.length <= MAX_DOCUMENT_TEXT_CHARS) return text;
+    return `${text.slice(0, MAX_DOCUMENT_TEXT_CHARS)}\n\n[문서가 길어 비용 보호를 위해 앞부분 ${MAX_DOCUMENT_TEXT_CHARS}자까지만 반영되었습니다.]`;
 }
 
 function getTemplateGuide(templateType) {
@@ -362,6 +417,7 @@ async function generateProfileTextFromPpt(payload, pptInfo) {
     const slideCount = Array.isArray(pptInfo?.slides) ? pptInfo.slides.length : 0;
     const sheetCount = Array.isArray(pptInfo?.sheets) ? pptInfo.sheets.length : 0;
     const itemCount = slideCount || sheetCount;
+    const limitedDocumentText = getLimitedDocumentText(pptInfo.combinedText);
     const prompt = `
 너는 한국어 상담사 소개 페이지를 구성하는 카피라이터다.
 사용자가 업로드한 PPT의 내용에서 핵심 메시지를 추출해서, 상담사 소개 랜딩페이지용 문구로 다시 구성한다.
@@ -383,7 +439,7 @@ ${guide.expertiseGuide}
 - 원문을 과장하지 말고, 업로드 자료에서 읽히는 톤과 분야 정보를 바탕으로 소개 페이지에 어울리는 깊이를 더한다.
 
 PPT 원문:
-${pptInfo.combinedText}
+${limitedDocumentText}
 
 반환 스키마:
 {
@@ -417,15 +473,15 @@ ${pptInfo.combinedText}
 async function generateImage(prompt, imageKind) {
     const fallbackModels = [
         IMAGE_MODEL,
-        'gemini-2.5-flash-image',
-        'gemini-3.1-flash-image',
-        'gemini-3-pro-image'
+        'gemini-3.1-flash-lite-image',
+        'gemini-2.5-flash-image'
     ];
-    const modelsToTry = [...new Set(fallbackModels.filter(Boolean))];
+    const modelsToTry = [...new Set(fallbackModels.filter((model) => LOW_COST_IMAGE_MODELS.has(model)))];
     let lastError = null;
 
     for (const model of modelsToTry) {
         try {
+            const imageUsage = ensureImageGenerationAllowed();
             const response = await ai.models.generateContent({
                 model,
                 contents: prompt,
@@ -440,7 +496,7 @@ async function generateImage(prompt, imageKind) {
                 continue;
             }
 
-            console.log(`[image] ${imageKind} image generated successfully with model ${model}`);
+            console.log(`[image] ${imageKind} image generated successfully with model ${model}. image usage ${imageUsage.used}/${imageUsage.limit}`);
             return imageDataUrl;
         } catch (error) {
             lastError = error;
@@ -680,6 +736,9 @@ function buildImageMeta(generateImageRequested, profileImage, moodImage, failure
 function getReadableImageError(error) {
     const status = error?.status;
     const message = String(error?.message || '');
+    if (message.includes('이미지 생성이 서버 설정') || message.includes('오늘 이미지 생성 한도')) {
+        return message;
+    }
 
     if (status === 429 || message.includes('RESOURCE_EXHAUSTED') || message.includes('Quota exceeded')) {
         return 'AI 이미지 생성 한도를 초과했습니다. 프로필 빌더에서 직접 이미지를 업로드해주세요.';
@@ -694,10 +753,15 @@ function getReadableImageError(error) {
 
 app.get('/api/health', (_req, res) => {
     const { count } = getUsageState();
+    const { count: imageCount } = getImageUsageState();
     res.json({
         ok: true,
         dailyLimit: DAILY_PROFILE_LIMIT,
         usedToday: count,
+        dailyImageLimit: DAILY_IMAGE_LIMIT,
+        usedImagesToday: imageCount,
+        imageGenerationEnabled: ENABLE_AI_IMAGES,
+        maxDocumentTextChars: MAX_DOCUMENT_TEXT_CHARS,
         hasApiKey: Boolean(GEMINI_API_KEY),
         imageModel: IMAGE_MODEL,
         textModel: TEXT_MODEL
