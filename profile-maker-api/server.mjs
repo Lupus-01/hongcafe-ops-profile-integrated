@@ -16,7 +16,6 @@ const LOW_COST_TEXT_MODELS = new Set([
     'gemini-2.5-flash-lite'
 ]);
 const LOW_COST_IMAGE_MODELS = new Set([
-    'gemini-3.1-flash-lite-image',
     'gemini-2.5-flash-image'
 ]);
 
@@ -24,12 +23,17 @@ const PORT = Number(process.env.PROFILE_API_PORT || 3100);
 const DAILY_PROFILE_LIMIT = Number(process.env.DAILY_PROFILE_LIMIT || 20);
 const DAILY_IMAGE_LIMIT = Number(process.env.DAILY_IMAGE_LIMIT || 20);
 const MAX_DOCUMENT_TEXT_CHARS = Number(process.env.MAX_DOCUMENT_TEXT_CHARS || 5000);
+const MAX_IMAGE_CONTEXT_CHARS = Number(process.env.MAX_IMAGE_CONTEXT_CHARS || 500);
+const MAX_TEXT_OUTPUT_TOKENS = Number(process.env.MAX_TEXT_OUTPUT_TOKENS || 1600);
+const GEMINI_MIN_REQUEST_INTERVAL_MS = Number(process.env.GEMINI_MIN_REQUEST_INTERVAL_MS || 30000);
 const ENABLE_AI_IMAGES = process.env.ENABLE_AI_IMAGES !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-2.5-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
-const IMAGE_MODEL = getAllowedModel(process.env.IMAGE_MODEL, 'gemini-3.1-flash-lite-image', LOW_COST_IMAGE_MODELS, 'IMAGE_MODEL');
+const IMAGE_MODEL = getAllowedModel(process.env.IMAGE_MODEL, 'gemini-2.5-flash-image', LOW_COST_IMAGE_MODELS, 'IMAGE_MODEL');
 const usageFilePath = path.join(__dirname, '.profile-usage.json');
+let geminiQueue = Promise.resolve();
+let lastGeminiRequestAt = 0;
 
 const app = express();
 const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
@@ -93,6 +97,29 @@ function getAllowedModel(requestedModel, fallbackModel, allowedModels, envName) 
     return fallbackModel;
 }
 
+function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runGeminiRequest(label, task) {
+    const queuedTask = geminiQueue.then(async () => {
+        const elapsed = Date.now() - lastGeminiRequestAt;
+        const delay = Math.max(GEMINI_MIN_REQUEST_INTERVAL_MS - elapsed, 0);
+
+        if (delay > 0) {
+            console.log(`[gemini-queue] waiting ${delay}ms before ${label}`);
+            await wait(delay);
+        }
+
+        lastGeminiRequestAt = Date.now();
+        console.log(`[gemini-queue] starting ${label}`);
+        return task();
+    });
+
+    geminiQueue = queuedTask.catch(() => {});
+    return queuedTask;
+}
+
 function getKstDateString() {
     return new Intl.DateTimeFormat('sv-SE', {
         timeZone: 'Asia/Seoul',
@@ -153,7 +180,7 @@ function ensureImageGenerationAllowed() {
         throw new Error(`오늘 이미지 생성 한도 ${DAILY_IMAGE_LIMIT}장을 모두 사용했습니다. 텍스트 결과를 만든 뒤 직접 이미지를 업로드해주세요.`);
     }
 
-    return incrementImageUsage();
+    return { used: count, limit: DAILY_IMAGE_LIMIT };
 }
 
 function getLimitedDocumentText(value) {
@@ -228,13 +255,14 @@ async function extractTextFromResponse(response) {
 }
 
 async function generateJsonContent(prompt) {
-    const response = await ai.models.generateContent({
+    const response = await runGeminiRequest(`text:${TEXT_MODEL}`, () => ai.models.generateContent({
         model: TEXT_MODEL,
         contents: prompt,
         config: {
-            responseMimeType: 'application/json'
+            responseMimeType: 'application/json',
+            maxOutputTokens: MAX_TEXT_OUTPUT_TOKENS
         }
-    });
+    }));
 
     return parseJsonResponse(await extractTextFromResponse(response));
 }
@@ -286,7 +314,7 @@ function summarizeResponseForLog(response) {
     };
 }
 
-function sanitizeExtraPrompt(value, maxLength = 700) {
+function sanitizeExtraPrompt(value, maxLength = MAX_IMAGE_CONTEXT_CHARS) {
     return String(value || '')
         .replace(/\s+/g, ' ')
         .trim()
@@ -471,24 +499,20 @@ ${limitedDocumentText}
 }
 
 async function generateImage(prompt, imageKind) {
-    const fallbackModels = [
-        IMAGE_MODEL,
-        'gemini-3.1-flash-lite-image',
-        'gemini-2.5-flash-image'
-    ];
+    const fallbackModels = [IMAGE_MODEL];
     const modelsToTry = [...new Set(fallbackModels.filter((model) => LOW_COST_IMAGE_MODELS.has(model)))];
     let lastError = null;
 
     for (const model of modelsToTry) {
         try {
-            const imageUsage = ensureImageGenerationAllowed();
-            const response = await ai.models.generateContent({
+            ensureImageGenerationAllowed();
+            const response = await runGeminiRequest(`image:${imageKind}:${model}`, () => ai.models.generateContent({
                 model,
                 contents: prompt,
                 config: {
                     responseModalities: ['TEXT', 'IMAGE']
                 }
-            });
+            }));
 
             const imageDataUrl = extractInlineImage(response);
             if (!imageDataUrl) {
@@ -496,6 +520,7 @@ async function generateImage(prompt, imageKind) {
                 continue;
             }
 
+            const imageUsage = incrementImageUsage();
             console.log(`[image] ${imageKind} image generated successfully with model ${model}. image usage ${imageUsage.used}/${imageUsage.limit}`);
             return imageDataUrl;
         } catch (error) {
@@ -762,6 +787,9 @@ app.get('/api/health', (_req, res) => {
         usedImagesToday: imageCount,
         imageGenerationEnabled: ENABLE_AI_IMAGES,
         maxDocumentTextChars: MAX_DOCUMENT_TEXT_CHARS,
+        maxImageContextChars: MAX_IMAGE_CONTEXT_CHARS,
+        maxTextOutputTokens: MAX_TEXT_OUTPUT_TOKENS,
+        geminiMinRequestIntervalMs: GEMINI_MIN_REQUEST_INTERVAL_MS,
         hasApiKey: Boolean(GEMINI_API_KEY),
         imageModel: IMAGE_MODEL,
         textModel: TEXT_MODEL
