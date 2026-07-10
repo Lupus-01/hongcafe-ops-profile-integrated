@@ -79,9 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_PROFILE_HISTORY = 8;
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
-        titleSize: 50,
-        bodySize: 19,
-        pointSize: 19,
+        titleSize: 72,
+        bodySize: 28,
+        pointSize: 30,
         lineHeight: 1.65
     };
 

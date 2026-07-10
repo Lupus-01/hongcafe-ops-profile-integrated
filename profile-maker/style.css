@@ -6,12 +6,12 @@
     --pb-text-main: #1a1a1a;
     --pb-text-sub: #8b95a1;
     --pb-font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-    --pb-title-size: 50px;
-    --pb-body-size: 19px;
-    --pb-point-size: 19px;
+    --pb-title-size: 72px;
+    --pb-body-size: 28px;
+    --pb-point-size: 30px;
     --pb-body-line-height: 1.65;
-    --pb-subtitle-size: 34px;
-    --pb-chip-size: 17px;
+    --pb-subtitle-size: 42px;
+    --pb-chip-size: 28px;
 }
 
 .pb-theme-tarot { --pb-bg: #f7f6fb; --pb-primary: #6335B4; --pb-primary-light: #ece5f7; }
@@ -910,11 +910,11 @@ body {
     .pb-presentation-title,
     .pb-presentation-card h3,
     .pb-presentation-closing h3 {
-        font-size: min(var(--pb-subtitle-size), 30px);
+        font-size: min(var(--pb-subtitle-size), 42px);
     }
 
     .pb-presentation-title {
-        font-size: min(var(--pb-title-size), 30px);
+        font-size: min(var(--pb-title-size), 42px);
     }
 
     .pb-presentation-portrait {
@@ -946,7 +946,7 @@ body {
     }
 
     .pb-brand-poster-headline {
-        font-size: min(var(--pb-title-size), 30px);
+        font-size: min(var(--pb-title-size), 42px);
     }
 
     .pb-brand-poster-info {
