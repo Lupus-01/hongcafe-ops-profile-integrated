@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
@@ -26,16 +27,25 @@ const MAX_DOCUMENT_TEXT_CHARS = Number(process.env.MAX_DOCUMENT_TEXT_CHARS || 50
 const MAX_IMAGE_CONTEXT_CHARS = Number(process.env.MAX_IMAGE_CONTEXT_CHARS || 500);
 const MAX_TEXT_OUTPUT_TOKENS = Number(process.env.MAX_TEXT_OUTPUT_TOKENS || 1600);
 const GEMINI_MIN_REQUEST_INTERVAL_MS = Number(process.env.GEMINI_MIN_REQUEST_INTERVAL_MS || 30000);
+const GEMINI_MAX_QUEUE_DEPTH = Number(process.env.GEMINI_MAX_QUEUE_DEPTH || 5);
 const ENABLE_AI_IMAGES = process.env.ENABLE_AI_IMAGES !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
+const PROFILE_AUTH_SECRET = process.env.PROFILE_AUTH_SECRET || '';
+const PROFILE_AUTH_COOKIE = 'profile_api_auth';
+const PROFILE_RATE_LIMIT_WINDOW_MS = Number(process.env.PROFILE_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
+const PROFILE_RATE_LIMIT_MAX = Number(process.env.PROFILE_RATE_LIMIT_MAX || 10);
+const PROFILE_TRUST_PROXY = process.env.PROFILE_TRUST_PROXY || 'loopback';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-2.5-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
 const IMAGE_MODEL = getAllowedModel(process.env.IMAGE_MODEL, 'gemini-2.5-flash-image', LOW_COST_IMAGE_MODELS, 'IMAGE_MODEL');
 const usageFilePath = path.join(__dirname, '.profile-usage.json');
 let geminiQueue = Promise.resolve();
 let lastGeminiRequestAt = 0;
+let geminiQueueDepth = 0;
+const requestBuckets = new Map();
 
 const app = express();
+app.set('trust proxy', PROFILE_TRUST_PROXY);
 const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -81,8 +91,9 @@ const TEMPLATE_GUIDES = {
     }
 };
 
-app.use(cors(FRONTEND_ORIGIN ? { origin: FRONTEND_ORIGIN } : undefined));
+app.use(cors(FRONTEND_ORIGIN ? { origin: FRONTEND_ORIGIN, credentials: true } : { origin: false }));
 app.use(express.json({ limit: '2mb' }));
+app.use('/api', auditApiRequest);
 app.use('/vendor/html2canvas', express.static(path.join(__dirname, '..', 'node_modules', 'html2canvas', 'dist')));
 app.use('/profile-maker', express.static(path.join(__dirname, '..', 'profile-maker')));
 app.use(express.static(path.join(__dirname, '..', 'profile-maker')));
@@ -102,6 +113,11 @@ function wait(ms) {
 }
 
 async function runGeminiRequest(label, task) {
+    if (geminiQueueDepth >= GEMINI_MAX_QUEUE_DEPTH) {
+        throw createHttpError(429, 'AI 요청이 많습니다. 잠시 후 다시 시도해주세요.');
+    }
+
+    geminiQueueDepth += 1;
     const queuedTask = geminiQueue.then(async () => {
         const elapsed = Date.now() - lastGeminiRequestAt;
         const delay = Math.max(GEMINI_MIN_REQUEST_INTERVAL_MS - elapsed, 0);
@@ -114,11 +130,102 @@ async function runGeminiRequest(label, task) {
         lastGeminiRequestAt = Date.now();
         console.log(`[gemini-queue] starting ${label}`);
         return task();
+    }).finally(() => {
+        geminiQueueDepth = Math.max(geminiQueueDepth - 1, 0);
     });
 
     geminiQueue = queuedTask.catch(() => {});
     return queuedTask;
 }
+
+function createHttpError(status, message) {
+    const error = new Error(message);
+    error.status = status;
+    error.expose = true;
+    return error;
+}
+
+function sendGenerationError(res, error, fallbackMessage) {
+    const status = Number(error?.status) || 500;
+    res.status(status).json({
+        error: error?.expose ? error.message : fallbackMessage
+    });
+}
+
+function getCookie(req, name) {
+    const cookieHeader = req.headers.cookie || '';
+    return cookieHeader
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name}=`))
+        ?.slice(name.length + 1) || '';
+}
+
+function isValidProfileAuthToken(token) {
+    if (PROFILE_AUTH_SECRET.length < 32 || !token) return false;
+    const [payload, signature, extra] = token.split('.');
+    if (!payload || !signature || extra) return false;
+
+    const expected = crypto.createHmac('sha256', PROFILE_AUTH_SECRET).update(payload).digest('base64url');
+    const actualBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+
+    try {
+        const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        return Boolean(claims.sub) && Number(claims.exp) > Date.now();
+    } catch {
+        return false;
+    }
+}
+
+function requireProfileAuth(req, res, next) {
+    if (process.env.AUTH_BYPASS === 'true') return next();
+    if (PROFILE_AUTH_SECRET.length < 32) {
+        return res.status(503).json({ error: '프로필 API 인증 설정이 완료되지 않았습니다.' });
+    }
+    if (!isValidProfileAuthToken(getCookie(req, PROFILE_AUTH_COOKIE))) {
+        return res.status(401).json({ error: '업무일지에 다시 로그인해주세요.' });
+    }
+    return next();
+}
+
+function enforceProfileRateLimit(req, res, next) {
+    const now = Date.now();
+    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const current = requestBuckets.get(key);
+    const bucket = !current || current.resetAt <= now
+        ? { count: 0, resetAt: now + PROFILE_RATE_LIMIT_WINDOW_MS }
+        : current;
+    bucket.count += 1;
+    requestBuckets.set(key, bucket);
+
+    if (requestBuckets.size > 1000) {
+        for (const [bucketKey, value] of requestBuckets) {
+            if (value.resetAt <= now) requestBuckets.delete(bucketKey);
+        }
+    }
+
+    res.setHeader('X-RateLimit-Limit', String(PROFILE_RATE_LIMIT_MAX));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(PROFILE_RATE_LIMIT_MAX - bucket.count, 0)));
+    if (bucket.count > PROFILE_RATE_LIMIT_MAX) {
+        res.setHeader('Retry-After', String(Math.max(Math.ceil((bucket.resetAt - now) / 1000), 1)));
+        return res.status(429).json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' });
+    }
+    return next();
+}
+
+function auditApiRequest(req, res, next) {
+    const startedAt = Date.now();
+    const requestId = crypto.randomUUID();
+    res.setHeader('X-Request-Id', requestId);
+    res.on('finish', () => {
+        console.log(`[api-audit] id=${requestId} ip=${req.ip || req.socket.remoteAddress || 'unknown'} method=${req.method} path=${req.originalUrl.split('?')[0]} status=${res.statusCode} durationMs=${Date.now() - startedAt}`);
+    });
+    next();
+}
+
+const protectedApiMiddleware = [requireProfileAuth, enforceProfileRateLimit];
 
 function getKstDateString() {
     return new Intl.DateTimeFormat('sv-SE', {
@@ -146,13 +253,6 @@ function getUsageState() {
     const today = getKstDateString();
     const count = Number(usage[today] || 0);
     return { usage, today, count };
-}
-
-function incrementUsage() {
-    const { usage, today, count } = getUsageState();
-    usage[today] = count + 1;
-    saveUsage(usage);
-    return { used: usage[today], limit: DAILY_PROFILE_LIMIT };
 }
 
 function getImageUsageState() {
@@ -706,8 +806,8 @@ Requirements:
     return generateImage(posterPrompt, 'brand');
 }
 
-function validateUsage(res) {
-    const { count } = getUsageState();
+function reserveProfileUsage(res) {
+    const { usage, today, count } = getUsageState();
     if (count >= DAILY_PROFILE_LIMIT) {
         res.status(429).json({
             error: `오늘 생성 한도 ${DAILY_PROFILE_LIMIT}개를 모두 사용했습니다.`,
@@ -715,7 +815,9 @@ function validateUsage(res) {
         });
         return false;
     }
-    return true;
+    usage[today] = count + 1;
+    saveUsage(usage);
+    return { used: usage[today], limit: DAILY_PROFILE_LIMIT };
 }
 
 function validateApiKey(res) {
@@ -790,13 +892,18 @@ app.get('/api/health', (_req, res) => {
         maxImageContextChars: MAX_IMAGE_CONTEXT_CHARS,
         maxTextOutputTokens: MAX_TEXT_OUTPUT_TOKENS,
         geminiMinRequestIntervalMs: GEMINI_MIN_REQUEST_INTERVAL_MS,
+        geminiMaxQueueDepth: GEMINI_MAX_QUEUE_DEPTH,
+        geminiQueueDepth,
+        profileAuthConfigured: PROFILE_AUTH_SECRET.length >= 32,
+        profileRateLimitWindowMs: PROFILE_RATE_LIMIT_WINDOW_MS,
+        profileRateLimitMax: PROFILE_RATE_LIMIT_MAX,
         hasApiKey: Boolean(GEMINI_API_KEY),
         imageModel: IMAGE_MODEL,
         textModel: TEXT_MODEL
     });
 });
 
-app.post('/api/generate-profile', async (req, res) => {
+app.post('/api/generate-profile', ...protectedApiMiddleware, async (req, res) => {
     const payload = req.body || {};
     const requiredFields = ['templateType', 'name', 'specialty', 'tone', 'career'];
     const missingField = requiredFields.find((field) => !payload[field] || !String(payload[field]).trim());
@@ -805,7 +912,9 @@ app.post('/api/generate-profile', async (req, res) => {
         return res.status(400).json({ error: `${missingField} 값이 비어 있습니다.` });
     }
 
-    if (!validateUsage(res) || !validateApiKey(res)) return;
+    if (!validateApiKey(res)) return;
+    const usage = reserveProfileUsage(res);
+    if (!usage) return;
 
     try {
         const profile = await generateProfileTextFromInput(payload);
@@ -829,7 +938,6 @@ app.post('/api/generate-profile', async (req, res) => {
             }
         }
 
-        const usage = incrementUsage();
         res.json({
             profile: {
                 ...profile,
@@ -841,13 +949,11 @@ app.post('/api/generate-profile', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            error: 'AI 생성 중 오류가 발생했습니다. 모델 설정 또는 API 키를 확인해주세요.'
-        });
+        sendGenerationError(res, error, 'AI 생성 중 오류가 발생했습니다. 모델 설정 또는 API 키를 확인해주세요.');
     }
 });
 
-app.post('/api/generate-from-ppt', upload.single('pptFile'), async (req, res) => {
+app.post('/api/generate-from-ppt', ...protectedApiMiddleware, upload.single('pptFile'), async (req, res) => {
     const payload = req.body || {};
     const file = req.file;
 
@@ -863,7 +969,9 @@ app.post('/api/generate-from-ppt', upload.single('pptFile'), async (req, res) =>
         return res.status(400).json({ error: '현재는 .pptx 와 .xlsx 형식만 지원합니다.' });
     }
 
-    if (!validateUsage(res) || !validateApiKey(res)) return;
+    if (!validateApiKey(res)) return;
+    const usage = reserveProfileUsage(res);
+    if (!usage) return;
 
     try {
         const parsedDocument = isPptx ? parsePptxBuffer(file.buffer) : parseXlsxBuffer(file.buffer);
@@ -896,7 +1004,6 @@ app.post('/api/generate-from-ppt', upload.single('pptFile'), async (req, res) =>
             }
         }
 
-        const usage = incrementUsage();
         res.json({
             profile: {
                 ...profile,
@@ -913,37 +1020,34 @@ app.post('/api/generate-from-ppt', upload.single('pptFile'), async (req, res) =>
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            error: isPptx ? 'PPT 분석 또는 AI 구성 중 오류가 발생했습니다.' : '엑셀 분석 또는 AI 구성 중 오류가 발생했습니다.'
-        });
+        sendGenerationError(res, error, isPptx ? 'PPT 분석 또는 AI 구성 중 오류가 발생했습니다.' : '엑셀 분석 또는 AI 구성 중 오류가 발생했습니다.');
     }
 });
 
-app.post('/api/regenerate-profile-slot', async (req, res) => {
+app.post('/api/regenerate-profile-slot', ...protectedApiMiddleware, async (req, res) => {
     const payload = req.body || {};
 
     if (!payload.templateType || !payload.slotKey || !payload.currentProfile) {
         return res.status(400).json({ error: 'templateType, slotKey, currentProfile 값이 필요합니다.' });
     }
 
-    if (!validateUsage(res) || !validateApiKey(res)) return;
+    if (!validateApiKey(res)) return;
+    const usage = reserveProfileUsage(res);
+    if (!usage) return;
 
     try {
         const regenerated = await regenerateProfileSlot(payload);
-        const usage = incrementUsage();
         res.json({
             profile: regenerated,
             usage
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            error: '부분 재생성 중 오류가 발생했습니다.'
-        });
+        sendGenerationError(res, error, '부분 재생성 중 오류가 발생했습니다.');
     }
 });
 
-app.post('/api/generate-brand-poster', async (req, res) => {
+app.post('/api/generate-brand-poster', ...protectedApiMiddleware, async (req, res) => {
     const payload = req.body || {};
     const requiredFields = ['brandName', 'industry', 'products', 'features', 'targetAudience', 'promoGoal'];
     const missingField = requiredFields.find((field) => !payload[field] || !String(payload[field]).trim());
@@ -952,7 +1056,9 @@ app.post('/api/generate-brand-poster', async (req, res) => {
         return res.status(400).json({ error: `${missingField} 값이 비어 있습니다.` });
     }
 
-    if (!validateUsage(res) || !validateApiKey(res)) return;
+    if (!validateApiKey(res)) return;
+    const usage = reserveProfileUsage(res);
+    if (!usage) return;
 
     try {
         const poster = await generateBrandPosterText(payload);
@@ -968,7 +1074,6 @@ app.post('/api/generate-brand-poster', async (req, res) => {
             }
         }
 
-        const usage = incrementUsage();
         res.json({
             poster: {
                 ...poster,
@@ -979,9 +1084,7 @@ app.post('/api/generate-brand-poster', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            error: '업체 이미지 생성 중 오류가 발생했습니다. 입력 정보와 API 설정을 확인해주세요.'
-        });
+        sendGenerationError(res, error, '업체 이미지 생성 중 오류가 발생했습니다. 입력 정보와 API 설정을 확인해주세요.');
     }
 });
 

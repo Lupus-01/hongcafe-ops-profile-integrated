@@ -13,6 +13,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const WORK_REPORT_TEMPLATE = path.join(TEMPLATE_DIR, "work-report-template.xlsx");
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const SESSION_COOKIE = "ops_session";
+const PROFILE_AUTH_COOKIE = "profile_api_auth";
 
 loadEnvFile();
 
@@ -26,6 +27,7 @@ const LEGACY_SUCCESS_TEXT = process.env.LEGACY_SUCCESS_TEXT || "";
 const LEGACY_FAILURE_TEXT = process.env.LEGACY_FAILURE_TEXT || "";
 const LEGACY_EXTRA_FIELDS = parseExtraFields(process.env.LEGACY_EXTRA_FIELDS);
 const AUTH_BYPASS = process.env.AUTH_BYPASS === "true";
+const PROFILE_AUTH_SECRET = process.env.PROFILE_AUTH_SECRET || "";
 
 const sessions = new Map();
 
@@ -64,7 +66,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const user = await loginUser(body);
       const sessionId = createSession(user);
-      setSessionCookie(res, sessionId);
+      setSessionCookies(res, sessionId, user);
       sendJson(res, 200, { user });
       return;
     }
@@ -75,6 +77,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 401, { error: "Login required." });
         return;
       }
+      setProfileAuthCookie(res, user);
       sendJson(res, 200, { user });
       return;
     }
@@ -82,7 +85,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/auth/logout" && req.method === "POST") {
       const sessionId = getCookie(req, SESSION_COOKIE);
       if (sessionId) sessions.delete(sessionId);
-      clearSessionCookie(res);
+      clearSessionCookies(res);
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -643,13 +646,39 @@ function ensureOrgManager(req, res) {
   return ensureOrgViewer(req, res);
 }
 
-function setSessionCookie(res, sessionId) {
+function setSessionCookies(res, sessionId, user) {
   const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}${secure}`);
+  const cookies = [
+    `${SESSION_COOKIE}=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}${secure}`,
+  ];
+  const profileCookie = buildProfileAuthCookie(user, secure);
+  if (profileCookie) cookies.push(profileCookie);
+  res.setHeader("Set-Cookie", cookies);
 }
 
-function clearSessionCookie(res) {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
+function setProfileAuthCookie(res, user) {
+  const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
+  const cookie = buildProfileAuthCookie(user, secure);
+  if (cookie) res.setHeader("Set-Cookie", cookie);
+}
+
+function buildProfileAuthCookie(user, secure) {
+  if (PROFILE_AUTH_SECRET.length < 32) return "";
+  const payload = Buffer.from(JSON.stringify({
+    sub: String(user.adminId || ""),
+    role: String(user.role || ""),
+    exp: Date.now() + SESSION_TTL_MS,
+  })).toString("base64url");
+  const signature = crypto.createHmac("sha256", PROFILE_AUTH_SECRET).update(payload).digest("base64url");
+  return `${PROFILE_AUTH_COOKIE}=${payload}.${signature}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}${secure}`;
+}
+
+function clearSessionCookies(res) {
+  const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
+  res.setHeader("Set-Cookie", [
+    `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`,
+    `${PROFILE_AUTH_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`,
+  ]);
 }
 
 function getCookie(req, name) {
