@@ -80,9 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
         titleSize: 72,
-        bodySize: 28,
-        pointSize: 30,
-        lineHeight: 1.65
+        bodySize: 35,
+        pointSize: 37,
+        lineHeight: 1.7
     };
 
     const templates = {
@@ -1080,9 +1080,9 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-hero').forEach((node) => setInlineStyles(node, {
             display: 'grid',
             'grid-template-columns': '1fr',
-            gap: '10px',
+            gap: '14px',
             'align-items': 'stretch',
-            'margin-bottom': '10px',
+            'margin-bottom': '16px',
             padding: '4px 0 0',
             'border-radius': '0',
             background: 'transparent',
@@ -1095,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-copy, .pb-presentation-side').forEach((node) => setInlineStyles(node, {
             display: 'flex',
             'flex-direction': 'column',
-            gap: node.classList.contains('pb-presentation-side') ? '12px' : '10px',
+            gap: node.classList.contains('pb-presentation-side') ? '16px' : '14px',
             'min-width': '0'
         }));
 
@@ -1142,11 +1142,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setInlineStyles(node, {
             'font-size': bodySize,
-            'line-height': '1.6'
+            'line-height': lineHeight
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '12px',
+            'margin-bottom': '18px',
             padding: '13px 15px',
             border: '0',
             'border-left': `4px solid ${currentBrandColor}`,
@@ -1159,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setInlineStyles(node, {
             display: 'inline-block',
-            'margin-bottom': '10px',
+            'margin-bottom': '12px',
             padding: '8px 12px',
             'border-radius': '12px',
             background: currentBrandLight,
@@ -1175,9 +1175,9 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-grid').forEach((node) => setInlineStyles(node, {
             display: 'grid',
             'grid-template-columns': '1fr',
-            gap: '8px',
+            gap: '14px',
             'align-items': 'stretch',
-            'margin-bottom': '10px'
+            'margin-bottom': '16px'
         }));
 
         clone.querySelectorAll('.pb-presentation-detail').forEach((node) => setInlineStyles(node, {
@@ -1185,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             display: 'flex',
             'flex-direction': 'column',
             'justify-content': 'flex-start',
-            gap: '12px',
+            gap: '16px',
             padding: '13px 15px',
             border: '0',
             'border-radius': '18px',
@@ -1200,13 +1200,13 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '0',
             display: 'flex',
             'flex-direction': 'column',
-            gap: '10px',
+            gap: '14px',
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
             'font-size': pointSize,
             'font-weight': '700',
-            'line-height': '1.48',
+            'line-height': '1.55',
             color: '#3a2f28',
             'overflow-wrap': 'anywhere',
             'list-style': 'none'
@@ -1237,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 12px',
+            margin: '0 0 16px',
             'font-size': subtitleSize,
             'line-height': '1.18',
             'letter-spacing': '0',
@@ -1254,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-card-body').forEach((node) => setInlineStyles(node, {
             'grid-column': '1 / -1',
-            padding: '14px 0 0',
+            padding: '18px 0 0',
             'border-top': '1px solid rgba(124, 88, 70, 0.1)',
             'border-radius': '0',
             background: 'transparent',
