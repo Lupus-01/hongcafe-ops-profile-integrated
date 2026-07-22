@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const LOW_COST_TEXT_MODELS = new Set([
-    'gemini-2.5-flash-lite'
+    'gemini-3.1-flash-lite'
 ]);
 const LOW_COST_IMAGE_MODELS = new Set([
     'gemini-2.5-flash-image'
@@ -36,7 +36,7 @@ const PROFILE_RATE_LIMIT_WINDOW_MS = Number(process.env.PROFILE_RATE_LIMIT_WINDO
 const PROFILE_RATE_LIMIT_MAX = Number(process.env.PROFILE_RATE_LIMIT_MAX || 10);
 const PROFILE_TRUST_PROXY = process.env.PROFILE_TRUST_PROXY || 'loopback';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-2.5-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
+const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-3.1-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
 const IMAGE_MODEL = getAllowedModel(process.env.IMAGE_MODEL, 'gemini-2.5-flash-image', LOW_COST_IMAGE_MODELS, 'IMAGE_MODEL');
 const usageFilePath = path.join(__dirname, '.profile-usage.json');
 let geminiQueue = Promise.resolve();
