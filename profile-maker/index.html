@@ -169,6 +169,65 @@
                 </div>
             </section>
 
+            <section class="pb-section pb-ai-panel" id="pb-image-assets-panel">
+                <div class="pb-ai-header">
+                    <h3>이미지 자산</h3>
+                    <span class="pb-ai-badge">사이트 등록용</span>
+                </div>
+                <div class="pb-ai-form">
+                    <p class="pb-ai-inline-help">생성 이미지를 파일로 저장한 뒤 사이트에 등록하고, 발급된 이미지 주소를 입력하면 Base64가 빠진 가벼운 코드를 만들 수 있습니다.</p>
+
+                    <div class="pb-asset-card">
+                        <div class="pb-asset-card-head">
+                            <strong>대표 이미지</strong>
+                            <span id="pb-portrait-asset-state" class="pb-asset-state">이미지 없음</span>
+                        </div>
+                        <button id="pb-download-portrait-btn" class="pb-action-btn secondary" type="button" disabled>대표 이미지 다운로드</button>
+                        <label class="pb-ai-field">
+                            <span>사이트 대표 이미지 URL</span>
+                            <input id="pb-portrait-site-url" type="text" inputmode="url" placeholder="https://... 또는 /uploads/...">
+                        </label>
+                    </div>
+
+                    <div class="pb-asset-card">
+                        <div class="pb-asset-card-head">
+                            <strong>무드 이미지</strong>
+                            <span id="pb-mood-asset-state" class="pb-asset-state">이미지 없음</span>
+                        </div>
+                        <button id="pb-download-mood-btn" class="pb-action-btn secondary" type="button" disabled>무드 이미지 다운로드</button>
+                        <label class="pb-ai-field">
+                            <span>사이트 무드 이미지 URL</span>
+                            <input id="pb-mood-site-url" type="text" inputmode="url" placeholder="https://... 또는 /uploads/...">
+                        </label>
+                    </div>
+
+                    <label class="pb-ai-inline pb-code-compat-option">
+                        <input id="pb-embed-images-in-code" type="checkbox">
+                        <span>기존 방식으로 Base64 이미지 포함</span>
+                    </label>
+                    <p class="pb-ai-inline-help">기본값은 사이트 URL 방식입니다. Base64 포함은 한 파일로 전달해야 할 때만 사용하세요.</p>
+
+                    <details class="pb-prompt-guide">
+                        <summary>직접 이미지 만들기 가이드</summary>
+                        <div class="pb-prompt-guide-body">
+                            <p><strong>권장값</strong>: 16:9 가로형, 1600×900 이상, 중앙 안전영역, 이미지 안의 글자·로고·워터마크 제외</p>
+                            <label class="pb-ai-field">
+                                <span>대표 이미지 프롬프트</span>
+                                <textarea id="pb-portrait-prompt-guide" rows="9" readonly placeholder="프로필을 생성하면 실제 사용된 프롬프트가 표시됩니다."></textarea>
+                            </label>
+                            <button class="pb-action-btn secondary pb-copy-prompt-btn" type="button" data-prompt-target="pb-portrait-prompt-guide">대표 프롬프트 복사</button>
+                            <label class="pb-ai-field">
+                                <span>무드 이미지 프롬프트</span>
+                                <textarea id="pb-mood-prompt-guide" rows="9" readonly placeholder="프로필을 생성하면 실제 사용된 프롬프트가 표시됩니다."></textarea>
+                            </label>
+                            <button class="pb-action-btn secondary pb-copy-prompt-btn" type="button" data-prompt-target="pb-mood-prompt-guide">무드 프롬프트 복사</button>
+                        </div>
+                    </details>
+
+                    <p id="pb-image-assets-status" class="pb-ai-status">프로필을 생성하면 이미지 다운로드와 사이트용 코드 기능을 사용할 수 있습니다.</p>
+                </div>
+            </section>
+
             <div class="pb-section pb-flex-fill pb-palette-container">
                 <div class="pb-palette-group">
                     <h3 class="pb-subtitle">프로필 & 소개</h3>
@@ -194,7 +253,7 @@
             <div class="pb-actions">
                 <button id="pb-preview-btn" class="pb-action-btn" type="button">미리보기</button>
                 <button id="pb-clear-btn" class="pb-action-btn danger" type="button">전체 초기화</button>
-                <button id="pb-code-generate-btn" class="pb-action-btn secondary" type="button">코드 생성</button>
+                <button id="pb-code-generate-btn" class="pb-action-btn secondary" type="button">사이트 등록용 코드 생성</button>
                 <button id="pb-export-btn" class="pb-action-btn primary" type="button">프로필 이미지 저장</button>
             </div>
         </aside>

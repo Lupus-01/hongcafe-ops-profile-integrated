@@ -632,10 +632,10 @@ async function generateImage(prompt, imageKind) {
     throw lastError || new Error(`${imageKind} image generation failed for all configured models.`);
 }
 
-async function generatePortraitImage(payload, extraPrompt = '') {
+function buildPortraitImagePrompt(payload, extraPrompt = '') {
     const guide = getTemplateGuide(payload.templateType);
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
-    const portraitPrompt = `
+    return `
 Create one premium hero visual image for a ${guide.labelEn} consultant profile page.
 Reference style: ${payload.imageStyle || 'clean Korean premium consultation brand visual'}
 Extra context from uploaded material: ${safeExtraPrompt || 'Build a refined, calm, trustworthy category hero visual.'}
@@ -654,14 +654,16 @@ Requirements:
 - keep the result elegant, polished, and suitable for a premium consultation brand
 - ${guide.imageMood}
 `.trim();
-
-    return generateImage(portraitPrompt, 'portrait');
 }
 
-async function generateMoodImage(payload, extraPrompt = '') {
+async function generatePortraitImage(payload, extraPrompt = '') {
+    return generateImage(buildPortraitImagePrompt(payload, extraPrompt), 'portrait');
+}
+
+function buildMoodImagePrompt(payload, extraPrompt = '') {
     const guide = getTemplateGuide(payload.templateType);
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
-    const moodPrompt = `
+    return `
 Create one premium editorial scene image for a ${guide.labelEn} consultant landing page.
 Reference style: ${payload.imageStyle || 'soft editorial still life, premium brand image'}
 Extra context from uploaded material: ${safeExtraPrompt || 'Build a scene image that supports the consultant story.'}
@@ -674,8 +676,27 @@ Requirements:
 - suitable as a supporting image on a profile page
 - ${guide.moodScene}
 `.trim();
+}
 
-    return generateImage(moodPrompt, 'mood');
+async function generateMoodImage(payload, extraPrompt = '') {
+    return generateImage(buildMoodImagePrompt(payload, extraPrompt), 'mood');
+}
+
+function buildProfileImageGuide(payload, portraitContext = '', moodContext = '') {
+    return {
+        portrait: {
+            label: '대표 이미지',
+            aspectRatio: '16:9',
+            recommendedSize: '1600x900 이상',
+            prompt: buildPortraitImagePrompt(payload, portraitContext)
+        },
+        mood: {
+            label: '무드 이미지',
+            aspectRatio: '16:9',
+            recommendedSize: '1600x900 이상',
+            prompt: buildMoodImagePrompt(payload, moodContext)
+        }
+    };
 }
 
 async function generateBrandPosterText(payload) {
@@ -921,17 +942,19 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, async (req, res) =>
         let profileImage = '';
         let moodImage = '';
         const imageFailures = [];
+        const portraitContext = `${payload.name} / ${payload.specialty}`;
+        const moodContext = `${payload.specialty} / ${payload.tone}`;
 
         if (payload.generateImage) {
             try {
-                profileImage = await generatePortraitImage(payload, `${payload.name} / ${payload.specialty}`);
+                profileImage = await generatePortraitImage(payload, portraitContext);
             } catch (imageError) {
                 console.error('Portrait image generation failed:', imageError);
                 imageFailures.push(getReadableImageError(imageError));
             }
 
             try {
-                moodImage = await generateMoodImage(payload, `${payload.specialty} / ${payload.tone}`);
+                moodImage = await generateMoodImage(payload, moodContext);
             } catch (imageError) {
                 console.error('Mood image generation failed:', imageError);
                 imageFailures.push(getReadableImageError(imageError));
@@ -944,6 +967,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, async (req, res) =>
                 profileImage,
                 moodImage
             },
+            imageGuide: buildProfileImageGuide(payload, portraitContext, moodContext),
             imageMeta: buildImageMeta(payload.generateImage, profileImage, moodImage, imageFailures),
             usage
         });
@@ -987,17 +1011,18 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, upload.single('ppt
         let profileImage = '';
         let moodImage = '';
         const imageFailures = [];
+        const imageContext = parsedDocument.combinedText.slice(0, 1500);
 
         if (String(payload.generateImage) === 'true') {
             try {
-                profileImage = await generatePortraitImage(payload, parsedDocument.combinedText.slice(0, 1500));
+                profileImage = await generatePortraitImage(payload, imageContext);
             } catch (imageError) {
                 console.error('Portrait image generation failed:', imageError);
                 imageFailures.push(getReadableImageError(imageError));
             }
 
             try {
-                moodImage = await generateMoodImage(payload, parsedDocument.combinedText.slice(0, 1500));
+                moodImage = await generateMoodImage(payload, imageContext);
             } catch (imageError) {
                 console.error('Mood image generation failed:', imageError);
                 imageFailures.push(getReadableImageError(imageError));
@@ -1010,6 +1035,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, upload.single('ppt
                 profileImage,
                 moodImage
             },
+            imageGuide: buildProfileImageGuide(payload, imageContext, imageContext),
             imageMeta: buildImageMeta(String(payload.generateImage) === 'true', profileImage, moodImage, imageFailures),
             usage,
             meta: {

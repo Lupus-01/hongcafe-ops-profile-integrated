@@ -50,6 +50,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyButton = document.getElementById('pb-copy-btn');
     const codeGenerateButton = document.getElementById('pb-code-generate-btn');
     const exportButton = document.getElementById('pb-export-btn');
+    const downloadPortraitButton = document.getElementById('pb-download-portrait-btn');
+    const downloadMoodButton = document.getElementById('pb-download-mood-btn');
+    const portraitAssetState = document.getElementById('pb-portrait-asset-state');
+    const moodAssetState = document.getElementById('pb-mood-asset-state');
+    const portraitSiteUrlInput = document.getElementById('pb-portrait-site-url');
+    const moodSiteUrlInput = document.getElementById('pb-mood-site-url');
+    const embedImagesInCodeInput = document.getElementById('pb-embed-images-in-code');
+    const portraitPromptGuide = document.getElementById('pb-portrait-prompt-guide');
+    const moodPromptGuide = document.getElementById('pb-mood-prompt-guide');
+    const imageAssetsStatus = document.getElementById('pb-image-assets-status');
+    const promptCopyButtons = Array.from(document.querySelectorAll('.pb-copy-prompt-btn'));
     let brandNameInput;
     let brandIndustryInput;
     let brandProductsInput;
@@ -268,6 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fillPresentation(element, item.profile);
         syncPresentationImageState(element, { textOnly: !item.imageMode });
         lastProfileDownloadName = item.title.split(' / ')[0] || 'profile-builder';
+        resetProfileImageAssets();
+        setStatus(imageAssetsStatus, '히스토리는 텍스트만 보관합니다. 필요한 이미지를 직접 업로드하면 다운로드와 사이트용 코드를 사용할 수 있습니다.');
         setStatus(aiStatus, '히스토리에서 저장된 프로필을 다시 불러왔습니다.', 'success');
         setStatus(pptStatus, '히스토리에서 저장된 프로필을 다시 불러왔습니다.', 'success');
         renderImageIssue(aiImageIssue, null);
@@ -331,6 +344,148 @@ document.addEventListener('DOMContentLoaded', () => {
                 <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank" rel="noreferrer">Gemini API 무료 티어 한도 보기</a>
             </div>
         `;
+    }
+
+    function getProfileAssetImage(kind, root = canvas) {
+        const selector = kind === 'portrait'
+            ? '.pb-presentation-portrait .pb-uploaded-img'
+            : '.pb-presentation-photo .pb-uploaded-img';
+        return root.querySelector(selector);
+    }
+
+    function hasImageSource(image) {
+        return Boolean(image?.getAttribute('src'));
+    }
+
+    function syncProfileImageAssets() {
+        const hasPortrait = hasImageSource(getProfileAssetImage('portrait'));
+        const hasMood = hasImageSource(getProfileAssetImage('mood'));
+
+        if (downloadPortraitButton) downloadPortraitButton.disabled = !hasPortrait;
+        if (downloadMoodButton) downloadMoodButton.disabled = !hasMood;
+
+        if (portraitAssetState) {
+            portraitAssetState.textContent = hasPortrait ? '다운로드 가능' : '이미지 없음';
+            portraitAssetState.classList.toggle('is-ready', hasPortrait);
+        }
+        if (moodAssetState) {
+            moodAssetState.textContent = hasMood ? '다운로드 가능' : '이미지 없음';
+            moodAssetState.classList.toggle('is-ready', hasMood);
+        }
+    }
+
+    function resetProfileImageAssets({ clearGuide = true } = {}) {
+        if (portraitSiteUrlInput) portraitSiteUrlInput.value = '';
+        if (moodSiteUrlInput) moodSiteUrlInput.value = '';
+        if (embedImagesInCodeInput) embedImagesInCodeInput.checked = false;
+        if (clearGuide) {
+            if (portraitPromptGuide) portraitPromptGuide.value = '';
+            if (moodPromptGuide) moodPromptGuide.value = '';
+        }
+        setStatus(imageAssetsStatus, '프로필을 생성하면 이미지 다운로드와 사이트용 코드 기능을 사용할 수 있습니다.');
+        syncProfileImageAssets();
+    }
+
+    function renderProfileImageGuide(imageGuide) {
+        if (portraitPromptGuide) portraitPromptGuide.value = imageGuide?.portrait?.prompt || '';
+        if (moodPromptGuide) moodPromptGuide.value = imageGuide?.mood?.prompt || '';
+    }
+
+    function sanitizeDownloadFileName(value) {
+        return String(value || 'profile-builder')
+            .trim()
+            .replace(/[\\/:*?"<>|]+/g, '-')
+            .replace(/\s+/g, '-')
+            .slice(0, 80) || 'profile-builder';
+    }
+
+    function getDataUrlExtension(source) {
+        const mimeType = String(source || '').match(/^data:(image\/[^;,]+)/i)?.[1]?.toLowerCase();
+        if (mimeType === 'image/jpeg') return 'jpg';
+        if (mimeType === 'image/webp') return 'webp';
+        if (mimeType === 'image/gif') return 'gif';
+        if (mimeType === 'image/svg+xml') return 'svg';
+        if (mimeType === 'image/avif') return 'avif';
+        return 'png';
+    }
+
+    function downloadProfileAsset(kind) {
+        const image = getProfileAssetImage(kind);
+        const source = image?.getAttribute('src') || '';
+        if (!source) {
+            setStatus(imageAssetsStatus, '다운로드할 이미지가 없습니다.', 'error');
+            return;
+        }
+
+        const suffix = kind === 'portrait' ? 'profile' : 'mood';
+        const link = document.createElement('a');
+        link.href = source;
+        link.download = `${sanitizeDownloadFileName(lastProfileDownloadName)}-${suffix}.${getDataUrlExtension(source)}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setStatus(imageAssetsStatus, `${kind === 'portrait' ? '대표' : '무드'} 이미지 다운로드를 시작했습니다. 이 작업은 AI 사용량을 증가시키지 않습니다.`, 'success');
+    }
+
+    function normalizeSiteImageUrl(value, label) {
+        const url = String(value || '').trim();
+        if (!url) throw new Error(`${label}의 사이트 이미지 URL을 입력해주세요.`);
+        if (/^\/(?!\/)[^\s"'<>]*$/.test(url)) return url;
+        try {
+            const parsedUrl = new URL(url);
+            if (parsedUrl.protocol === 'https:') return parsedUrl.href;
+        } catch {
+            // 아래의 공통 안내 문구로 처리한다.
+        }
+        throw new Error(`${label} URL은 https:// 주소 또는 /로 시작하는 사이트 내부 경로만 사용할 수 있습니다.`);
+    }
+
+    function replaceExportImageSources(clone) {
+        const mappings = [
+            {
+                kind: 'portrait',
+                label: '대표 이미지',
+                input: portraitSiteUrlInput
+            },
+            {
+                kind: 'mood',
+                label: '무드 이미지',
+                input: moodSiteUrlInput
+            }
+        ];
+
+        mappings.forEach(({ kind, label, input }) => {
+            const image = getProfileAssetImage(kind, clone);
+            if (!hasImageSource(image)) return;
+            image.setAttribute('src', normalizeSiteImageUrl(input?.value, label));
+        });
+
+        if (clone.querySelector('img[src^="data:image/"]')) {
+            throw new Error('사이트 URL이 지정되지 않은 Base64 이미지가 남아 있습니다. 모든 이미지 URL을 입력하거나 Base64 포함 옵션을 선택해주세요.');
+        }
+    }
+
+    async function copyPlainText(text) {
+        if (!text) return false;
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-10000px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            let copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch {
+                copied = false;
+            }
+            textarea.remove();
+            return copied;
+        }
     }
 
     function applyTheme(themeName) {
@@ -783,7 +938,10 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteButton.className = 'pb-delete-btn';
         deleteButton.innerHTML = '×';
         deleteButton.type = 'button';
-        deleteButton.addEventListener('click', () => element.remove());
+        deleteButton.addEventListener('click', () => {
+            element.remove();
+            syncProfileImageAssets();
+        });
         element.appendChild(deleteButton);
 
         bindUploadables(element);
@@ -887,6 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (portraitNode) portraitNode.style.display = textOnly ? 'none' : '';
         if (moodNode) moodNode.style.display = textOnly ? 'none' : '';
+        if (canvas.contains(presentation)) syncProfileImageAssets();
     }
 
     function updateImageGenerationControls() {
@@ -1520,6 +1679,16 @@ document.addEventListener('DOMContentLoaded', () => {
             fillPresentation(element, data.profile);
             syncPresentationImageState(element, { textOnly: !shouldGenerateImages });
             lastProfileDownloadName = (name || specialty || 'profile-builder').trim();
+            resetProfileImageAssets();
+            renderProfileImageGuide(data.imageGuide);
+            syncProfileImageAssets();
+            setStatus(
+                imageAssetsStatus,
+                shouldGenerateImages
+                    ? '이미지를 각각 다운로드한 뒤 사이트에 등록하고 URL을 입력하세요.'
+                    : '직접 이미지를 만들 때 아래 프롬프트 가이드를 복사해 사용할 수 있습니다.',
+                'success'
+            );
             storeProfileHistoryItem({
                 source: 'direct',
                 templateType,
@@ -1579,6 +1748,16 @@ document.addEventListener('DOMContentLoaded', () => {
             fillPresentation(element, data.profile);
             syncPresentationImageState(element, { textOnly: !shouldGenerateImages });
             lastProfileDownloadName = file.name.replace(/\.[^.]+$/, '') || 'profile-builder';
+            resetProfileImageAssets();
+            renderProfileImageGuide(data.imageGuide);
+            syncProfileImageAssets();
+            setStatus(
+                imageAssetsStatus,
+                shouldGenerateImages
+                    ? '이미지를 각각 다운로드한 뒤 사이트에 등록하고 URL을 입력하세요.'
+                    : '직접 이미지를 만들 때 아래 프롬프트 가이드를 복사해 사용할 수 있습니다.',
+                'success'
+            );
             storeProfileHistoryItem({
                 source: 'document',
                 templateType,
@@ -1717,7 +1896,18 @@ document.addEventListener('DOMContentLoaded', () => {
             currentUploadTargetImg.src = loadEvent.target.result;
             currentUploadTargetImg.style.display = 'block';
             currentUploadPlaceholder.style.display = 'none';
+            const isPortraitAsset = Boolean(currentUploadTargetImg.closest('.pb-presentation-portrait'));
+            const isMoodAsset = Boolean(currentUploadTargetImg.closest('.pb-presentation-photo'));
+            if (isPortraitAsset && portraitSiteUrlInput) {
+                portraitSiteUrlInput.value = '';
+            }
+            if (isMoodAsset && moodSiteUrlInput) {
+                moodSiteUrlInput.value = '';
+            }
             syncPresentationImageState(currentUploadTargetImg);
+            if (isPortraitAsset || isMoodAsset) {
+                setStatus(imageAssetsStatus, '이미지를 교체했습니다. 사이트에 등록한 뒤 새 이미지 URL을 입력해주세요.', 'success');
+            }
         };
         reader.readAsDataURL(file);
         event.target.value = '';
@@ -1744,6 +1934,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="pb-empty-icon">DOC</div>
                 <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
             </div>`;
+        resetProfileImageAssets();
         updateSlotRegenerateState();
     });
 
@@ -1762,15 +1953,55 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const clone = getCleanCanvasClone();
-        applyEditorFriendlyExportStyles(clone);
-        const wrapper = document.createElement('div');
-        wrapper.appendChild(clone);
-        codeOutput.value = wrapper.innerHTML.trim();
-        codeModal.classList.add('active');
+        const presentation = getCurrentPresentationElement();
+        if (!presentation) {
+            window.alert('먼저 프로필 결과를 생성해주세요.');
+            return;
+        }
+
+        try {
+            const clone = getCleanCanvasClone();
+            if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
+            applyEditorFriendlyExportStyles(clone);
+            const wrapper = document.createElement('div');
+            wrapper.appendChild(clone);
+            codeOutput.value = wrapper.innerHTML.trim();
+            codeModal.classList.add('active');
+            setStatus(
+                imageAssetsStatus,
+                embedImagesInCodeInput?.checked
+                    ? 'Base64 이미지가 포함된 호환용 코드를 생성했습니다.'
+                    : 'Base64를 제외하고 사이트 이미지 URL을 사용하는 코드를 생성했습니다.',
+                'success'
+            );
+        } catch (error) {
+            setStatus(imageAssetsStatus, error.message || '사이트용 코드 생성 중 오류가 발생했습니다.', 'error');
+            window.alert(error.message || '사이트용 코드 생성 중 오류가 발생했습니다.');
+        }
     });
 
     document.getElementById('pb-close-code-modal')?.addEventListener('click', () => codeModal.classList.remove('active'));
+
+    downloadPortraitButton?.addEventListener('click', () => downloadProfileAsset('portrait'));
+    downloadMoodButton?.addEventListener('click', () => downloadProfileAsset('mood'));
+
+    promptCopyButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            const target = document.getElementById(button.dataset.promptTarget);
+            const copied = await copyPlainText(target?.value || '');
+            if (!copied) {
+                setStatus(imageAssetsStatus, '복사할 프롬프트가 없거나 클립보드 복사에 실패했습니다.', 'error');
+                return;
+            }
+
+            const originalLabel = button.textContent;
+            button.textContent = '복사 완료';
+            setStatus(imageAssetsStatus, '프롬프트를 복사했습니다. 별도 이미지 제작 도구에 붙여넣어 사용할 수 있습니다.', 'success');
+            setTimeout(() => {
+                button.textContent = originalLabel;
+            }, 1200);
+        });
+    });
 
     async function copyCodeToClipboard() {
         const textToCopy = codeOutput.value;
@@ -2108,6 +2339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme('pb-theme-sinjeom');
     applyTypographySettings();
     updateImageGenerationControls();
+    resetProfileImageAssets();
     renderProfileHistory();
     updateSlotRegenerateState();
     updateModeVisibility('profile');
