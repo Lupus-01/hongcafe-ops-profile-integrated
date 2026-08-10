@@ -29,6 +29,8 @@ const LEGACY_EXTRA_FIELDS = parseExtraFields(process.env.LEGACY_EXTRA_FIELDS);
 const AUTH_BYPASS = process.env.AUTH_BYPASS === "true";
 const PROFILE_AUTH_SECRET = process.env.PROFILE_AUTH_SECRET || "";
 
+validateProductionSecurity();
+
 const sessions = new Map();
 
 const MIME_TYPES = {
@@ -55,8 +57,6 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, {
         ok: true,
         service: "hongcafe-ops-worklog",
-        storage: path.relative(ROOT_DIR, DATA_FILE),
-        authBypass: AUTH_BYPASS,
         time: new Date().toISOString(),
       });
       return;
@@ -178,6 +178,18 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`HongCafe Ops server running at http://${HOST}:${PORT}`);
 });
+
+function validateProductionSecurity() {
+  if (process.env.NODE_ENV !== "production") return;
+  const problems = [];
+  if (AUTH_BYPASS) problems.push("AUTH_BYPASS must be false");
+  if (PROFILE_AUTH_SECRET.length < 32) problems.push("PROFILE_AUTH_SECRET must be at least 32 characters");
+  if (process.env.COOKIE_SECURE !== "true") problems.push("COOKIE_SECURE must be true");
+  if (HOST !== "127.0.0.1" && HOST !== "::1") problems.push("HOST must be loopback-only");
+  if (problems.length) {
+    throw new Error(`[security] Refusing production startup: ${problems.join("; ")}`);
+  }
+}
 
 function ensureStorage() {
   fs.mkdirSync(DATA_DIR, { recursive: true });

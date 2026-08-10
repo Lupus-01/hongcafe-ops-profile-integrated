@@ -4,6 +4,7 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
@@ -21,8 +22,12 @@ const LOW_COST_IMAGE_MODELS = new Set([
 ]);
 
 const PORT = Number(process.env.PROFILE_API_PORT || 3100);
+const HOST = process.env.PROFILE_API_HOST || '127.0.0.1';
 const DAILY_PROFILE_LIMIT = Number(process.env.DAILY_PROFILE_LIMIT || 20);
 const DAILY_IMAGE_LIMIT = Number(process.env.DAILY_IMAGE_LIMIT || 20);
+const DAILY_GEMINI_REQUEST_LIMIT = getPositiveIntegerEnv('DAILY_GEMINI_REQUEST_LIMIT', 40);
+const DAILY_IMAGE_ATTEMPT_LIMIT = getPositiveIntegerEnv('DAILY_IMAGE_ATTEMPT_LIMIT', 20);
+const PROFILE_USER_DAILY_LIMIT = getPositiveIntegerEnv('PROFILE_USER_DAILY_LIMIT', 10);
 const MAX_DOCUMENT_TEXT_CHARS = Number(process.env.MAX_DOCUMENT_TEXT_CHARS || 5000);
 const MAX_IMAGE_CONTEXT_CHARS = Number(process.env.MAX_IMAGE_CONTEXT_CHARS || 500);
 const MAX_TEXT_OUTPUT_TOKENS = Number(process.env.MAX_TEXT_OUTPUT_TOKENS || 1600);
@@ -43,10 +48,14 @@ let geminiQueue = Promise.resolve();
 let lastGeminiRequestAt = 0;
 let geminiQueueDepth = 0;
 const requestBuckets = new Map();
+const requestContext = new AsyncLocalStorage();
 
 const app = express();
 app.set('trust proxy', PROFILE_TRUST_PROXY);
-const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
+const ai = GEMINI_API_KEY ? new GoogleGenAI({
+    apiKey: GEMINI_API_KEY,
+    httpOptions: { retryOptions: { attempts: 1 } }
+}) : null;
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 15 * 1024 * 1024 }
@@ -108,6 +117,16 @@ function getAllowedModel(requestedModel, fallbackModel, allowedModels, envName) 
     return fallbackModel;
 }
 
+function getPositiveIntegerEnv(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') return fallback;
+    const value = Number(rawValue);
+    if (!Number.isSafeInteger(value) || value <= 0) {
+        throw new Error(`[security] ${name} must be a positive integer.`);
+    }
+    return value;
+}
+
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -127,9 +146,20 @@ async function runGeminiRequest(label, task) {
             await wait(delay);
         }
 
-        lastGeminiRequestAt = Date.now();
-        console.log(`[gemini-queue] starting ${label}`);
-        return task();
+        const attemptUsage = reserveGeminiAttempt(label);
+        const context = requestContext.getStore() || {};
+        const startedAt = Date.now();
+        lastGeminiRequestAt = startedAt;
+        console.log(`[gemini-audit] time=${getKstTimestamp()} requestId=${context.requestId || 'none'} user=${context.userId || 'unknown'} ip=${context.ip || 'unknown'} call=${label} status=starting dailyAttempts=${attemptUsage.geminiUsed}/${attemptUsage.geminiLimit}`);
+
+        try {
+            const result = await task();
+            console.log(`[gemini-audit] time=${getKstTimestamp()} requestId=${context.requestId || 'none'} user=${context.userId || 'unknown'} ip=${context.ip || 'unknown'} call=${label} status=success durationMs=${Date.now() - startedAt}`);
+            return result;
+        } catch (error) {
+            console.warn(`[gemini-audit] time=${getKstTimestamp()} requestId=${context.requestId || 'none'} user=${context.userId || 'unknown'} ip=${context.ip || 'unknown'} call=${label} status=failed durationMs=${Date.now() - startedAt} errorStatus=${Number(error?.status) || 'unknown'}`);
+            throw error;
+        }
     }).finally(() => {
         geminiQueueDepth = Math.max(geminiQueueDepth - 1, 0);
     });
@@ -161,44 +191,63 @@ function getCookie(req, name) {
         ?.slice(name.length + 1) || '';
 }
 
-function isValidProfileAuthToken(token) {
-    if (PROFILE_AUTH_SECRET.length < 32 || !token) return false;
+function getProfileAuthClaims(token) {
+    if (PROFILE_AUTH_SECRET.length < 32 || !token) return null;
     const [payload, signature, extra] = token.split('.');
-    if (!payload || !signature || extra) return false;
+    if (!payload || !signature || extra) return null;
 
     const expected = crypto.createHmac('sha256', PROFILE_AUTH_SECRET).update(payload).digest('base64url');
     const actualBuffer = Buffer.from(signature);
     const expectedBuffer = Buffer.from(expected);
-    if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+    if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return null;
 
     try {
         const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        return Boolean(claims.sub) && Number(claims.exp) > Date.now();
+        return Boolean(claims.sub) && Number(claims.exp) > Date.now() ? claims : null;
     } catch {
-        return false;
+        return null;
     }
+}
+
+function getUserAuditId(subject) {
+    return crypto.createHash('sha256').update(String(subject || 'unknown')).digest('hex').slice(0, 16);
 }
 
 function requireProfileAuth(req, res, next) {
-    if (process.env.AUTH_BYPASS === 'true') return next();
+    if (process.env.AUTH_BYPASS === 'true') {
+        req.profileUserId = 'auth-bypass';
+        const context = requestContext.getStore();
+        if (context) context.userId = req.profileUserId;
+        return next();
+    }
     if (PROFILE_AUTH_SECRET.length < 32) {
         return res.status(503).json({ error: '프로필 API 인증 설정이 완료되지 않았습니다.' });
     }
-    if (!isValidProfileAuthToken(getCookie(req, PROFILE_AUTH_COOKIE))) {
+    const claims = getProfileAuthClaims(getCookie(req, PROFILE_AUTH_COOKIE));
+    if (!claims) {
         return res.status(401).json({ error: '업무일지에 다시 로그인해주세요.' });
     }
+    req.profileUserId = getUserAuditId(claims.sub);
+    const context = requestContext.getStore();
+    if (context) context.userId = req.profileUserId;
     return next();
 }
 
-function enforceProfileRateLimit(req, res, next) {
-    const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || 'unknown';
+function consumeRateLimitBucket(key, now) {
     const current = requestBuckets.get(key);
     const bucket = !current || current.resetAt <= now
         ? { count: 0, resetAt: now + PROFILE_RATE_LIMIT_WINDOW_MS }
         : current;
     bucket.count += 1;
     requestBuckets.set(key, bucket);
+    return bucket;
+}
+
+function enforceProfileRateLimit(req, res, next) {
+    const now = Date.now();
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ipBucket = consumeRateLimitBucket(`ip:${ip}`, now);
+    const userBucket = consumeRateLimitBucket(`user:${req.profileUserId || 'unknown'}`, now);
 
     if (requestBuckets.size > 1000) {
         for (const [bucketKey, value] of requestBuckets) {
@@ -207,9 +256,10 @@ function enforceProfileRateLimit(req, res, next) {
     }
 
     res.setHeader('X-RateLimit-Limit', String(PROFILE_RATE_LIMIT_MAX));
-    res.setHeader('X-RateLimit-Remaining', String(Math.max(PROFILE_RATE_LIMIT_MAX - bucket.count, 0)));
-    if (bucket.count > PROFILE_RATE_LIMIT_MAX) {
-        res.setHeader('Retry-After', String(Math.max(Math.ceil((bucket.resetAt - now) / 1000), 1)));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(PROFILE_RATE_LIMIT_MAX - Math.max(ipBucket.count, userBucket.count), 0)));
+    if (ipBucket.count > PROFILE_RATE_LIMIT_MAX || userBucket.count > PROFILE_RATE_LIMIT_MAX) {
+        const resetAt = Math.max(ipBucket.resetAt, userBucket.resetAt);
+        res.setHeader('Retry-After', String(Math.max(Math.ceil((resetAt - now) / 1000), 1)));
         return res.status(429).json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' });
     }
     return next();
@@ -218,11 +268,12 @@ function enforceProfileRateLimit(req, res, next) {
 function auditApiRequest(req, res, next) {
     const startedAt = Date.now();
     const requestId = crypto.randomUUID();
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     res.setHeader('X-Request-Id', requestId);
     res.on('finish', () => {
-        console.log(`[api-audit] id=${requestId} ip=${req.ip || req.socket.remoteAddress || 'unknown'} method=${req.method} path=${req.originalUrl.split('?')[0]} status=${res.statusCode} durationMs=${Date.now() - startedAt}`);
+        console.log(`[api-audit] time=${getKstTimestamp()} id=${requestId} user=${req.profileUserId || 'anonymous'} ip=${ip} method=${req.method} path=${req.originalUrl.split('?')[0]} status=${res.statusCode} durationMs=${Date.now() - startedAt}`);
     });
-    next();
+    requestContext.run({ requestId, ip, userId: 'anonymous' }, next);
 }
 
 const protectedApiMiddleware = [requireProfileAuth, enforceProfileRateLimit];
@@ -234,6 +285,10 @@ function getKstDateString() {
         month: '2-digit',
         day: '2-digit'
     }).format(new Date());
+}
+
+function getKstTimestamp() {
+    return new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().replace('Z', '+09:00');
 }
 
 function loadUsage() {
@@ -261,6 +316,48 @@ function getImageUsageState() {
     const imageKey = `${today}:images`;
     const count = Number(usage[imageKey] || 0);
     return { usage, today, imageKey, count };
+}
+
+function getGeminiAttemptUsageState() {
+    const usage = loadUsage();
+    const today = getKstDateString();
+    const geminiKey = `${today}:geminiAttempts`;
+    const imageAttemptKey = `${today}:imageAttempts`;
+    return {
+        usage,
+        geminiKey,
+        imageAttemptKey,
+        geminiCount: Number(usage[geminiKey] || 0),
+        imageAttemptCount: Number(usage[imageAttemptKey] || 0)
+    };
+}
+
+function reserveGeminiAttempt(label) {
+    const isImage = String(label).startsWith('image:');
+    const state = getGeminiAttemptUsageState();
+    if (state.geminiCount >= DAILY_GEMINI_REQUEST_LIMIT) {
+        throw createHttpError(429, `오늘 AI 실제 요청 한도 ${DAILY_GEMINI_REQUEST_LIMIT}회를 모두 사용했습니다.`);
+    }
+    if (isImage && state.imageAttemptCount >= DAILY_IMAGE_ATTEMPT_LIMIT) {
+        throw createHttpError(429, `오늘 AI 이미지 시도 한도 ${DAILY_IMAGE_ATTEMPT_LIMIT}회를 모두 사용했습니다.`);
+    }
+    if (isImage) {
+        const today = getKstDateString();
+        const successfulImages = Number(state.usage[`${today}:images`] || 0);
+        if (successfulImages >= DAILY_IMAGE_LIMIT) {
+            throw createHttpError(429, `오늘 이미지 생성 한도 ${DAILY_IMAGE_LIMIT}장을 모두 사용했습니다.`);
+        }
+    }
+
+    state.usage[state.geminiKey] = state.geminiCount + 1;
+    if (isImage) state.usage[state.imageAttemptKey] = state.imageAttemptCount + 1;
+    saveUsage(state.usage);
+    return {
+        geminiUsed: state.usage[state.geminiKey],
+        geminiLimit: DAILY_GEMINI_REQUEST_LIMIT,
+        imageAttemptsUsed: Number(state.usage[state.imageAttemptKey] || 0),
+        imageAttemptsLimit: DAILY_IMAGE_ATTEMPT_LIMIT
+    };
 }
 
 function incrementImageUsage() {
@@ -827,7 +924,7 @@ Requirements:
     return generateImage(posterPrompt, 'brand');
 }
 
-function reserveProfileUsage(res) {
+function reserveProfileUsage(req, res) {
     const { usage, today, count } = getUsageState();
     if (count >= DAILY_PROFILE_LIMIT) {
         res.status(429).json({
@@ -836,7 +933,17 @@ function reserveProfileUsage(res) {
         });
         return false;
     }
+    const userKey = `${today}:user:${req.profileUserId || 'unknown'}:profiles`;
+    const userCount = Number(usage[userKey] || 0);
+    if (userCount >= PROFILE_USER_DAILY_LIMIT) {
+        res.status(429).json({
+            error: `오늘 사용자별 생성 한도 ${PROFILE_USER_DAILY_LIMIT}개를 모두 사용했습니다.`,
+            usage: { used: userCount, limit: PROFILE_USER_DAILY_LIMIT }
+        });
+        return false;
+    }
     usage[today] = count + 1;
+    usage[userKey] = userCount + 1;
     saveUsage(usage);
     return { used: usage[today], limit: DAILY_PROFILE_LIMIT };
 }
@@ -899,15 +1006,27 @@ function getReadableImageError(error) {
     return 'AI 이미지 생성에 실패했습니다. 프로필 빌더에서 직접 이미지를 업로드해주세요.';
 }
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (req, res) => {
+    const remoteAddress = req.socket.remoteAddress || '';
+    const isLoopback = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
+    const isAuthenticated = Boolean(getProfileAuthClaims(getCookie(req, PROFILE_AUTH_COOKIE)));
+    if (!isLoopback && !isAuthenticated) {
+        return res.json({ ok: true });
+    }
     const { count } = getUsageState();
     const { count: imageCount } = getImageUsageState();
+    const attemptUsage = getGeminiAttemptUsageState();
     res.json({
         ok: true,
         dailyLimit: DAILY_PROFILE_LIMIT,
         usedToday: count,
         dailyImageLimit: DAILY_IMAGE_LIMIT,
         usedImagesToday: imageCount,
+        dailyGeminiRequestLimit: DAILY_GEMINI_REQUEST_LIMIT,
+        usedGeminiRequestsToday: attemptUsage.geminiCount,
+        dailyImageAttemptLimit: DAILY_IMAGE_ATTEMPT_LIMIT,
+        usedImageAttemptsToday: attemptUsage.imageAttemptCount,
+        profileUserDailyLimit: PROFILE_USER_DAILY_LIMIT,
         imageGenerationEnabled: ENABLE_AI_IMAGES,
         maxDocumentTextChars: MAX_DOCUMENT_TEXT_CHARS,
         maxImageContextChars: MAX_IMAGE_CONTEXT_CHARS,
@@ -934,7 +1053,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, async (req, res) =>
     }
 
     if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(res);
+    const usage = reserveProfileUsage(req, res);
     if (!usage) return;
 
     try {
@@ -994,7 +1113,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, upload.single('ppt
     }
 
     if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(res);
+    const usage = reserveProfileUsage(req, res);
     if (!usage) return;
 
     try {
@@ -1058,7 +1177,7 @@ app.post('/api/regenerate-profile-slot', ...protectedApiMiddleware, async (req, 
     }
 
     if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(res);
+    const usage = reserveProfileUsage(req, res);
     if (!usage) return;
 
     try {
@@ -1083,7 +1202,7 @@ app.post('/api/generate-brand-poster', ...protectedApiMiddleware, async (req, re
     }
 
     if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(res);
+    const usage = reserveProfileUsage(req, res);
     if (!usage) return;
 
     try {
@@ -1118,6 +1237,20 @@ app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, '..', 'profile-maker', 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`Profile builder server running on http://localhost:${PORT}`);
+validateProductionSecurity();
+
+app.listen(PORT, HOST, () => {
+    console.log(`Profile builder server running on http://${HOST}:${PORT}`);
 });
+
+function validateProductionSecurity() {
+    if (process.env.NODE_ENV !== 'production') return;
+    const problems = [];
+    if (process.env.AUTH_BYPASS === 'true') problems.push('AUTH_BYPASS must be false');
+    if (PROFILE_AUTH_SECRET.length < 32) problems.push('PROFILE_AUTH_SECRET must be at least 32 characters');
+    if (process.env.COOKIE_SECURE !== 'true') problems.push('COOKIE_SECURE must be true');
+    if (HOST !== '127.0.0.1' && HOST !== '::1') problems.push('PROFILE_API_HOST must be loopback-only');
+    if (problems.length) {
+        throw new Error(`[security] Refusing production startup: ${problems.join('; ')}`);
+    }
+}
