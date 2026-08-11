@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTemplate = document.getElementById('pb-ppt-template');
     const pptFile = document.getElementById('pb-ppt-file');
     const pptImageStyle = document.getElementById('pb-ppt-image-style');
+    const pptImageQuality = document.getElementById('pb-ppt-image-quality');
     const pptGenerateImage = document.getElementById('pb-ppt-generate-image');
     const pptGenerateImageHelp = document.getElementById('pb-ppt-generate-image-help');
     const pptGenerateButton = document.getElementById('pb-ppt-generate-btn');
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiTone = document.getElementById('pb-ai-tone');
     const aiCareer = document.getElementById('pb-ai-career');
     const aiImageStyle = document.getElementById('pb-ai-image-style');
+    const aiImageQuality = document.getElementById('pb-ai-image-quality');
     const aiGenerateImage = document.getElementById('pb-ai-generate-image');
     const aiGenerateImageHelp = document.getElementById('pb-ai-generate-image-help');
     const aiGenerateButton = document.getElementById('pb-ai-generate-btn');
@@ -236,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function storeProfileHistoryItem({ source, templateType, profile, nameHint, imageMode }) {
+    function storeProfileHistoryItem({ source, templateType, profile, nameHint, imageMode, imageQuality = 'standard' }) {
         if (!profile) return;
 
         const now = new Date();
@@ -249,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             source,
             templateType,
             imageMode,
+            imageQuality,
             title: `${nameHint || '프로필'} / ${sourceLabel}`,
             summary: summary || '저장된 프로필 결과',
             createdAtLabel,
@@ -273,6 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (aiTemplate) aiTemplate.value = item.templateType;
         if (aiGenerateImage) aiGenerateImage.checked = Boolean(item.imageMode);
         if (pptGenerateImage) pptGenerateImage.checked = Boolean(item.imageMode);
+        if (aiImageQuality) aiImageQuality.value = item.imageQuality || 'standard';
+        if (pptImageQuality) pptImageQuality.value = item.imageQuality || 'standard';
         updateImageGenerationControls();
 
         const element = replaceCanvasWithElement(item.templateType);
@@ -1054,22 +1059,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (aiGenerateImageHelp) {
             aiGenerateImageHelp.textContent = profileImagesOn
-                ? '대표 이미지와 무드 이미지를 함께 시도합니다. 실패해도 직접 업로드로 이어갈 수 있습니다.'
+                ? (aiImageQuality?.value === 'premium'
+                    ? '고급 모델로 정밀한 2K 대표 이미지와 무드 이미지를 생성합니다.'
+                    : '일반 모델로 빠르고 경제적인 대표 이미지와 무드 이미지를 생성합니다.')
                 : '이미지 영역을 완전히 제외하고 텍스트만으로 완성형 프로필을 구성합니다.';
         }
         if (aiImageStyle) {
             aiImageStyle.disabled = !profileImagesOn;
             aiImageStyle.closest('.pb-ai-field')?.classList.toggle('is-disabled', !profileImagesOn);
         }
+        if (aiImageQuality) {
+            aiImageQuality.disabled = !profileImagesOn;
+            aiImageQuality.closest('.pb-ai-field')?.classList.toggle('is-disabled', !profileImagesOn);
+        }
 
         if (pptGenerateImageHelp) {
             pptGenerateImageHelp.textContent = docImagesOn
-                ? '문서 내용을 바탕으로 대표 이미지와 무드 이미지를 함께 생성합니다.'
+                ? (pptImageQuality?.value === 'premium'
+                    ? '문서 내용을 바탕으로 고급 모델의 정밀한 2K 이미지 두 장을 생성합니다.'
+                    : '문서 내용을 바탕으로 일반 모델의 빠르고 경제적인 이미지 두 장을 생성합니다.')
                 : '문서 내용을 텍스트 중심 랜딩형 프로필로만 구성합니다.';
         }
         if (pptImageStyle) {
             pptImageStyle.disabled = !docImagesOn;
             pptImageStyle.closest('.pb-ai-field')?.classList.toggle('is-disabled', !docImagesOn);
+        }
+        if (pptImageQuality) {
+            pptImageQuality.disabled = !docImagesOn;
+            pptImageQuality.closest('.pb-ai-field')?.classList.toggle('is-disabled', !docImagesOn);
         }
 
         document.querySelectorAll('.pb-toggle-group').forEach((group) => {
@@ -1645,6 +1662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const career = aiCareer.value.trim();
         const imageStyle = aiImageStyle.value.trim();
         const shouldGenerateImages = aiGenerateImage.checked;
+        const imageQuality = aiImageQuality?.value || 'standard';
 
         if (!name || !specialty || !tone || !career) {
             setStatus(aiStatus, '상담사명, 전문분야, 상담 톤, 경력/강점을 먼저 입력해주세요.', 'error');
@@ -1665,7 +1683,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     tone,
                     career,
                     imageStyle,
-                    generateImage: shouldGenerateImages
+                    generateImage: shouldGenerateImages,
+                    imageQuality
                 })
             });
 
@@ -1694,7 +1713,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 templateType,
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
-                imageMode: shouldGenerateImages
+                imageMode: shouldGenerateImages,
+                imageQuality
             });
 
             setStatus(
@@ -1717,6 +1737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const templateType = pptTemplate.value;
         const templateConfig = templates[templateType];
         const shouldGenerateImages = pptGenerateImage.checked;
+        const imageQuality = pptImageQuality?.value || 'standard';
 
         if (!file) {
             setStatus(pptStatus, '먼저 PPT 또는 Excel 파일을 선택해주세요.', 'error');
@@ -1728,6 +1749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('templateType', templateType);
         formData.append('imageStyle', pptImageStyle.value.trim());
         formData.append('generateImage', String(shouldGenerateImages));
+        formData.append('imageQuality', imageQuality);
 
         pptGenerateButton.disabled = true;
         setStatus(pptStatus, '문서 내용을 분석하고 완성형 소개 페이지를 구성하는 중입니다...', 'loading');
@@ -1763,7 +1785,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 templateType,
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
-                imageMode: shouldGenerateImages
+                imageMode: shouldGenerateImages,
+                imageQuality
             });
 
             const slideMessage = data.meta?.slidesCount ? `슬라이드 ${data.meta.slidesCount}장 분석 완료.` : '';
@@ -2330,6 +2353,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindImageModeToggles();
     aiGenerateImage?.addEventListener('change', updateImageGenerationControls);
     pptGenerateImage?.addEventListener('change', updateImageGenerationControls);
+    aiImageQuality?.addEventListener('change', updateImageGenerationControls);
+    pptImageQuality?.addEventListener('change', updateImageGenerationControls);
     brandGenerateButton?.addEventListener('click', requestBrandPosterGeneration);
     brandAccentInput?.addEventListener('input', (event) => {
         if (currentMode === 'brand') {

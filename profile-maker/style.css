@@ -976,7 +976,8 @@ body {
 .pb-ai-field textarea { resize: vertical; min-height: 84px; }
 .pb-ai-inline { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #444; }
 .pb-ai-inline-help { margin: -4px 0 0; font-size: 12px; line-height: 1.5; color: #7a7a7a; }
-.pb-ai-field.is-disabled input { background: #f6f7f9; color: #9aa3ad; }
+.pb-ai-field.is-disabled input,
+.pb-ai-field.is-disabled select { background: #f6f7f9; color: #9aa3ad; }
 .pb-asset-card {
     display: flex;
     flex-direction: column;
