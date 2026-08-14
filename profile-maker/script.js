@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTemplate = document.getElementById('pb-ppt-template');
     const pptFile = document.getElementById('pb-ppt-file');
     const pptImageStyle = document.getElementById('pb-ppt-image-style');
+    const pptReferenceImages = document.getElementById('pb-ppt-reference-images');
+    const pptReferencePreview = document.getElementById('pb-ppt-reference-preview');
     const pptImageQuality = document.getElementById('pb-ppt-image-quality');
     const pptGenerateImage = document.getElementById('pb-ppt-generate-image');
     const pptGenerateImageHelp = document.getElementById('pb-ppt-generate-image-help');
@@ -25,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiTone = document.getElementById('pb-ai-tone');
     const aiCareer = document.getElementById('pb-ai-career');
     const aiImageStyle = document.getElementById('pb-ai-image-style');
+    const aiReferenceImages = document.getElementById('pb-ai-reference-images');
+    const aiReferencePreview = document.getElementById('pb-ai-reference-preview');
     const aiImageQuality = document.getElementById('pb-ai-image-quality');
     const aiGenerateImage = document.getElementById('pb-ai-generate-image');
     const aiGenerateImageHelp = document.getElementById('pb-ai-generate-image-help');
@@ -90,6 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastProfileDownloadName = 'profile-builder';
     const PROFILE_HISTORY_KEY = 'pb-profile-history-v1';
     const MAX_PROFILE_HISTORY = 8;
+    const MAX_REFERENCE_IMAGES = 3;
+    const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
+    const referenceFiles = { ppt: [], ai: [] };
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
         titleSize: 72,
@@ -1060,8 +1067,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (aiGenerateImageHelp) {
             aiGenerateImageHelp.textContent = profileImagesOn
                 ? (aiImageQuality?.value === 'premium'
-                    ? '고급 모델로 정밀한 2K 대표 이미지와 무드 이미지를 생성합니다.'
-                    : '일반 모델로 빠르고 경제적인 대표 이미지와 무드 이미지를 생성합니다.')
+                    ? '고급 모델로 정밀한 2K 브랜드 연출과 깊이 있는 장면을 생성합니다.'
+                    : '일반 모델로 빠르고 자연스러운 1K 실사용 이미지를 생성합니다.')
                 : '이미지 영역을 완전히 제외하고 텍스트만으로 완성형 프로필을 구성합니다.';
         }
         if (aiImageStyle) {
@@ -1072,12 +1079,16 @@ document.addEventListener('DOMContentLoaded', () => {
             aiImageQuality.disabled = !profileImagesOn;
             aiImageQuality.closest('.pb-ai-field')?.classList.toggle('is-disabled', !profileImagesOn);
         }
+        if (aiReferenceImages) {
+            aiReferenceImages.disabled = !profileImagesOn;
+            aiReferenceImages.closest('.pb-ai-field')?.classList.toggle('is-disabled', !profileImagesOn);
+        }
 
         if (pptGenerateImageHelp) {
             pptGenerateImageHelp.textContent = docImagesOn
                 ? (pptImageQuality?.value === 'premium'
-                    ? '문서 내용을 바탕으로 고급 모델의 정밀한 2K 이미지 두 장을 생성합니다.'
-                    : '문서 내용을 바탕으로 일반 모델의 빠르고 경제적인 이미지 두 장을 생성합니다.')
+                    ? '문서와 참고 이미지를 바탕으로 정밀한 2K 브랜드 장면 두 장을 생성합니다.'
+                    : '문서 내용을 바탕으로 빠르고 자연스러운 1K 이미지 두 장을 생성합니다.')
                 : '문서 내용을 텍스트 중심 랜딩형 프로필로만 구성합니다.';
         }
         if (pptImageStyle) {
@@ -1087,6 +1098,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pptImageQuality) {
             pptImageQuality.disabled = !docImagesOn;
             pptImageQuality.closest('.pb-ai-field')?.classList.toggle('is-disabled', !docImagesOn);
+        }
+        if (pptReferenceImages) {
+            pptReferenceImages.disabled = !docImagesOn;
+            pptReferenceImages.closest('.pb-ai-field')?.classList.toggle('is-disabled', !docImagesOn);
         }
 
         document.querySelectorAll('.pb-toggle-group').forEach((group) => {
@@ -1653,6 +1668,74 @@ document.addEventListener('DOMContentLoaded', () => {
         normalizeExportRichText(clone);
     }
 
+    function validateReferenceFile(file) {
+        const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+        if (!allowedTypes.has(file.type)) return 'JPG, PNG 또는 WebP 이미지만 첨부할 수 있습니다.';
+        if (!file.size || file.size > MAX_REFERENCE_IMAGE_BYTES) return '참고 이미지 한 장은 5MB 이하여야 합니다.';
+        return '';
+    }
+
+    function renderReferencePreview(scope) {
+        const container = scope === 'ppt' ? pptReferencePreview : aiReferencePreview;
+        if (!container) return;
+        container.replaceChildren();
+
+        referenceFiles[scope].forEach((file, index) => {
+            const card = document.createElement('div');
+            card.className = 'pb-reference-card';
+            const image = document.createElement('img');
+            const objectUrl = URL.createObjectURL(file);
+            image.src = objectUrl;
+            image.alt = `참고 이미지 ${index + 1}`;
+            image.addEventListener('load', () => URL.revokeObjectURL(objectUrl), { once: true });
+            image.addEventListener('error', () => URL.revokeObjectURL(objectUrl), { once: true });
+
+            const name = document.createElement('span');
+            name.className = 'pb-reference-name';
+            name.textContent = file.name;
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'pb-reference-remove';
+            remove.setAttribute('aria-label', `${file.name} 삭제`);
+            remove.textContent = '×';
+            remove.addEventListener('click', () => {
+                referenceFiles[scope].splice(index, 1);
+                renderReferencePreview(scope);
+            });
+
+            card.append(image, name, remove);
+            container.appendChild(card);
+        });
+    }
+
+    function selectReferenceFiles(scope, selectedFiles) {
+        const statusTarget = scope === 'ppt' ? pptStatus : aiStatus;
+        const input = scope === 'ppt' ? pptReferenceImages : aiReferenceImages;
+        const files = Array.from(selectedFiles || []);
+        if (files.length > MAX_REFERENCE_IMAGES) {
+            setStatus(statusTarget, `참고 이미지는 최대 ${MAX_REFERENCE_IMAGES}장까지 첨부할 수 있습니다.`, 'error');
+            if (input) input.value = '';
+            return;
+        }
+
+        const validationError = files.map(validateReferenceFile).find(Boolean);
+        if (validationError) {
+            setStatus(statusTarget, validationError, 'error');
+            if (input) input.value = '';
+            return;
+        }
+
+        referenceFiles[scope] = files;
+        renderReferencePreview(scope);
+        if (input) input.value = '';
+    }
+
+    function appendReferenceImages(formData, scope, shouldGenerateImages) {
+        if (!shouldGenerateImages) return;
+        referenceFiles[scope].forEach((file) => formData.append('referenceImages', file, file.name));
+    }
+
     async function requestAiProfile() {
         const templateType = aiTemplate.value;
         const templateConfig = templates[templateType];
@@ -1673,19 +1756,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus(aiStatus, 'AI가 입력한 정보를 바탕으로 소개 페이지를 생성하는 중입니다...', 'loading');
 
         try {
+            const formData = new FormData();
+            formData.append('templateType', templateType);
+            formData.append('name', name);
+            formData.append('specialty', specialty);
+            formData.append('tone', tone);
+            formData.append('career', career);
+            formData.append('imageStyle', imageStyle);
+            formData.append('generateImage', String(shouldGenerateImages));
+            formData.append('imageQuality', imageQuality);
+            appendReferenceImages(formData, 'ai', shouldGenerateImages);
+
             const response = await fetch('/api/generate-profile', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    templateType,
-                    name,
-                    specialty,
-                    tone,
-                    career,
-                    imageStyle,
-                    generateImage: shouldGenerateImages,
-                    imageQuality
-                })
+                body: formData
             });
 
             const data = await response.json();
@@ -1750,6 +1834,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('imageStyle', pptImageStyle.value.trim());
         formData.append('generateImage', String(shouldGenerateImages));
         formData.append('imageQuality', imageQuality);
+        appendReferenceImages(formData, 'ppt', shouldGenerateImages);
 
         pptGenerateButton.disabled = true;
         setStatus(pptStatus, '문서 내용을 분석하고 완성형 소개 페이지를 구성하는 중입니다...', 'loading');
@@ -2338,6 +2423,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aiGenerateButton?.addEventListener('click', requestAiProfile);
     pptGenerateButton?.addEventListener('click', requestPptGeneration);
+    aiReferenceImages?.addEventListener('change', (event) => selectReferenceFiles('ai', event.target.files));
+    pptReferenceImages?.addEventListener('change', (event) => selectReferenceFiles('ppt', event.target.files));
     slotRegenerateButtons.forEach((button) => {
         button.addEventListener('click', () => requestSlotRegeneration(button.dataset.slotKey));
     });

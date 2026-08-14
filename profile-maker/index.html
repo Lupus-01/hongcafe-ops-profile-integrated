@@ -45,10 +45,16 @@
                         <input id="pb-ppt-image-style" type="text" placeholder="예: 부드러운 스튜디오 조명, 따뜻한 톤, 프리미엄 브랜드 무드">
                     </label>
                     <label class="pb-ai-field">
+                        <span>참고 이미지</span>
+                        <input id="pb-ppt-reference-images" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple>
+                    </label>
+                    <p class="pb-ai-inline-help">공간·색감·조명·소품 참고용 JPG, PNG, WebP를 최대 3장까지 첨부할 수 있습니다. 얼굴과 글자는 복제하지 않습니다.</p>
+                    <div id="pb-ppt-reference-preview" class="pb-reference-preview" aria-live="polite"></div>
+                    <label class="pb-ai-field">
                         <span>이미지 품질</span>
                         <select id="pb-ppt-image-quality">
-                            <option value="standard" selected>일반 품질 · 빠르고 경제적</option>
-                            <option value="premium">고급 품질 · 더 정밀한 2K 이미지</option>
+                            <option value="standard" selected>일반 · 빠른 1K 실사용 이미지</option>
+                            <option value="premium">고급 · 정밀한 2K 브랜드 연출</option>
                         </select>
                     </label>
                     <label class="pb-ai-field">
@@ -101,10 +107,16 @@
                         <input id="pb-ai-image-style" type="text" placeholder="예: 부드러운 스튜디오 조명, 단정한 아이보리 톤">
                     </label>
                     <label class="pb-ai-field">
+                        <span>참고 이미지</span>
+                        <input id="pb-ai-reference-images" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple>
+                    </label>
+                    <p class="pb-ai-inline-help">공간·색감·조명·소품 참고용 JPG, PNG, WebP를 최대 3장까지 첨부할 수 있습니다. 얼굴과 글자는 복제하지 않습니다.</p>
+                    <div id="pb-ai-reference-preview" class="pb-reference-preview" aria-live="polite"></div>
+                    <label class="pb-ai-field">
                         <span>이미지 품질</span>
                         <select id="pb-ai-image-quality">
-                            <option value="standard" selected>일반 품질 · 빠르고 경제적</option>
-                            <option value="premium">고급 품질 · 더 정밀한 2K 이미지</option>
+                            <option value="standard" selected>일반 · 빠른 1K 실사용 이미지</option>
+                            <option value="premium">고급 · 정밀한 2K 브랜드 연출</option>
                         </select>
                     </label>
                     <label class="pb-ai-field">
