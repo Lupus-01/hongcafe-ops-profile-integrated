@@ -99,6 +99,8 @@ const TEMPLATE_GUIDES = {
             { id: 'animal-symbol', prompt: 'an animal-symbol oracle deck with realistic woodland animals and simple symbolic environments' },
             { id: 'seasonal-watercolor', prompt: 'a seasonal watercolor card deck with four-season landscapes and visibly hand-painted paper texture' },
             { id: 'dream-archetype', prompt: 'a dream-archetype deck with quiet surreal metaphors rendered as believable printed illustrations, not a fantasy scene' },
+            { id: 'color-symbolic', prompt: 'an original color-psychology tarot deck where each card uses a distinct controlled color field, simple geometric symbolism, and clean contemporary borders without copying a published color tarot deck' },
+            { id: 'iching-symbolic', prompt: 'an original I Ching influenced divination deck using accurate solid and broken trigram line structures, restrained ink-wash landscapes, and no readable Chinese characters or copied commercial artwork' },
             { id: 'minimal-monochrome', prompt: 'a minimalist monochrome tarot deck with fine ink linework, generous blank space, and a distinctly modern back pattern' }
         ]
     },
@@ -154,6 +156,23 @@ const TEMPLATE_GUIDES = {
             { id: 'prayer-beads', role: 'support', prompt: 'one strand of plain dark wooden prayer beads arranged beside a closed unbranded fabric pouch' }
         ]
     }
+};
+
+const TAROT_CARD_TYPES = {
+    auto: { labelKo: '자동 추천', subjectId: '' },
+    'universal-waite': { labelKo: '유니버셜 웨이트 계열', subjectId: 'classic-symbolic' },
+    'wheel-of-the-year': { labelKo: '시간의 수레바퀴 계열', subjectId: 'time-wheel' },
+    oracle: { labelKo: '오라클 카드', subjectId: 'modern-oracle' },
+    'color-tarot': { labelKo: '색채타로', subjectId: 'color-symbolic' },
+    'iching-tarot': { labelKo: '주역타로', subjectId: 'iching-symbolic' },
+    marseille: { labelKo: '마르세유 타로', subjectId: 'marseille-geometry' },
+    'art-nouveau': { labelKo: '아르누보 타로', subjectId: 'art-nouveau' },
+    celestial: { labelKo: '천체 타로', subjectId: 'celestial' },
+    botanical: { labelKo: '보태니컬 타로', subjectId: 'botanical' },
+    'european-narrative': { labelKo: '유럽 서사 타로', subjectId: 'european-narrative' },
+    'animal-oracle': { labelKo: '동물 상징 오라클', subjectId: 'animal-symbol' },
+    'minimal-monochrome': { labelKo: '미니멀 흑백 타로', subjectId: 'minimal-monochrome' },
+    'dream-archetype': { labelKo: '꿈·원형 타로', subjectId: 'dream-archetype' }
 };
 
 function createSceneArchetype(id, family, prompt, camera, tabletop = false) {
@@ -638,8 +657,18 @@ function getVisualPair(payload) {
         .digest();
     const pairId = pairDigest.toString('hex').slice(0, 12);
 
-    const portraitSubjectIndex = pairDigest[0] % heroSubjects.length;
-    const moodSubjectIndex = getDifferentOptionIndex(heroSubjects, portraitSubjectIndex, pairDigest, 1);
+    const tarotCardType = payload.templateType === 'tarot-ppt'
+        ? TAROT_CARD_TYPES[payload.tarotCardType || 'auto']
+        : null;
+    const selectedTarotSubjectIndex = tarotCardType?.subjectId
+        ? heroSubjects.findIndex((subject) => subject.id === tarotCardType.subjectId)
+        : -1;
+    const portraitSubjectIndex = selectedTarotSubjectIndex >= 0
+        ? selectedTarotSubjectIndex
+        : pairDigest[0] % heroSubjects.length;
+    const moodSubjectIndex = payload.templateType === 'tarot-ppt'
+        ? portraitSubjectIndex
+        : getDifferentOptionIndex(heroSubjects, portraitSubjectIndex, pairDigest, 1);
     const portraitScene = pickVisualOption(archetypes, pairDigest, 2);
     const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3);
     const portraitPaletteIndex = stableDigest[0] % VISUAL_VARIATION_OPTIONS.palettes.length;
@@ -687,7 +716,9 @@ function getVisualPair(payload) {
         )
     };
     const separationChecks = [
-        pair.portrait.subject.id !== pair.mood.subject.id,
+        payload.templateType === 'tarot-ppt'
+            ? pair.portrait.subject.id === pair.mood.subject.id
+            : pair.portrait.subject.id !== pair.mood.subject.id,
         pair.portrait.scene.id !== pair.mood.scene.id,
         pair.portrait.scene.venueId !== pair.mood.scene.venueId,
         pair.portrait.scene.baseVenueId !== pair.mood.scene.baseVenueId,
@@ -718,6 +749,22 @@ function validateVisualPairingRuntime() {
             });
         }
     }
+
+    for (const [tarotCardType, config] of Object.entries(TAROT_CARD_TYPES)) {
+        if (!config.subjectId) continue;
+        const pair = getVisualPair({
+            templateType: 'tarot-ppt',
+            tarotCardType,
+            name: 'tarot-card-type-check',
+            specialty: 'tarot-card-type-check',
+            career: 'tarot-card-type-check',
+            visualIdentity: createVisualIdentity(['tarot-ppt', tarotCardType, 'tarot-card-type-check']),
+            visualNonce: `tarot-card-type-check-${tarotCardType}`
+        });
+        if (pair.portrait.subject.id !== config.subjectId || pair.mood.subject.id !== config.subjectId) {
+            throw new Error(`[visual-config] ${tarotCardType} did not keep the selected deck family across the image pair.`);
+        }
+    }
 }
 
 validateVisualPairingRuntime();
@@ -732,10 +779,17 @@ function buildVisualVariationPrompt(variation, imageKind) {
     const supportRule = variation.supportSubject
         ? `Optional supporting accessory only: ${variation.supportSubject.prompt}. It must remain visually secondary and cannot replace the assigned hero subject.`
         : 'Use only minimal neutral supporting materials that cannot become a second hero subject.';
+    const usesSameHeroFamily = variation.subject.id === variation.counterpartSubject.id;
+    const pairSubjectRule = usesSameHeroFamily
+        ? `DECK CONSISTENCY: the paired image uses this same card family. Preserve the identical card size, border system, back design, palette, paper stock, and illustration language, while showing different individual cards and a different arrangement.`
+        : `HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.`;
+    const pairDifferenceRule = usesSameHeroFamily
+        ? 'The two images must look like different photographs of the same owned deck, not alternate angles of one room. Use different cards, arrangement, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.'
+        : 'The two images must not look like alternate camera angles of one room. Use different hero objects, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.';
     return `
 Consultant-specific paired visual direction (pair ${variation.pairId}, variant ${variation.id}):
 - Assigned hero subject: ${variation.subject.prompt}.
-- HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.
+- ${pairSubjectRule}
 - Assigned scene ID: ${variation.scene.id}.
 - Assigned physical venue ID: ${variation.scene.venueId} (base ${variation.scene.baseVenueId}, realization ${variation.scene.siteVariant}).
 - Assigned scene family: ${variation.scene.family}.
@@ -747,7 +801,7 @@ Consultant-specific paired visual direction (pair ${variation.pairId}, variant $
 - Color family: ${variation.palette}.
 - Do not reuse or resemble the paired image's scene (${variation.counterpartScene.id}, family ${variation.counterpartScene.family}): ${variation.counterpartScene.prompt}.
 - ${sceneScope}
-- The two images must not look like alternate camera angles of one room. Use different hero objects, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.
+- ${pairDifferenceRule}
 - Treat this combination as a specific real consultation scene, not a generic template, while obeying every category, safety, realism, and orientation rule.
 `.trim();
 }
@@ -1090,6 +1144,15 @@ function getLimitedDocumentText(value) {
 
 function getTemplateGuide(templateType) {
     return TEMPLATE_GUIDES[templateType] || TEMPLATE_GUIDES['sinjeom-ppt'];
+}
+
+function normalizeTarotCardType(templateType, value) {
+    if (templateType !== 'tarot-ppt') return '';
+    const tarotCardType = String(value || 'auto').trim().toLowerCase();
+    if (!Object.hasOwn(TAROT_CARD_TYPES, tarotCardType)) {
+        throw createHttpError(400, '지원하지 않는 타로 카드 유형입니다.');
+    }
+    return tarotCardType;
 }
 
 function hasContactGuidance(value) {
@@ -1893,6 +1956,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
 
     let referenceImages;
     try {
+        payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
@@ -1906,6 +1970,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         payload.specialty,
         payload.tone,
         payload.career,
+        payload.tarotCardType,
         getReferenceFingerprint(referenceImages)
     ]);
 
@@ -1971,6 +2036,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
 
     let referenceImages;
     try {
+        payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
@@ -1994,6 +2060,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
 
         assignVisualIdentity(payload, [
             payload.templateType,
+            payload.tarotCardType,
             file.originalname,
             parsedDocument.combinedText,
             getReferenceFingerprint(referenceImages)

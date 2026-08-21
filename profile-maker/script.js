@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const paletteContainer = document.querySelector('.pb-palette-container');
 
     const pptTemplate = document.getElementById('pb-ppt-template');
+    const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
+    const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
     const pptFile = document.getElementById('pb-ppt-file');
     const pptImageStyle = document.getElementById('pb-ppt-image-style');
     const pptReferenceImages = document.getElementById('pb-ppt-reference-images');
@@ -22,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptImageIssue = document.getElementById('pb-ppt-image-issue');
 
     const aiTemplate = document.getElementById('pb-ai-template');
+    const aiTarotCardTypeField = document.getElementById('pb-ai-tarot-card-type-field');
+    const aiTarotCardType = document.getElementById('pb-ai-tarot-card-type');
     const aiName = document.getElementById('pb-ai-name');
     const aiSpecialty = document.getElementById('pb-ai-specialty');
     const aiTone = document.getElementById('pb-ai-tone');
@@ -245,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function storeProfileHistoryItem({ source, templateType, profile, nameHint, imageMode, imageQuality = 'standard' }) {
+    function storeProfileHistoryItem({ source, templateType, tarotCardType = '', profile, nameHint, imageMode, imageQuality = 'standard' }) {
         if (!profile) return;
 
         const now = new Date();
@@ -257,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
             source,
             templateType,
+            tarotCardType,
             imageMode,
             imageQuality,
             title: `${nameHint || '프로필'} / ${sourceLabel}`,
@@ -281,11 +286,16 @@ document.addEventListener('DOMContentLoaded', () => {
         applyTheme(templateConfig.theme);
         if (pptTemplate) pptTemplate.value = item.templateType;
         if (aiTemplate) aiTemplate.value = item.templateType;
+        if (item.tarotCardType) {
+            if (pptTarotCardType) pptTarotCardType.value = item.tarotCardType;
+            if (aiTarotCardType) aiTarotCardType.value = item.tarotCardType;
+        }
         if (aiGenerateImage) aiGenerateImage.checked = Boolean(item.imageMode);
         if (pptGenerateImage) pptGenerateImage.checked = Boolean(item.imageMode);
         if (aiImageQuality) aiImageQuality.value = item.imageQuality || 'standard';
         if (pptImageQuality) pptImageQuality.value = item.imageQuality || 'standard';
         updateImageGenerationControls();
+        updateTarotCardTypeControls();
 
         const element = replaceCanvasWithElement(item.templateType);
         fillPresentation(element, item.profile);
@@ -1174,6 +1184,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function updateTarotCardTypeControls() {
+        const aiIsTarot = aiTemplate?.value === 'tarot-ppt';
+        const pptIsTarot = pptTemplate?.value === 'tarot-ppt';
+
+        if (aiTarotCardTypeField) aiTarotCardTypeField.hidden = !aiIsTarot;
+        if (pptTarotCardTypeField) pptTarotCardTypeField.hidden = !pptIsTarot;
+        if (aiTarotCardType) aiTarotCardType.disabled = !aiIsTarot;
+        if (pptTarotCardType) pptTarotCardType.disabled = !pptIsTarot;
+    }
+
     function stabilizeExportListMarkers(root) {
         root.querySelectorAll('.pb-presentation-points li').forEach((item) => {
             if (item.querySelector('.pb-export-point-marker')) return;
@@ -1758,6 +1778,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const formData = new FormData();
             formData.append('templateType', templateType);
+            if (templateType === 'tarot-ppt') formData.append('tarotCardType', aiTarotCardType?.value || 'auto');
             formData.append('name', name);
             formData.append('specialty', specialty);
             formData.append('tone', tone);
@@ -1795,6 +1816,7 @@ document.addEventListener('DOMContentLoaded', () => {
             storeProfileHistoryItem({
                 source: 'direct',
                 templateType,
+                tarotCardType: templateType === 'tarot-ppt' ? (aiTarotCardType?.value || 'auto') : '',
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
                 imageMode: shouldGenerateImages,
@@ -1831,6 +1853,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('pptFile', file);
         formData.append('templateType', templateType);
+        if (templateType === 'tarot-ppt') formData.append('tarotCardType', pptTarotCardType?.value || 'auto');
         formData.append('imageStyle', pptImageStyle.value.trim());
         formData.append('generateImage', String(shouldGenerateImages));
         formData.append('imageQuality', imageQuality);
@@ -1868,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', () => {
             storeProfileHistoryItem({
                 source: 'document',
                 templateType,
+                tarotCardType: templateType === 'tarot-ppt' ? (pptTarotCardType?.value || 'auto') : '',
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
                 imageMode: shouldGenerateImages,
@@ -2442,6 +2466,8 @@ document.addEventListener('DOMContentLoaded', () => {
     pptGenerateImage?.addEventListener('change', updateImageGenerationControls);
     aiImageQuality?.addEventListener('change', updateImageGenerationControls);
     pptImageQuality?.addEventListener('change', updateImageGenerationControls);
+    aiTemplate?.addEventListener('change', updateTarotCardTypeControls);
+    pptTemplate?.addEventListener('change', updateTarotCardTypeControls);
     brandGenerateButton?.addEventListener('click', requestBrandPosterGeneration);
     brandAccentInput?.addEventListener('input', (event) => {
         if (currentMode === 'brand') {
@@ -2451,6 +2477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme('pb-theme-sinjeom');
     applyTypographySettings();
     updateImageGenerationControls();
+    updateTarotCardTypeControls();
     resetProfileImageAssets();
     renderProfileHistory();
     updateSlotRegenerateState();
