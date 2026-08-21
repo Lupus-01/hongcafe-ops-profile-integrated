@@ -100,32 +100,6 @@ const TEMPLATE_GUIDES = {
             { id: 'seasonal-watercolor', prompt: 'a seasonal watercolor card deck with four-season landscapes and visibly hand-painted paper texture' },
             { id: 'dream-archetype', prompt: 'a dream-archetype deck with quiet surreal metaphors rendered as believable printed illustrations, not a fantasy scene' },
             { id: 'minimal-monochrome', prompt: 'a minimalist monochrome tarot deck with fine ink linework, generous blank space, and a distinctly modern back pattern' }
-        ],
-        sceneSettings: [
-            'a bright consultation nook beside a tall window with a compact round table',
-            'a quiet private reading room with a long wooden table and a low card cabinet',
-            'a book-lined studio corner with a dedicated reading surface and one plain chair',
-            'a warm reception-side reading area separated by a simple linen curtain',
-            'a compact evening consultation room lit by practical warm ceiling and desk lights',
-            'a calm daylight studio with a wall shelf displaying closed tarot deck boxes',
-            'a quiet window bench reading area with a small movable side table',
-            'a bright gallery-like consultation corner with framed abstract art and no bookcase',
-            'a compact lounge with two armchairs and a low oval reading surface',
-            'a private alcove separated by a pale folding screen and soft floor lamp',
-            'a clean card archive room with shallow closed drawers and a central island',
-            'a sunlit conservatory-style corner with restrained greenery and a stone-topped side table'
-        ],
-        sceneStories: [
-            'a reading has just been prepared, with three cards opened and the remaining deck neatly ready',
-            'several cards are being compared in a clear branching layout, with no person or hand visible',
-            'the reading has just ended, leaving an orderly spread, a closed notebook, and the deck box nearby',
-            'two different spreads are staged on adjacent sections of the cloth as a consultant work sample',
-            'one hero card anchors the scene while the deck and supporting cards create layered depth',
-            'a new card family is being catalogued with its matching box and blank divider cards',
-            'a compact three-card reading is prepared beside a closed journal with no readable writing',
-            'the cards form a gentle circular sequence that suggests time and change without a magic circle',
-            'a single card rests upright on a plain wooden holder while the matching deck remains clearly visible',
-            'two small groups from the same assigned deck show contrasting choices with generous space between them'
         ]
     },
     'saju-ppt': {
@@ -152,32 +126,6 @@ const TEMPLATE_GUIDES = {
             { id: 'diagram-notebook', prompt: 'an open analyst notebook containing small abstract balance diagrams and grid sketches that cannot be read' },
             { id: 'archive-folder', prompt: 'an archival document folder with separated birth-data worksheets and neutral paper clips, all personal details hidden' },
             { id: 'wooden-index-system', prompt: 'a compact wooden index-card box containing anonymized saju study cards with only unreadable grid patterns visible' }
-        ],
-        sceneSettings: [
-            'a modern study beside a window with a wide working desk and closed reference books',
-            'a compact consultation office with a wall bookcase and organized document drawers',
-            'a quiet library-style corner with a reading lamp and a practical wooden desk',
-            'a bright shared consultation room with a clean table and a restrained paper filing area',
-            'a calm evening study using ordinary warm task lighting and neutral ceiling light',
-            'a minimal archive-like workspace with labeled-looking but unreadable folders and closed books',
-            'a bright window-side reading table with one chair and no wall bookcase',
-            'a university-library style study booth with pale partitions and a task light',
-            'a low Korean floor-seating study area with a compact document stand',
-            'a modern records room with closed flat-file cabinets and a standing review counter',
-            'a quiet home-office corner with a rolling reference cart and a narrow desk',
-            'a spacious consultation lounge with a round table and distant closed shelving'
-        ],
-        sceneStories: [
-            'the assigned study tool has just been prepared for a focused consultation review',
-            'the assigned material is being examined beside only a pencil and blank index tabs',
-            'an analysis session is midway through, with the assigned tool open or arranged and every detail unreadable',
-            'the setting is prepared for the next consultation with the assigned tool, one neutral folder, and a paperweight',
-            'the assigned tool is the sole visual anchor while minor filing materials suggest a practiced research workflow',
-            'the assigned reference item has been set aside with blank index tabs marking several sections',
-            'the assigned study material is ready for review beside one closed neutral folder and pencil',
-            'the assigned material is organized chronologically in a practical document support without adding another hero book or chart',
-            'the assigned specialized tool is isolated as the hero object with only generic materials farther behind',
-            'a research session has paused with the assigned item in use and all private information fully concealed'
         ]
     },
     'sinjeom-ppt': {
@@ -196,42 +144,122 @@ const TEMPLATE_GUIDES = {
             { id: 'brass-bell', prompt: 'one familiar handheld-size brass ritual bell with realistic mild patina and a simple wooden handle' },
             { id: 'paper-lotus-lantern', prompt: 'one small unlit lotus-shaped paper lantern in restrained cream and pale accent colors, with no glow, flame, or electric light' },
             { id: 'five-color-cloth', prompt: 'one neatly folded restrained five-color ceremonial cloth showing clean woven texture without becoming a costume' },
-            { id: 'wooden-tray', prompt: 'one shallow handmade wooden preparation tray holding folded blank white paper and no food or offerings' },
-            { id: 'brass-bowl', prompt: 'one small plain brass ceremonial bowl with a natural matte surface, empty and resting securely on cloth' },
-            { id: 'traditional-knot', prompt: 'one carefully arranged traditional multicolor knot cord stored in a small open wooden case' },
-            { id: 'folded-hanji', prompt: 'a set of folded blank hanji papers and a plain paperweight, with no talisman writing or visible text' },
+            { id: 'wooden-tray', role: 'support', prompt: 'one shallow handmade wooden preparation tray holding folded blank white paper and no food or offerings' },
+            { id: 'brass-bowl', role: 'support', prompt: 'one small plain brass ceremonial bowl with a natural matte surface, empty and resting securely on cloth' },
+            { id: 'traditional-knot', role: 'support', prompt: 'one carefully arranged traditional multicolor knot cord stored in a small open wooden case' },
+            { id: 'folded-hanji', role: 'support', prompt: 'a set of folded blank hanji papers and a plain paperweight, with no talisman writing or visible text' },
             { id: 'small-hand-drum', prompt: 'one compact traditional handheld drum stored respectfully on a low padded support, not being performed' },
             { id: 'brass-mirror', prompt: 'one small round brass ritual mirror with a matte reflection and a simple fabric pouch' },
-            { id: 'wooden-clappers', prompt: 'one pair of small plain wooden ritual clappers resting parallel on a folded neutral cloth' },
-            { id: 'prayer-beads', prompt: 'one strand of plain dark wooden prayer beads arranged beside a closed unbranded fabric pouch' }
-        ],
-        sceneSettings: [
-            'a modest daylight consultation room with a low table beside a translucent paper-textured window',
-            'a clean private room with low closed storage and a simple woven floor mat',
-            'a restrained modern-traditional studio with pale wood, one low table, and an uncluttered wall',
-            'a calm reception-side inner room separated by a neutral fabric screen',
-            'a quiet evening consultation space using ordinary warm ceiling light without red tones',
-            'a bright preparation room with a shallow wooden storage cabinet and neatly folded fabrics',
-            'a quiet paper-window alcove with a low display ledge and no central table',
-            'a clean textile storage room with closed cabinets and one preparation bench',
-            'a modern-traditional reception room with pale walls and a compact floor-seating area',
-            'a sunlit wooden corridor corner opening into a modest private consultation room',
-            'a simple craft-like preparation studio with hanji drawers and a standing work surface',
-            'a calm inner room with one floor cushion, a low shelf, and a neutral folding screen'
-        ],
-        sceneStories: [
-            'the assigned object has just been arranged as the sole ceremonial focal point for a calm consultation',
-            'the consultation has just ended, leaving the assigned object resting safely in an orderly position',
-            'a restrained preparation sequence is suggested by the assigned object and two blank supporting materials',
-            'the assigned object forms the only visual anchor while neutral wood and woven textures create quiet depth',
-            'two simple consultation positions are implied while only the assigned object identifies the practice',
-            'the assigned object has just been taken from its storage case and placed carefully on a clean support',
-            'a preparation sequence is suggested by one hero object and two separated blank materials',
-            'the assigned object is displayed alone in soft side light with its storage pouch farther behind',
-            'the room is ready for a quiet consultation, but only the assigned object identifies the practice',
-            'the assigned object has just been cleaned and returned to an orderly resting position'
+            { id: 'wooden-clappers', role: 'support', prompt: 'one pair of small plain wooden ritual clappers resting parallel on a folded neutral cloth' },
+            { id: 'prayer-beads', role: 'support', prompt: 'one strand of plain dark wooden prayer beads arranged beside a closed unbranded fabric pouch' }
         ]
     }
+};
+
+function createSceneArchetype(id, family, prompt, camera, tabletop = false) {
+    const shotMode = family === 'detail-closeup'
+        ? 'close-detail'
+        : (family === 'architectural-wide' ? 'wide-environment' : 'environmental');
+    return { id, family, prompt, camera, shotMode, tabletop };
+}
+
+const SCENE_ARCHETYPES = {
+    'tarot-ppt': [
+        createSceneArchetype('tarot-card-paper-detail', 'detail-closeup', 'Show the assigned card family in a tight material study where paper grain, printed ink, and one complete card face are prominent. Use a narrow stone ledge rather than furniture.', 'controlled 70mm close detail, one complete card filling about half the frame'),
+        createSceneArchetype('tarot-deck-edge-detail', 'detail-closeup', 'Show the layered edges of the assigned deck, its distinct back design, and one face-up card on a small portable reading board.', 'low 65mm close detail across the deck edge'),
+        createSceneArchetype('tarot-card-back-detail', 'detail-closeup', 'Feature two complete card backs and one different face-up card from the assigned family against a plain vertical wall ledge.', '55mm near close-up with controlled shallow depth'),
+        createSceneArchetype('tarot-upright-hero-card', 'detail-closeup', 'Place one complete hero card upright in a plain holder with the matching closed deck below, framed against distant architecture rather than a room table.', '70mm compressed close view with the full card visible'),
+        createSceneArchetype('tarot-shallow-spread-close', 'detail-closeup', 'Create a compact three-card spread on a rigid travel board, emphasizing different card borders and illustration language.', '50mm close environmental detail from a low front angle'),
+        createSceneArchetype('tarot-travel-case-detail', 'detail-closeup', 'Show an open unbranded travel card case, the assigned deck, and one complete card on a built-in case flap.', '60mm close detail looking across the open case'),
+        createSceneArchetype('tarot-reading-cloth-detail', 'detail-closeup', 'Show one complete card, the assigned deck corner, and a distinctive woven reading cloth folded over a floor cushion, with no table.', '55mm tactile close detail with layered fabric depth'),
+        createSceneArchetype('tarot-archive-drawer-close', 'detail-closeup', 'Show a shallow card archive drawer partly open with the assigned deck box and one complete sample card, without a desk.', '50mm close view aligned with the drawer front'),
+        createSceneArchetype('tarot-garden-stone-bench', 'outdoor-reading', 'Stage the assigned deck securely on a broad dry garden stone bench with a weighted reading mat and quiet greenery behind it.', '35mm outdoor environmental view at seated height'),
+        createSceneArchetype('tarot-terrace-reading', 'outdoor-reading', 'Use a sheltered terrace corner with a weighted portable reading board, the assigned cards, and distant urban daylight.', '35mm terrace view with clear outdoor depth'),
+        createSceneArchetype('tarot-forest-bench', 'outdoor-reading', 'Use a dry wooden bench at a calm forest edge, with the assigned deck secured inside an open travel case and no loose windblown cards.', '35mm natural outdoor view from one end of the bench'),
+        createSceneArchetype('tarot-riverside-shelter', 'outdoor-reading', 'Place the assigned deck on a portable lap board inside a quiet riverside shelter, with water visible far behind and cards safely weighted.', '32mm environmental view with the deck clearly recognizable'),
+        createSceneArchetype('tarot-courtyard-stone', 'outdoor-reading', 'Use a clean stone platform in a bright courtyard with three assigned cards on a fitted mat and no café table.', '35mm courtyard view with strong stone and sky context'),
+        createSceneArchetype('tarot-conservatory-path', 'outdoor-reading', 'Place the assigned card case on a built-in conservatory ledge beside a garden path, using plants as distant context rather than decoration.', '40mm side view along the path and ledge'),
+        createSceneArchetype('tarot-rooftop-garden', 'outdoor-reading', 'Use a wind-sheltered rooftop garden alcove with an open rigid card case and one upright assigned card.', '35mm outdoor brand photograph with skyline depth'),
+        createSceneArchetype('tarot-park-pavilion', 'outdoor-reading', 'Use a quiet wooden pavilion floor with a compact weighted reading cloth and the assigned deck, without a conventional table.', '32mm pavilion view showing floor structure and landscape'),
+        createSceneArchetype('tarot-hanok-veranda', 'threshold-veranda', 'Arrange the assigned deck on a narrow portable board at the edge of a bright hanok veranda, with the courtyard beyond.', '35mm threshold view across veranda boards'),
+        createSceneArchetype('tarot-balcony-threshold', 'threshold-veranda', 'Use an open balcony threshold where the assigned deck rests inside its case on a built-in ledge, with interior and exterior light meeting.', '40mm diagonal threshold composition'),
+        createSceneArchetype('tarot-gallery-doorway', 'threshold-veranda', 'Frame one upright assigned card and its deck through a gallery doorway, using the doorway as foreground structure.', '50mm layered doorway composition'),
+        createSceneArchetype('tarot-window-exterior-ledge', 'threshold-veranda', 'Use a deep open-window ledge with a secured card holder and the assigned deck, showing an exterior garden beyond rather than a desk.', '55mm side-lit window threshold view'),
+        createSceneArchetype('tarot-archive-wall', 'archive-storage', 'Show a vertical wall of shallow closed card drawers with one open compartment displaying the assigned deck and one sample card.', '35mm archive wall view with strong vertical rhythm'),
+        createSceneArchetype('tarot-mobile-case-open', 'archive-storage', 'Show a standing mobile card case opened like a compact field kit, with the assigned deck held in fitted compartments.', '45mm front three-quarter product-environment view'),
+        createSceneArchetype('tarot-shelf-deck-display', 'archive-storage', 'Use a tall narrow shelf where the assigned deck and one complete card occupy a single isolated level, with no tabletop.', '55mm vertical shelf detail inside a 16:9 frame'),
+        createSceneArchetype('tarot-flat-file-island', 'archive-storage', 'Use a card archive island with one shallow drawer open and the assigned deck being catalogued, clearly unlike a consultation desk.', '40mm high three-quarter archive view', true),
+        createSceneArchetype('tarot-floor-cushion-board', 'floor-setting', 'Place the assigned cards on a small rigid reading board between two floor cushions in a bright open area, without a table.', '40mm floor-level view with clear spatial depth'),
+        createSceneArchetype('tarot-woven-mat-spread', 'floor-setting', 'Create a secured three-card spread directly on a clean woven floor mat with the matching case nearby.', '50mm low floor-level diagonal view'),
+        createSceneArchetype('tarot-window-bench-floor', 'floor-setting', 'Use a built-in window bench above a floor cushion, with the assigned deck on the bench edge and the room opening below.', '40mm low side view combining bench and floor'),
+        createSceneArchetype('tarot-greenhouse-wide', 'architectural-wide', 'Show a bright greenhouse-like reading pavilion where the assigned card case sits on a stone ledge as a small but clear anchor.', '28mm architectural environmental view without ultra-wide distortion'),
+        createSceneArchetype('tarot-courtyard-wide', 'architectural-wide', 'Show an open courtyard and covered walkway with the assigned deck secured on a low masonry platform in the foreground.', '30mm architectural wide shot with upright lines'),
+        createSceneArchetype('tarot-card-library-aisle', 'architectural-wide', 'Show a specialized card archive aisle with the assigned deck visible in one open wall compartment, no consultation table.', '32mm centered aisle composition')
+    ],
+    'saju-ppt': [
+        createSceneArchetype('saju-book-spine-detail', 'detail-closeup', 'Feature the assigned reference item as a complete book or binder with paper edges and index tabs visible, against a vertical shelf.', '70mm close material study with no readable text'),
+        createSceneArchetype('saju-index-tab-detail', 'detail-closeup', 'Show the assigned study tool opened just enough to reveal layered blank-looking index tabs and paper texture.', '75mm close detail with controlled depth'),
+        createSceneArchetype('saju-grid-structure-detail', 'detail-closeup', 'Show a complete four-column or structured grid area from the assigned tool with every character too small to read.', '65mm close view retaining the full grid boundary'),
+        createSceneArchetype('saju-paper-fiber-detail', 'detail-closeup', 'Emphasize paper grain, binding, and one neutral diagram from the assigned study material on a sloped document stand.', '70mm tactile close view'),
+        createSceneArchetype('saju-reference-stack-detail', 'detail-closeup', 'Show the assigned reference family as a compact vertical stack with distinct unbranded covers and colored page markers.', '55mm side detail against an archive wall'),
+        createSceneArchetype('saju-calendar-division-detail', 'detail-closeup', 'Show seasonal divisions or timeline structure from the assigned tool without legible dates, floating graphics, or decorative fantasy.', '65mm close analytical view'),
+        createSceneArchetype('saju-archive-label-detail', 'detail-closeup', 'Show the assigned folder in a shallow archive slot with only abstract unreadable classification marks.', '60mm close view aligned to the archive slot'),
+        createSceneArchetype('saju-index-box-detail', 'detail-closeup', 'Show the assigned index system inside a compact wooden card box, with structured grid patterns and no private information.', '55mm close view into the open box'),
+        createSceneArchetype('saju-timeline-folder-detail', 'detail-closeup', 'Show the assigned analysis folder opened to a complete but unreadable timeline page on a portable document board.', '60mm close environmental detail'),
+        createSceneArchetype('saju-diagram-notebook-detail', 'detail-closeup', 'Show the assigned notebook with one complete abstract balance diagram and the binding clearly visible.', '65mm side-lit close detail'),
+        createSceneArchetype('saju-library-aisle', 'archive-storage', 'Place the assigned reference item upright in one open section of a modern research-library aisle.', '35mm centered aisle view with the item clearly anchored'),
+        createSceneArchetype('saju-flat-file-drawer', 'archive-storage', 'Show a flat-file drawer partly open with the assigned analysis material inside, unlike a working desk.', '40mm archive drawer view from standing height'),
+        createSceneArchetype('saju-rolling-reference-cart', 'archive-storage', 'Use a narrow rolling reference cart holding the assigned tool in a quiet records room with open walking space.', '40mm three-quarter cart view'),
+        createSceneArchetype('saju-wall-cabinet', 'archive-storage', 'Show a wall-mounted document cabinet with one open compartment containing the assigned study material.', '45mm architectural storage view'),
+        createSceneArchetype('saju-reference-shelf', 'archive-storage', 'Use a tall reference shelf with the assigned item isolated on one level and other books closed and distant.', '55mm compressed shelf view'),
+        createSceneArchetype('saju-records-counter', 'archive-storage', 'Show a standing records counter where the assigned material is being organized beside one neutral file tray.', '40mm records-room environmental view', true),
+        createSceneArchetype('saju-drawer-index', 'archive-storage', 'Show a bank of small document drawers with one open drawer revealing the assigned index material.', '35mm rhythmic drawer-wall composition'),
+        createSceneArchetype('saju-conservation-stand', 'archive-storage', 'Place the assigned older reference item on a sloped conservation stand in a quiet archive corner.', '50mm museum-like but practical archive view'),
+        createSceneArchetype('saju-hanok-veranda', 'threshold-veranda', 'Place the assigned study item on a low portable reading stand at a bright hanok veranda with the courtyard beyond.', '35mm threshold view across wooden floorboards'),
+        createSceneArchetype('saju-window-reading-stand', 'threshold-veranda', 'Use a built-in window reading stand holding the assigned material, with no desk and soft exterior daylight.', '45mm side-lit window composition'),
+        createSceneArchetype('saju-corridor-alcove', 'threshold-veranda', 'Show the assigned reference item in a recessed corridor reading alcove separated from the main study room.', '40mm layered corridor view'),
+        createSceneArchetype('saju-paper-door-threshold', 'threshold-veranda', 'Frame the assigned material through an open paper-door threshold on a low document support.', '50mm compressed doorway composition'),
+        createSceneArchetype('saju-modern-library-wide', 'architectural-wide', 'Show a modern library interior with the assigned tool on a freestanding reading stand as the clear category anchor.', '28mm architectural wide view with natural perspective'),
+        createSceneArchetype('saju-archive-room-wide', 'architectural-wide', 'Show a broad records room with flat-file cabinets and the assigned material visible in one open review station.', '30mm archive-wide composition'),
+        createSceneArchetype('saju-traditional-study-wide', 'architectural-wide', 'Show a restrained modern-traditional study with the assigned reference item on a low stand and no scholar or costume.', '32mm room-wide architectural view'),
+        createSceneArchetype('saju-consultation-lounge-wide', 'architectural-wide', 'Show a spacious consultation lounge where the assigned tool sits on a round review station, with no generic luxury styling.', '32mm environmental wide view', true),
+        createSceneArchetype('saju-low-reading-board', 'floor-setting', 'Place the assigned study material on a low sloped reading board over a clean floor mat, with no conventional desk.', '45mm low floor-level composition'),
+        createSceneArchetype('saju-floor-cushion-study', 'floor-setting', 'Show one floor cushion beside the assigned tool on a compact support, with the wider room softly behind.', '40mm seated-eye-line floor view'),
+        createSceneArchetype('saju-document-stand-floor', 'floor-setting', 'Use a freestanding document holder at floor level displaying the assigned material fully and upright.', '50mm low front view'),
+        createSceneArchetype('saju-mat-folder-layout', 'floor-setting', 'Arrange the assigned folder and one neutral index set on a woven mat with clear physical separation and no table.', '55mm low diagonal view')
+    ],
+    'sinjeom-ppt': [
+        createSceneArchetype('sinjeom-material-detail', 'detail-closeup', 'Show the assigned hero ritual object as a complete form while emphasizing its paper, wood, brass, cloth, or leather material.', '70mm close material portrait with the full object visible'),
+        createSceneArchetype('sinjeom-edge-detail', 'detail-closeup', 'Use a low close angle along the assigned hero object to reveal construction, edge geometry, and natural wear without damage.', '65mm controlled close detail'),
+        createSceneArchetype('sinjeom-storage-pouch-close', 'detail-closeup', 'Show the assigned hero object partly removed from its plain fitted storage pouch on a wall ledge, with no table.', '60mm close three-quarter view'),
+        createSceneArchetype('sinjeom-shadow-detail', 'detail-closeup', 'Place the complete assigned hero object against a pale wall where soft daylight creates one natural identifying shadow.', '70mm side-lit detail view'),
+        createSceneArchetype('sinjeom-hanji-texture-close', 'detail-closeup', 'Show the assigned hero object with one small blank hanji support that reveals restrained material contrast.', '65mm tactile close view'),
+        createSceneArchetype('sinjeom-case-compartment-close', 'detail-closeup', 'Show the assigned hero object in one open fitted compartment of a shallow wooden storage case.', '55mm close view into the compartment'),
+        createSceneArchetype('sinjeom-upright-object-close', 'detail-closeup', 'Present the assigned hero object upright on a secure plain holder with distant wooden architecture behind.', '75mm compressed close portrait'),
+        createSceneArchetype('sinjeom-woven-support-close', 'detail-closeup', 'Place the assigned hero object on a small woven floor support, showing texture and scale without a desk.', '60mm low close detail'),
+        createSceneArchetype('sinjeom-mountain-clearing', 'outdoor-prayer', 'Use a quiet dry mountain prayer clearing with the assigned hero object secured on a low natural stone and no altar.', '35mm dawn environmental view with mountain depth'),
+        createSceneArchetype('sinjeom-old-stone-wall', 'outdoor-prayer', 'Place the assigned hero object on a broad clean ledge beside an old stone wall in calm daylight.', '40mm side view following the wall'),
+        createSceneArchetype('sinjeom-sunrise-overlook', 'outdoor-prayer', 'Use a sheltered sunrise overlook where the assigned hero object remains secure inside or beside its fitted case.', '35mm environmental view without dramatic fantasy light'),
+        createSceneArchetype('sinjeom-forest-edge-shelter', 'outdoor-prayer', 'Use a modest wooden shelter at a forest edge with the assigned hero object on a built-in ledge.', '32mm natural shelter view'),
+        createSceneArchetype('sinjeom-quiet-courtyard', 'outdoor-prayer', 'Use a clean quiet courtyard with the assigned hero object on a low masonry platform and ample open air.', '35mm courtyard environmental composition'),
+        createSceneArchetype('sinjeom-wooden-pavilion', 'outdoor-prayer', 'Use the floor of a small open wooden pavilion with the assigned hero object on a fitted woven support.', '32mm pavilion view showing floor and landscape'),
+        createSceneArchetype('sinjeom-riverside-rock', 'outdoor-prayer', 'Use a broad dry riverside rock in a sheltered area with the assigned hero object secured in its case.', '40mm outdoor view with water distant and subdued'),
+        createSceneArchetype('sinjeom-hillside-path-shelter', 'outdoor-prayer', 'Use a small rest shelter beside a hillside path, with the assigned hero object on a built-in wooden shelf.', '35mm path-and-shelter view'),
+        createSceneArchetype('sinjeom-garden-prayer-corner', 'outdoor-prayer', 'Use a restrained garden prayer corner with one plain stone platform and the assigned hero object, no statues or altar.', '40mm quiet garden composition'),
+        createSceneArchetype('sinjeom-eaves-lantern-space', 'outdoor-prayer', 'Use the exterior space beneath wooden eaves with the assigned hero object on a narrow ledge and unlit paper lanterns far behind.', '35mm exterior architectural view'),
+        createSceneArchetype('sinjeom-hanok-threshold', 'threshold-veranda', 'Frame the assigned hero object at an open hanok threshold with courtyard daylight and no central table.', '40mm layered threshold view'),
+        createSceneArchetype('sinjeom-paper-door-alcove', 'threshold-veranda', 'Use a recessed paper-door alcove with the assigned hero object on a built-in shelf.', '50mm compressed alcove view'),
+        createSceneArchetype('sinjeom-wooden-corridor', 'threshold-veranda', 'Place the assigned hero object on a corridor wall ledge with strong wooden architectural lines.', '45mm view along the corridor'),
+        createSceneArchetype('sinjeom-courtyard-veranda', 'threshold-veranda', 'Use the edge of a veranda overlooking a quiet courtyard, with the assigned hero object on a portable support.', '35mm veranda-to-courtyard diagonal'),
+        createSceneArchetype('sinjeom-screened-inner-door', 'threshold-veranda', 'Frame the assigned hero object through a neutral fabric screen and open inner doorway, showing two different depth layers.', '55mm layered doorway view'),
+        createSceneArchetype('sinjeom-mugu-cabinet', 'archive-storage', 'Show a shallow closed-object storage cabinet with one open compartment containing only the assigned hero object and its support accessory.', '45mm front three-quarter cabinet view'),
+        createSceneArchetype('sinjeom-preparation-shelf', 'archive-storage', 'Use a tall preparation shelf where the assigned hero object occupies one isolated level, with other compartments closed.', '55mm vertical shelf composition'),
+        createSceneArchetype('sinjeom-mobile-storage-case', 'archive-storage', 'Show an open standing storage case with the assigned hero object secured in a fitted compartment.', '50mm practical storage-case view'),
+        createSceneArchetype('sinjeom-floor-cushion-space', 'floor-setting', 'Place the assigned hero object on a low woven support beside one floor cushion in a bright open room, no table.', '40mm floor-level environmental view'),
+        createSceneArchetype('sinjeom-mat-preparation', 'floor-setting', 'Use a clean floor mat with the assigned hero object and one supporting material clearly separated.', '50mm low diagonal floor view'),
+        createSceneArchetype('sinjeom-prayer-room-wide', 'architectural-wide', 'Show a bright uncluttered Korean prayer room with the assigned hero object on a wall ledge as the clear anchor, no crowded altar.', '30mm architectural wide view'),
+        createSceneArchetype('sinjeom-courtyard-building-wide', 'architectural-wide', 'Show a modest wooden building and courtyard with the assigned hero object visible on the veranda edge.', '30mm exterior architectural view')
+    ]
 };
 
 function validateTemplateVisualGuides() {
@@ -242,11 +270,22 @@ function validateTemplateVisualGuides() {
         if (new Set(guide.visualSubjects.map((subject) => subject.id)).size !== guide.visualSubjects.length) {
             throw new Error(`[visual-config] ${templateType} contains duplicate visual subject IDs.`);
         }
-        if (!Array.isArray(guide.sceneSettings) || guide.sceneSettings.length < 12) {
-            throw new Error(`[visual-config] ${templateType} requires at least 12 scene settings.`);
+        const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support');
+        if (heroSubjects.length < 6) {
+            throw new Error(`[visual-config] ${templateType} requires at least 6 hero-eligible visual subjects.`);
         }
-        if (!Array.isArray(guide.sceneStories) || guide.sceneStories.length < 10) {
-            throw new Error(`[visual-config] ${templateType} requires at least 10 scene stories.`);
+        const archetypes = SCENE_ARCHETYPES[templateType];
+        if (!Array.isArray(archetypes) || archetypes.length !== 30) {
+            throw new Error(`[visual-config] ${templateType} requires exactly 30 scene archetypes.`);
+        }
+        if (new Set(archetypes.map((scene) => scene.id)).size !== archetypes.length) {
+            throw new Error(`[visual-config] ${templateType} contains duplicate scene archetype IDs.`);
+        }
+        if (new Set(archetypes.map((scene) => scene.family)).size < 5) {
+            throw new Error(`[visual-config] ${templateType} requires at least 5 distinct scene families.`);
+        }
+        if (archetypes.some((scene) => !scene.id || !scene.family || !scene.prompt || !scene.camera)) {
+            throw new Error(`[visual-config] ${templateType} contains an incomplete scene archetype.`);
         }
     }
 }
@@ -266,11 +305,11 @@ const SMARTPHONE_PHOTO_REQUIREMENTS = `
 
 const UPRIGHT_ORIENTATION_REQUIREMENTS = `
 - Hold the camera normally in landscape orientation. The top edge of the generated image must correspond to the real top of the room.
-- Keep the floor at the bottom of the image and the ceiling at the top. Never place the floor, ceiling, or gravity direction along the left or right edge.
+- When floor, ground, or ceiling is visible, keep ground below and ceiling or sky above. Never place the gravity direction along the left or right edge.
 - Keep walls, door frames, bookcases, chair legs, table legs, hanging objects, and other vertical structures naturally upright.
 - Keep the camera roll effectively at zero degrees. Do not use a Dutch angle, sideways room, rotated interior, upside-down scene, or a portrait photo turned 90 degrees inside a landscape canvas.
 - Furniture must rest naturally on the floor, and every loose object must rest naturally on its supporting surface with gravity pointing toward the bottom edge.
-- Before finalizing, inspect the complete frame for orientation. Correct the scene if a viewer would need to rotate the phone to understand the room.
+- Before finalizing, inspect the complete frame for orientation. Correct the scene if a viewer would need to rotate the image to understand the environment or hero object.
 `.trim();
 
 const REFERENCE_IMAGE_REQUIREMENTS = `
@@ -281,7 +320,7 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 - A reference image must never override the assigned hero subject, introduce the paired image's excluded subject, or make both outputs reuse one room.
 `.trim();
 
-const VISUAL_VARIATION_VERSION = 'profile-visual-v3-paired-scenes';
+const VISUAL_VARIATION_VERSION = 'profile-visual-v4-scene-archetypes';
 const VISUAL_VARIATION_OPTIONS = {
     palettes: [
         'warm ivory, light oak, and restrained beige',
@@ -407,7 +446,8 @@ const IMAGE_QUALITY_PROFILES = {
         imageSize: '2K',
         captureStyle: 'a polished high-end editorial brand photograph that still feels like a real Korean consultation space',
         capturePrompt: `
-- Use refined real-camera optics with a natural 35mm-to-50mm perspective and controlled depth, never an extreme wide-angle or macro view.
+- Follow the assigned scene camera treatment. Controlled 50mm-to-85mm close-detail photography is allowed for detail scenes, while environmental scenes should use a natural 28mm-to-50mm perspective without ultra-wide distortion.
+- In a close-detail scene, keep the complete hero object recognizable and avoid microscopic macro magnification or accidental cropping.
 - Build a deliberate foreground, middle ground, and background with a clear visual path through the frame.
 - Shape existing daylight and practical room light into refined directional illumination with soft highlight roll-off and natural shadows.
 - Allow restrained editorial composition, premium brand art direction, and selective focus while keeping every required category object identifiable.
@@ -471,8 +511,23 @@ function getDifferentOptionIndex(options, firstIndex, digest, byteOffset) {
     return (firstIndex + 1 + (digest[byteOffset % digest.length] % (options.length - 1))) % options.length;
 }
 
+function pickCompatibleScene(archetypes, firstScene, digest, byteOffset) {
+    const candidates = archetypes.filter((scene) => (
+        scene.id !== firstScene.id
+        && scene.family !== firstScene.family
+        && !(scene.tabletop && firstScene.tabletop)
+    ));
+    if (!candidates.length) {
+        throw new Error('[visual-config] No compatible non-duplicate scene archetype is available.');
+    }
+    return pickVisualOption(candidates, digest, byteOffset);
+}
+
 function getVisualPair(payload) {
     const guide = getTemplateGuide(payload.templateType);
+    const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support');
+    const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support');
+    const archetypes = SCENE_ARCHETYPES[payload.templateType];
     const stableIdentity = payload.visualIdentity || createVisualIdentity([
         payload.templateType,
         payload.name,
@@ -486,62 +541,60 @@ function getVisualPair(payload) {
         .digest();
     const pairId = pairDigest.toString('hex').slice(0, 12);
 
-    const portraitIndexes = {
-        subject: pairDigest[0] % guide.visualSubjects.length,
-        setting: pairDigest[2] % guide.sceneSettings.length,
-        story: pairDigest[4] % guide.sceneStories.length,
-        palette: stableDigest[0] % VISUAL_VARIATION_OPTIONS.palettes.length,
-        surface: stableDigest[7] % VISUAL_VARIATION_OPTIONS.surfaces.length,
-        lighting: stableDigest[13] % VISUAL_VARIATION_OPTIONS.lighting.length,
-        roomDetail: stableDigest[19] % VISUAL_VARIATION_OPTIONS.roomDetails.length
-    };
-    const moodIndexes = {
-        subject: getDifferentOptionIndex(guide.visualSubjects, portraitIndexes.subject, pairDigest, 1),
-        setting: getDifferentOptionIndex(guide.sceneSettings, portraitIndexes.setting, pairDigest, 3),
-        story: getDifferentOptionIndex(guide.sceneStories, portraitIndexes.story, pairDigest, 5),
-        palette: getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.palettes, portraitIndexes.palette, pairDigest, 6),
-        surface: getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.surfaces, portraitIndexes.surface, pairDigest, 7),
-        lighting: getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.lighting, portraitIndexes.lighting, pairDigest, 8),
-        roomDetail: getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.roomDetails, portraitIndexes.roomDetail, pairDigest, 9)
-    };
+    const portraitSubjectIndex = pairDigest[0] % heroSubjects.length;
+    const moodSubjectIndex = getDifferentOptionIndex(heroSubjects, portraitSubjectIndex, pairDigest, 1);
+    const portraitScene = archetypes[pairDigest[2] % archetypes.length];
+    const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3);
+    const portraitPaletteIndex = stableDigest[0] % VISUAL_VARIATION_OPTIONS.palettes.length;
+    const moodPaletteIndex = getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.palettes, portraitPaletteIndex, pairDigest, 4);
+    const portraitSupportIndex = supportSubjects.length ? pairDigest[5] % supportSubjects.length : -1;
+    const moodSupportIndex = supportSubjects.length
+        ? getDifferentOptionIndex(supportSubjects, portraitSupportIndex, pairDigest, 6)
+        : -1;
 
-    function buildKindVariation(imageKind, indexes, counterpartIndexes) {
-        const isPortrait = imageKind === 'portrait';
+    function buildKindVariation(imageKind, subject, counterpartSubject, scene, counterpartScene, palette, supportSubject) {
         const variationDigest = crypto.createHash('sha256')
             .update(`${VISUAL_VARIATION_VERSION}\0${stableIdentity}\0${nonce}\0${imageKind}`)
             .digest();
-        const viewpoints = isPortrait ? VISUAL_VARIATION_OPTIONS.portraitViewpoints : VISUAL_VARIATION_OPTIONS.moodViewpoints;
-        const layouts = isPortrait ? VISUAL_VARIATION_OPTIONS.portraitLayouts : VISUAL_VARIATION_OPTIONS.moodLayouts;
         return {
             id: variationDigest.toString('hex').slice(0, 12),
             pairId,
             seed: variationDigest.readUInt32BE(0) & 0x7fffffff,
-            subject: guide.visualSubjects[indexes.subject],
-            counterpartSubject: guide.visualSubjects[counterpartIndexes.subject],
-            palette: VISUAL_VARIATION_OPTIONS.palettes[indexes.palette],
-            surface: VISUAL_VARIATION_OPTIONS.surfaces[indexes.surface],
-            lighting: VISUAL_VARIATION_OPTIONS.lighting[indexes.lighting],
-            roomDetail: VISUAL_VARIATION_OPTIONS.roomDetails[indexes.roomDetail],
-            sceneSetting: guide.sceneSettings[indexes.setting],
-            counterpartSetting: guide.sceneSettings[counterpartIndexes.setting],
-            sceneStory: guide.sceneStories[indexes.story],
-            viewpoint: pickVisualOption(viewpoints, variationDigest, 8),
-            layout: pickVisualOption(layouts, variationDigest, 17)
+            subject,
+            counterpartSubject,
+            supportSubject,
+            palette,
+            scene,
+            counterpartScene
         };
     }
 
     const pair = {
-        portrait: buildKindVariation('portrait', portraitIndexes, moodIndexes),
-        mood: buildKindVariation('mood', moodIndexes, portraitIndexes)
+        portrait: buildKindVariation(
+            'portrait',
+            heroSubjects[portraitSubjectIndex],
+            heroSubjects[moodSubjectIndex],
+            portraitScene,
+            moodScene,
+            VISUAL_VARIATION_OPTIONS.palettes[portraitPaletteIndex],
+            portraitSupportIndex >= 0 ? supportSubjects[portraitSupportIndex] : null
+        ),
+        mood: buildKindVariation(
+            'mood',
+            heroSubjects[moodSubjectIndex],
+            heroSubjects[portraitSubjectIndex],
+            moodScene,
+            portraitScene,
+            VISUAL_VARIATION_OPTIONS.palettes[moodPaletteIndex],
+            moodSupportIndex >= 0 ? supportSubjects[moodSupportIndex] : null
+        )
     };
     const separationChecks = [
         pair.portrait.subject.id !== pair.mood.subject.id,
-        pair.portrait.sceneSetting !== pair.mood.sceneSetting,
-        pair.portrait.sceneStory !== pair.mood.sceneStory,
+        pair.portrait.scene.id !== pair.mood.scene.id,
+        pair.portrait.scene.family !== pair.mood.scene.family,
         pair.portrait.palette !== pair.mood.palette,
-        pair.portrait.surface !== pair.mood.surface,
-        pair.portrait.lighting !== pair.mood.lighting,
-        pair.portrait.roomDetail !== pair.mood.roomDetail
+        !(pair.portrait.scene.tabletop && pair.mood.scene.tabletop)
     ];
     if (separationChecks.some((isSeparated) => !isSeparated)) {
         throw new Error(`[visual-config] Failed to build a fully separated scene pair for ${payload.templateType}.`);
@@ -555,14 +608,16 @@ function getVisualVariation(payload, imageKind) {
 
 function validateVisualPairingRuntime() {
     for (const templateType of Object.keys(TEMPLATE_GUIDES)) {
-        getVisualPair({
-            templateType,
-            name: 'startup-check',
-            specialty: 'startup-check',
-            career: 'startup-check',
-            visualIdentity: createVisualIdentity([templateType, 'startup-check']),
-            visualNonce: 'startup-check'
-        });
+        for (let sample = 0; sample < 64; sample += 1) {
+            getVisualPair({
+                templateType,
+                name: 'startup-check',
+                specialty: 'startup-check',
+                career: 'startup-check',
+                visualIdentity: createVisualIdentity([templateType, 'startup-check']),
+                visualNonce: `startup-check-${sample}`
+            });
+        }
     }
 }
 
@@ -570,23 +625,28 @@ validateVisualPairingRuntime();
 
 function buildVisualVariationPrompt(variation, imageKind) {
     const sceneScope = imageKind === 'portrait'
-        ? 'Make this the signature hero image: give the assigned subject strong visual priority in a closer but complete environmental composition.'
-        : 'Make this the complementary mood image: show the assigned different subject in a wider environment with a clearly different visual rhythm.';
+        ? 'Make this the signature hero image, but follow the assigned scene family and camera distance instead of defaulting to a desk still life.'
+        : 'Make this the complementary image, following its own assigned scene family and camera distance even when it is a close detail or an outdoor view.';
+    const tabletopRule = variation.scene.tabletop
+        ? 'This is the only image in the pair allowed to use a conventional work surface. Make that surface secondary to the scene.'
+        : 'Do not introduce a conventional desk, consultation table, office tabletop, or gray cloth-covered work surface anywhere in this image.';
+    const supportRule = variation.supportSubject
+        ? `Optional supporting accessory only: ${variation.supportSubject.prompt}. It must remain visually secondary and cannot replace the assigned hero subject.`
+        : 'Use only minimal neutral supporting materials that cannot become a second hero subject.';
     return `
 Consultant-specific paired visual direction (pair ${variation.pairId}, variant ${variation.id}):
 - Assigned hero subject: ${variation.subject.prompt}.
 - HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.
+- Assigned scene ID: ${variation.scene.id}.
+- Assigned scene family: ${variation.scene.family}.
+- Scene construction: ${variation.scene.prompt}.
+- Required camera treatment: ${variation.scene.camera}.
+- ${tabletopRule}
+- ${supportRule}
 - Color family: ${variation.palette}.
-- Supporting surface: ${variation.surface}.
-- Existing light direction: ${variation.lighting}.
-- Modest background detail: ${variation.roomDetail}.
-- Scene setting: ${variation.sceneSetting}.
-- Do not reuse or resemble the other image's setting: ${variation.counterpartSetting}.
-- Story moment: ${variation.sceneStory}.
-- Camera position: ${variation.viewpoint}.
-- Composition: ${variation.layout}.
+- Do not reuse or resemble the paired image's scene (${variation.counterpartScene.id}, family ${variation.counterpartScene.family}): ${variation.counterpartScene.prompt}.
 - ${sceneScope}
-- The two images must not look like alternate camera angles of one room. Use different hero objects, furniture, surface material, lighting direction, background architecture, and spatial layout.
+- The two images must not look like alternate camera angles of one room. Use different hero objects, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.
 - Treat this combination as a specific real consultation scene, not a generic template, while obeying every category, safety, realism, and orientation rule.
 `.trim();
 }
@@ -1296,10 +1356,10 @@ async function generateImage(prompt, imageKind, imageQuality = 'standard', visua
         }
 
         const imageUsage = incrementImageUsage();
-        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
+        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
         return imageDataUrl;
     } catch (error) {
-        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} variant=${visualVariation?.id || 'none'} status=failed`, error?.message || error);
+        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} status=failed`, error?.message || error);
         throw error;
     }
 }
@@ -1318,7 +1378,7 @@ ${guide.imageMood}
 
 Photography direction:
 - keep every required category object fully inside the frame and easy to identify
-- use a relaxed, slightly off-center frame while keeping the assigned support and objects level enough to look normal
+- follow the assigned scene family and camera treatment exactly; do not replace an outdoor, threshold, archive, floor, or detail scene with a desk setup
 ${qualityProfile.capturePrompt}
 
 Optional user preference, to be used only as a subtle color and mood reference: ${safeImageStyle || 'calm neutral Korean consultation atmosphere'}
@@ -1337,8 +1397,8 @@ Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'portrait')}
 Quality-specific optimization for the selected ${imageQuality} tier:
 ${qualityProfile.prompt}
-- The near edge of the assigned supporting surface belongs near the bottom of the image. Objects must rest naturally on that surface and must not look rotated within the landscape frame.
-- Make this the closer signature scene, visibly different from the wider companion scene, but never use an extreme close-up.
+- Respect the support method named by the assigned scene. Do not add a table or desk unless that scene explicitly allows one.
+- Make this the signature scene visibly different from its companion; close-detail scenes are allowed, but never crop away the hero object's identity or use microscopic macro magnification.
 `.trim();
 }
 
@@ -1363,13 +1423,13 @@ function buildMoodImagePrompt(payload, extraPrompt = '', visualVariation = getVi
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
     const safeImageStyle = sanitizeExtraPrompt(payload.imageStyle, 200);
     return `
-Create one 16:9 image of a Korean ${guide.labelEn} consultation space as ${qualityProfile.captureStyle}. The category identity is the highest priority: the wider room must still clearly show the required ${guide.labelEn} objects and must not become a generic office or decorative room. No person is present.
+Create one 16:9 image of a Korean ${guide.labelEn} consultation-related scene as ${qualityProfile.captureStyle}. The category identity is the highest priority: the assigned outdoor, threshold, archive, floor, architectural, or detail environment must still clearly show the required ${guide.labelEn} hero object and must not become a generic office or decorative room. No person is present.
 
-The room scene to photograph:
+The category and environment rules:
 ${guide.moodScene}
 
 Photography direction:
-- show the assigned setting, suitable support or storage, and the required category object together so the room's purpose is immediately clear
+- follow the assigned scene family and camera treatment exactly; a mood image may be an outdoor prayer site, outdoor card reading, threshold, archive, floor setting, architectural view, or controlled close detail
 - keep the frame understandable and mostly level without ultra-wide distortion
 ${qualityProfile.capturePrompt}
 
@@ -1389,8 +1449,8 @@ Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'mood')}
 Quality-specific optimization for the selected ${imageQuality} tier:
 ${qualityProfile.prompt}
-- The room must be readable immediately without rotating the image: floor below, ceiling above, upright walls and furniture, and zero sideways roll.
-- Make this the wider companion scene, visibly different from the closer signature scene, while keeping the category-defining object recognizable.
+- The environment must be readable immediately without rotating the image: gravity downward, architecture upright when present, and zero sideways roll.
+- Make this the complementary scene in its assigned shot mode, visibly different from the signature scene while keeping the category-defining object recognizable.
 `.trim();
 }
 
@@ -1419,6 +1479,9 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: portraitVariation.pairId,
             variationId: portraitVariation.id,
             subjectId: portraitVariation.subject.id,
+            sceneFamily: portraitVariation.scene.family,
+            sceneId: portraitVariation.scene.id,
+            shotMode: portraitVariation.scene.shotMode,
             prompt: buildPortraitImagePrompt(payload, portraitContext, portraitVariation)
         },
         mood: {
@@ -1428,6 +1491,9 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: moodVariation.pairId,
             variationId: moodVariation.id,
             subjectId: moodVariation.subject.id,
+            sceneFamily: moodVariation.scene.family,
+            sceneId: moodVariation.scene.id,
+            shotMode: moodVariation.scene.shotMode,
             prompt: buildMoodImagePrompt(payload, moodContext, moodVariation)
         }
     };
@@ -1687,6 +1753,21 @@ app.get('/api/health', (req, res) => {
         visualVariationVersion: VISUAL_VARIATION_VERSION,
         pairedSceneSubjects: Object.fromEntries(
             Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => [templateType, guide.visualSubjects.length])
+        ),
+        pairedHeroSubjects: Object.fromEntries(
+            Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => [
+                templateType,
+                guide.visualSubjects.filter((subject) => subject.role !== 'support').length
+            ])
+        ),
+        sceneArchetypeCounts: Object.fromEntries(
+            Object.entries(SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
+        ),
+        sceneFamilyCounts: Object.fromEntries(
+            Object.entries(SCENE_ARCHETYPES).map(([templateType, archetypes]) => [
+                templateType,
+                new Set(archetypes.map((scene) => scene.family)).size
+            ])
         ),
         textModel: TEXT_MODEL
     });
