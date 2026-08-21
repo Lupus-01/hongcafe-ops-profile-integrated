@@ -1248,25 +1248,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
 
-    function applyEditorFriendlyExportStyles(clone) {
+    function applyEditorFriendlyExportStyles(clone, { outputMode = 'capture' } = {}) {
+        const isSiteCode = outputMode === 'site';
         clone.classList.add('pb-export-capture');
-        appendProfileExportCaptureStyles(clone);
+        if (isSiteCode) {
+            clone.querySelectorAll('[data-pb-export-capture-style]').forEach((style) => style.remove());
+        } else {
+            appendProfileExportCaptureStyles(clone);
+        }
 
         const computedCanvas = window.getComputedStyle(canvas);
         const fontFamily = computedCanvas.getPropertyValue('--pb-font-family').trim() || defaultTypography.fontFamily;
-        const titleSize = computedCanvas.getPropertyValue('--pb-title-size').trim() || `${defaultTypography.titleSize}px`;
-        const bodySize = computedCanvas.getPropertyValue('--pb-body-size').trim() || `${defaultTypography.bodySize}px`;
-        const pointSize = computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`;
-        const lineHeight = computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight);
-        const subtitleSize = computedCanvas.getPropertyValue('--pb-subtitle-size').trim() || '26px';
-        const chipSize = computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px';
+        const titleSize = isSiteCode
+            ? 'clamp(30px, 6vw, 46px)'
+            : (computedCanvas.getPropertyValue('--pb-title-size').trim() || `${defaultTypography.titleSize}px`);
+        const bodySize = isSiteCode
+            ? 'clamp(16px, 2.5vw, 21px)'
+            : (computedCanvas.getPropertyValue('--pb-body-size').trim() || `${defaultTypography.bodySize}px`);
+        const pointSize = isSiteCode
+            ? 'clamp(16px, 2.6vw, 21px)'
+            : (computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`);
+        const lineHeight = isSiteCode
+            ? '1.65'
+            : (computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight));
+        const subtitleSize = isSiteCode
+            ? 'clamp(23px, 4vw, 32px)'
+            : (computedCanvas.getPropertyValue('--pb-subtitle-size').trim() || '26px');
+        const chipSize = isSiteCode
+            ? '14px'
+            : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
 
         setInlineStyles(clone, {
-            width: '720px',
+            width: isSiteCode ? '100%' : '720px',
             'max-width': '720px',
+            'min-width': '0',
             margin: '0 auto',
-            padding: '14px 10px',
-            'border-radius': '18px',
+            padding: isSiteCode ? '0' : '14px 10px',
+            'border-radius': isSiteCode ? '14px' : '18px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
             'box-shadow': 'none',
@@ -1278,7 +1296,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(section, {
                 border: '0',
                 'border-radius': '0',
-                padding: '10px',
+                width: '100%',
+                'max-width': '100%',
+                'min-width': '0',
+                padding: isSiteCode ? '12px 8px' : '10px',
                 color: '#2a211c',
                 'box-shadow': 'none',
                 overflow: 'hidden',
@@ -1510,8 +1531,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'text-align': 'center',
                 'justify-self': 'stretch',
                 'aspect-ratio': isPortrait ? '16 / 8.6' : '16 / 8.8',
-                'min-height': isPortrait ? '330px' : '345px',
-                height: isPortrait ? '330px' : '345px'
+                'min-height': isSiteCode ? '0' : (isPortrait ? '330px' : '345px'),
+                height: isSiteCode ? 'auto' : (isPortrait ? '330px' : '345px')
             });
 
             if (!hasImage) {
@@ -2094,7 +2115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const clone = getCleanCanvasClone();
             if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
-            applyEditorFriendlyExportStyles(clone);
+            applyEditorFriendlyExportStyles(clone, { outputMode: 'site' });
             const wrapper = document.createElement('div');
             wrapper.appendChild(clone);
             codeOutput.value = wrapper.innerHTML.trim();
