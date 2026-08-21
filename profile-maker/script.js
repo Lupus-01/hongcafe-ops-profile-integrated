@@ -1280,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setInlineStyles(clone, {
             width: isSiteCode ? '100%' : '720px',
-            'max-width': '720px',
+            'max-width': isSiteCode ? '100%' : '720px',
             'min-width': '0',
             margin: '0 auto',
             padding: isSiteCode ? '0' : '14px 10px',
