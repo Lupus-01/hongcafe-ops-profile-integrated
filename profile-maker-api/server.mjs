@@ -160,10 +160,13 @@ function createSceneArchetype(id, family, prompt, camera, tabletop = false) {
     const shotMode = family === 'detail-closeup'
         ? 'close-detail'
         : (family === 'architectural-wide' ? 'wide-environment' : 'environmental');
-    return { id, family, prompt, camera, shotMode, tabletop };
+    const environment = family.startsWith('outdoor-')
+        ? 'outdoor'
+        : (family === 'threshold-veranda' ? 'threshold' : 'indoor');
+    return { id, family, prompt, camera, shotMode, tabletop, environment };
 }
 
-const SCENE_ARCHETYPES = {
+const BASE_SCENE_ARCHETYPES = {
     'tarot-ppt': [
         createSceneArchetype('tarot-card-paper-detail', 'detail-closeup', 'Show the assigned card family in a tight material study where paper grain, printed ink, and one complete card face are prominent. Use a narrow stone ledge rather than furniture.', 'controlled 70mm close detail, one complete card filling about half the frame'),
         createSceneArchetype('tarot-deck-edge-detail', 'detail-closeup', 'Show the layered edges of the assigned deck, its distinct back design, and one face-up card on a small portable reading board.', 'low 65mm close detail across the deck edge'),
@@ -262,7 +265,85 @@ const SCENE_ARCHETYPES = {
     ]
 };
 
+const SCENE_SITE_VARIANTS = [
+    {
+        id: 'quiet-original',
+        prompt: 'Use a quiet, practical realization of this location with restrained neutral materials and generous uncluttered space.',
+        camera: 'Keep the original camera axis and support method.'
+    },
+    {
+        id: 'pale-stone',
+        prompt: 'Within the assigned environment type, realize this as a physically separate site characterized by pale stone, matte plaster, and sparse architectural joints; do not add a desk.',
+        camera: 'Use a slightly off-center axis with calm negative space while preserving the assigned shot distance.'
+    },
+    {
+        id: 'warm-timber',
+        prompt: 'Within the assigned environment type, realize this as a separate location with warm structural timber, clean joinery, and a visibly different background footprint.',
+        camera: 'Use a side-lit three-quarter axis while preserving the required shot distance.'
+    },
+    {
+        id: 'natural-depth',
+        prompt: 'Realize this as a separate example of the assigned location with natural depth, restrained contextual details, and no generic office furniture.',
+        camera: 'Use layered foreground, middle ground, and background without changing the assigned shot distance or hiding the hero object.'
+    },
+    {
+        id: 'long-axis',
+        prompt: 'Realize this as a different example of the assigned location whose existing path, shelving, edge, or structural lines provide clear longitudinal depth.',
+        camera: 'Look gently along the available long axis without changing the assigned shot mode or using ultra-wide distortion.'
+    },
+    {
+        id: 'sheltered-edge',
+        prompt: 'Realize this as a separate site positioned at a quiet sheltered edge appropriate to the assigned indoor, outdoor, or threshold environment, never a consultation desk.',
+        camera: 'Frame across the available boundary with controlled edge layers while preserving the assigned camera distance.'
+    },
+    {
+        id: 'open-span',
+        prompt: 'Realize this as a distinct version of the assigned location with more lateral breathing room, a simple spatial rhythm, and no luxury lounge styling.',
+        camera: 'Keep the hero object prominent and preserve close-detail treatment when assigned; reveal lateral context only when the shot mode permits it.'
+    },
+    {
+        id: 'raised-edge',
+        prompt: 'Realize this as a different site with a visibly distinct but compatible support construction; preserve a specifically assigned table when allowed, otherwise use a built-in ledge, fitted platform, case, stand, or floor support.',
+        camera: 'Use a low-to-level diagonal axis that clearly shows the assigned support and surrounding place.'
+    },
+    {
+        id: 'layered-depth',
+        prompt: 'Realize this as a separate example of the assigned place with two compatible depth boundaries such as posts, openings, screens, planting, rock edges, or storage bays.',
+        camera: 'Use restrained foreground framing, preserve the assigned shot distance, and keep all verticals upright.'
+    },
+    {
+        id: 'soft-overcast',
+        prompt: 'Realize this as another physical location with diffuse overcast daylight, muted material contrast, and a clearly different spatial layout.',
+        camera: 'Use an alternate side axis with gentle selective focus appropriate to the assigned shot mode.'
+    }
+];
+
+function expandSceneArchetypes(baseArchetypes) {
+    return baseArchetypes.flatMap((baseScene) => SCENE_SITE_VARIANTS.map((siteVariant) => ({
+        ...baseScene,
+        id: `${baseScene.id}--${siteVariant.id}`,
+        baseVenueId: baseScene.id,
+        venueId: `${baseScene.id}--${siteVariant.id}`,
+        siteVariant: siteVariant.id,
+        prompt: `${baseScene.prompt} Site realization: ${siteVariant.prompt}`,
+        camera: `${baseScene.camera}. ${siteVariant.camera}`
+    })));
+}
+
+const SCENE_ARCHETYPES = Object.fromEntries(
+    Object.entries(BASE_SCENE_ARCHETYPES).map(([templateType, baseArchetypes]) => [
+        templateType,
+        expandSceneArchetypes(baseArchetypes)
+    ])
+);
+
 function validateTemplateVisualGuides() {
+    if (SCENE_SITE_VARIANTS.length !== 10) {
+        throw new Error('[visual-config] Exactly 10 site realization variants are required.');
+    }
+    if (new Set(SCENE_SITE_VARIANTS.map((variant) => variant.id)).size !== SCENE_SITE_VARIANTS.length) {
+        throw new Error('[visual-config] Site realization variant IDs must be unique.');
+    }
     for (const [templateType, guide] of Object.entries(TEMPLATE_GUIDES)) {
         if (!Array.isArray(guide.visualSubjects) || guide.visualSubjects.length < 12) {
             throw new Error(`[visual-config] ${templateType} requires at least 12 distinct visual subjects.`);
@@ -274,9 +355,13 @@ function validateTemplateVisualGuides() {
         if (heroSubjects.length < 6) {
             throw new Error(`[visual-config] ${templateType} requires at least 6 hero-eligible visual subjects.`);
         }
+        const baseArchetypes = BASE_SCENE_ARCHETYPES[templateType];
+        if (!Array.isArray(baseArchetypes) || baseArchetypes.length !== 30) {
+            throw new Error(`[visual-config] ${templateType} requires exactly 30 base scene archetypes.`);
+        }
         const archetypes = SCENE_ARCHETYPES[templateType];
-        if (!Array.isArray(archetypes) || archetypes.length !== 30) {
-            throw new Error(`[visual-config] ${templateType} requires exactly 30 scene archetypes.`);
+        if (!Array.isArray(archetypes) || archetypes.length !== 300) {
+            throw new Error(`[visual-config] ${templateType} requires exactly 300 scene archetypes.`);
         }
         if (new Set(archetypes.map((scene) => scene.id)).size !== archetypes.length) {
             throw new Error(`[visual-config] ${templateType} contains duplicate scene archetype IDs.`);
@@ -284,7 +369,16 @@ function validateTemplateVisualGuides() {
         if (new Set(archetypes.map((scene) => scene.family)).size < 5) {
             throw new Error(`[visual-config] ${templateType} requires at least 5 distinct scene families.`);
         }
-        if (archetypes.some((scene) => !scene.id || !scene.family || !scene.prompt || !scene.camera)) {
+        if (archetypes.some((scene) => (
+            !scene.id
+            || !scene.family
+            || !scene.prompt
+            || !scene.camera
+            || !scene.baseVenueId
+            || !scene.venueId
+            || !scene.siteVariant
+            || !scene.environment
+        ))) {
             throw new Error(`[visual-config] ${templateType} contains an incomplete scene archetype.`);
         }
     }
@@ -320,7 +414,7 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 - A reference image must never override the assigned hero subject, introduce the paired image's excluded subject, or make both outputs reuse one room.
 `.trim();
 
-const VISUAL_VARIATION_VERSION = 'profile-visual-v4-scene-archetypes';
+const VISUAL_VARIATION_VERSION = 'profile-visual-v5-expanded-scenes';
 const VISUAL_VARIATION_OPTIONS = {
     palettes: [
         'warm ivory, light oak, and restrained beige',
@@ -503,7 +597,8 @@ function assignVisualIdentity(payload, parts) {
 }
 
 function pickVisualOption(options, digest, byteOffset) {
-    return options[digest[byteOffset % digest.length] % options.length];
+    const safeOffset = byteOffset % (digest.length - 3);
+    return options[digest.readUInt32BE(safeOffset) % options.length];
 }
 
 function getDifferentOptionIndex(options, firstIndex, digest, byteOffset) {
@@ -514,6 +609,8 @@ function getDifferentOptionIndex(options, firstIndex, digest, byteOffset) {
 function pickCompatibleScene(archetypes, firstScene, digest, byteOffset) {
     const candidates = archetypes.filter((scene) => (
         scene.id !== firstScene.id
+        && scene.venueId !== firstScene.venueId
+        && scene.baseVenueId !== firstScene.baseVenueId
         && scene.family !== firstScene.family
         && !(scene.tabletop && firstScene.tabletop)
     ));
@@ -543,7 +640,7 @@ function getVisualPair(payload) {
 
     const portraitSubjectIndex = pairDigest[0] % heroSubjects.length;
     const moodSubjectIndex = getDifferentOptionIndex(heroSubjects, portraitSubjectIndex, pairDigest, 1);
-    const portraitScene = archetypes[pairDigest[2] % archetypes.length];
+    const portraitScene = pickVisualOption(archetypes, pairDigest, 2);
     const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3);
     const portraitPaletteIndex = stableDigest[0] % VISUAL_VARIATION_OPTIONS.palettes.length;
     const moodPaletteIndex = getDifferentOptionIndex(VISUAL_VARIATION_OPTIONS.palettes, portraitPaletteIndex, pairDigest, 4);
@@ -592,6 +689,8 @@ function getVisualPair(payload) {
     const separationChecks = [
         pair.portrait.subject.id !== pair.mood.subject.id,
         pair.portrait.scene.id !== pair.mood.scene.id,
+        pair.portrait.scene.venueId !== pair.mood.scene.venueId,
+        pair.portrait.scene.baseVenueId !== pair.mood.scene.baseVenueId,
         pair.portrait.scene.family !== pair.mood.scene.family,
         pair.portrait.palette !== pair.mood.palette,
         !(pair.portrait.scene.tabletop && pair.mood.scene.tabletop)
@@ -638,7 +737,9 @@ Consultant-specific paired visual direction (pair ${variation.pairId}, variant $
 - Assigned hero subject: ${variation.subject.prompt}.
 - HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.
 - Assigned scene ID: ${variation.scene.id}.
+- Assigned physical venue ID: ${variation.scene.venueId} (base ${variation.scene.baseVenueId}, realization ${variation.scene.siteVariant}).
 - Assigned scene family: ${variation.scene.family}.
+- Environment type: ${variation.scene.environment}.
 - Scene construction: ${variation.scene.prompt}.
 - Required camera treatment: ${variation.scene.camera}.
 - ${tabletopRule}
@@ -1356,10 +1457,10 @@ async function generateImage(prompt, imageKind, imageQuality = 'standard', visua
         }
 
         const imageUsage = incrementImageUsage();
-        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
+        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
         return imageDataUrl;
     } catch (error) {
-        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} status=failed`, error?.message || error);
+        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=failed`, error?.message || error);
         throw error;
     }
 }
@@ -1481,6 +1582,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: portraitVariation.subject.id,
             sceneFamily: portraitVariation.scene.family,
             sceneId: portraitVariation.scene.id,
+            venueId: portraitVariation.scene.venueId,
+            siteVariant: portraitVariation.scene.siteVariant,
             shotMode: portraitVariation.scene.shotMode,
             prompt: buildPortraitImagePrompt(payload, portraitContext, portraitVariation)
         },
@@ -1493,6 +1596,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: moodVariation.subject.id,
             sceneFamily: moodVariation.scene.family,
             sceneId: moodVariation.scene.id,
+            venueId: moodVariation.scene.venueId,
+            siteVariant: moodVariation.scene.siteVariant,
             shotMode: moodVariation.scene.shotMode,
             prompt: buildMoodImagePrompt(payload, moodContext, moodVariation)
         }
@@ -1760,6 +1865,10 @@ app.get('/api/health', (req, res) => {
                 guide.visualSubjects.filter((subject) => subject.role !== 'support').length
             ])
         ),
+        baseSceneArchetypeCounts: Object.fromEntries(
+            Object.entries(BASE_SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
+        ),
+        sceneSiteVariantCount: SCENE_SITE_VARIANTS.length,
         sceneArchetypeCounts: Object.fromEntries(
             Object.entries(SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
         ),
