@@ -2,15 +2,12 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const ExcelJS = require("exceljs");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "data");
 const UPLOAD_DIR = path.join(__dirname, "uploads");
-const TEMPLATE_DIR = path.join(__dirname, "templates");
 const DATA_FILE = path.join(DATA_DIR, "state.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
-const WORK_REPORT_TEMPLATE = path.join(TEMPLATE_DIR, "work-report-template.xlsx");
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const SESSION_COOKIE = "ops_session";
 const PROFILE_AUTH_COOKIE = "profile_api_auth";
@@ -126,27 +123,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (url.pathname === "/api/reports/import-counselors" && req.method === "POST") {
-      if (!ensureAuthenticated(req, res)) return;
-      const body = await readJsonBody(req, 15 * 1024 * 1024);
-      const counselors = await importCounselorsFromWorkbook(body);
-      sendJson(res, 200, { counselors, importedCount: counselors.length });
-      return;
-    }
-
-    if (url.pathname === "/api/reports/work-report.xlsx" && req.method === "POST") {
-      if (!ensureAuthenticated(req, res)) return;
-      const body = await readJsonBody(req, 5 * 1024 * 1024);
-      const buffer = await createWorkReportWorkbook(body);
-      const fileName = encodeURIComponent(`업무보고_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      res.writeHead(200, {
-        "Content-Type": MIME_TYPES[".xlsx"],
-        "Content-Disposition": `attachment; filename*=UTF-8''${fileName}`,
-        "Content-Length": buffer.length,
-      });
-      res.end(buffer);
-      return;
-    }
 
     if (url.pathname === "/api/uploads" && req.method === "POST") {
       if (!ensureAuthenticated(req, res)) return;
@@ -194,7 +170,6 @@ function validateProductionSecurity() {
 function ensureStorage() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  fs.mkdirSync(TEMPLATE_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({ version: 1, savedAt: null, state: null }, null, 2));
   }
@@ -240,190 +215,6 @@ function writeBase64File(body) {
   };
 }
 
-async function createWorkReportWorkbook(body) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(WORK_REPORT_TEMPLATE);
-  const sheet = workbook.getWorksheet("업무보고") || workbook.worksheets[0];
-  const template = body?.template || {};
-  const reportRows = Array.isArray(body?.reportRows) ? body.reportRows : reportRowsFromCounselors(body?.counselors || []);
-  const startRow = 21;
-  const baseCapacity = 34;
-  const extraRows = Math.max(reportRows.length - baseCapacity, 0);
-
-  if (extraRows) {
-    sheet.duplicateRow(startRow + baseCapacity - 1, extraRows, true);
-  }
-
-  safeSetCell(sheet, "B2", template.title || "업무보고");
-  safeSetCell(sheet, "B6", template.managerLine || "");
-  safeSetCell(sheet, "B8", template.noticeTitle || "[전달사항]");
-  safeSetCell(sheet, "B9", template.notices || "");
-
-  const summaryCell = findCellContaining(sheet, "총 00명") || `B${125 + extraRows}`;
-  safeSetCell(sheet, summaryCell, template.counselorSummaryLine || `${new Date().getMonth() + 1}월 총 ${reportRows.length}명, 금주 ${reportRows.length}명`);
-
-  for (let index = 0; index < Math.max(reportRows.length, baseCapacity); index += 1) {
-    clearReportRow(sheet, startRow + index);
-  }
-
-  reportRows.forEach((entry, index) => {
-    const row = startRow + index;
-    safeSetCell(sheet, `B${row}`, entry.responsibility || "상담사 모니터링");
-    safeSetCell(sheet, `C${row}`, entry.task || "정산시간/접속시간/부재중/매출/후기/1:1문의");
-    safeSetCell(sheet, `D${row}`, entry.field || "");
-    safeSetCell(sheet, `E${row}`, entry.subField || "");
-    safeSetCell(sheet, `F${row}`, entry.alias || "");
-    safeSetCell(sheet, `G${row}`, entry.currentStatus || "");
-    safeSetCell(sheet, `H${row}`, entry.registeredAt || "");
-    safeSetCell(sheet, `I${row}`, entry.reason || "");
-    safeSetCell(sheet, `J${row}`, entry.recentHistory || "");
-    safeSetCell(sheet, `K${row}`, entry.weeklyAction || "");
-    safeSetCell(sheet, `L${row}`, entry.result || "");
-    safeSetCell(sheet, `M${row}`, entry.manageCount || "");
-  });
-
-  return Buffer.from(await workbook.xlsx.writeBuffer());
-}
-
-async function importCounselorsFromWorkbook(body) {
-  if (!body || typeof body.content !== "string") {
-    throw badRequest("content is required.");
-  }
-
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Buffer.from(body.content, "base64"));
-  const sheet = workbook.getWorksheet("업무보고") || workbook.worksheets[0];
-  const headerRow = findCounselorHeaderRow(sheet);
-  if (!headerRow) return [];
-
-  const importedAt = new Date().toISOString();
-  const sourceName = path.basename(body.name || "업무보고.xlsx");
-  const counselors = [];
-  const carry = {
-    responsibility: "",
-    task: "",
-    field: "",
-    subField: "",
-  };
-
-  for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    if (rowNumber > headerRow + 1 && isNextReportSection(sheet, rowNumber)) break;
-
-    carry.responsibility = cellText(sheet, `B${rowNumber}`) || carry.responsibility;
-    carry.task = cellText(sheet, `C${rowNumber}`) || carry.task;
-    carry.field = cellText(sheet, `D${rowNumber}`) || carry.field;
-    carry.subField = cellText(sheet, `E${rowNumber}`) || carry.subField;
-
-    const history = {
-      responsibility: carry.responsibility || "상담사 모니터링",
-      task: carry.task || "정산시간/접속시간/부재중/매출/후기/1:1문의",
-      field: carry.field,
-      subField: carry.subField,
-      alias: cellText(sheet, `F${rowNumber}`),
-      currentStatus: cellText(sheet, `G${rowNumber}`),
-      registeredAt: cellText(sheet, `H${rowNumber}`),
-      reason: cellText(sheet, `I${rowNumber}`),
-      recentHistory: cellText(sheet, `J${rowNumber}`),
-      weeklyAction: cellText(sheet, `K${rowNumber}`),
-      result: cellText(sheet, `L${rowNumber}`),
-      manageCount: cellText(sheet, `M${rowNumber}`),
-      manageCountRaw: cellText(sheet, `M${rowNumber}`),
-      sourceName,
-      sourceRow: rowNumber,
-      importedAt,
-    };
-
-    if (!history.alias && !history.weeklyAction && !history.reason) continue;
-    counselors.push({
-      id: `counselor-${crypto.randomBytes(6).toString("hex")}`,
-      ...history,
-      history: [history],
-    });
-  }
-
-  return counselors;
-}
-
-function reportRowsFromCounselors(counselors) {
-  return (Array.isArray(counselors) ? counselors : []).flatMap((counselor) => {
-    if (Array.isArray(counselor.history) && counselor.history.length) {
-      const count = counselor.manageCount || `${counselor.history.length}회`;
-      return counselor.history.map((history) => ({ ...history, manageCount: count }));
-    }
-    return [counselor];
-  });
-}
-
-function clearReportRow(sheet, rowNumber) {
-  for (const column of ["B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"]) {
-    safeSetCell(sheet, `${column}${rowNumber}`, "");
-  }
-}
-
-function findCounselorHeaderRow(sheet) {
-  for (let rowNumber = 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    const alias = normalizeHeaderText(cellText(sheet, `F${rowNumber}`));
-    const weekly = normalizeHeaderText(cellText(sheet, `K${rowNumber}`));
-    const count = normalizeHeaderText(cellText(sheet, `M${rowNumber}`));
-    if (alias === "예명" && weekly === "금주관리내용" && count === "누적관리횟수") return rowNumber;
-  }
-  return null;
-}
-
-function isNextReportSection(sheet, rowNumber) {
-  const b = normalizeHeaderText(cellText(sheet, `B${rowNumber}`));
-  const c = normalizeHeaderText(cellText(sheet, `C${rowNumber}`));
-  const f = normalizeHeaderText(cellText(sheet, `F${rowNumber}`));
-  if (b === "책무" && c === "과업" && f !== "예명") return true;
-  if (b.includes("총") && b.includes("금주")) return true;
-  return b === "책무" && c === "과업";
-}
-
-function normalizeHeaderText(value) {
-  return String(value || "").replace(/\s/g, "");
-}
-
-function findCellContaining(sheet, text) {
-  for (let rowNumber = 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    const row = sheet.getRow(rowNumber);
-    for (let column = 1; column <= row.cellCount; column += 1) {
-      const address = row.getCell(column).address;
-      if (cellText(sheet, address).includes(text)) return address;
-    }
-  }
-  return "";
-}
-
-function cellText(sheet, address) {
-  const value = sheet.getCell(address).value;
-  if (value == null) return "";
-  if (value instanceof Date) return value.toISOString().slice(0, 10).replace(/-/g, ".");
-  if (typeof value === "number") {
-    if (value > 30000 && value < 70000) return excelSerialToDate(value);
-    return String(value);
-  }
-  if (typeof value === "object") {
-    if (Array.isArray(value.richText)) return value.richText.map((part) => part.text || "").join("");
-    if (value.text) return String(value.text);
-    if (value.result != null) return String(value.result);
-  }
-  return String(value).trim();
-}
-
-function excelSerialToDate(serial) {
-  const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-  return date.toISOString().slice(0, 10).replace(/-/g, ".");
-}
-
-function safeSetCell(sheet, address, value) {
-  try {
-    const cell = sheet.getCell(address);
-    cell.value = value || "";
-    cell.alignment = { ...(cell.alignment || {}), wrapText: true, vertical: "middle" };
-  } catch {
-    // Some template cells are merged. If a merged slave rejects writes, keep the template intact.
-  }
-}
 
 async function loginUser(body) {
   const username = String(body?.username || "").trim();
