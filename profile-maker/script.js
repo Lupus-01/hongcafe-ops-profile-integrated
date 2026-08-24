@@ -1277,16 +1277,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const chipSize = isSiteCode
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
-        const siteHostPaddingX = 115;
-        const siteHostPaddingY = 65;
 
         setInlineStyles(clone, {
-            width: isSiteCode ? `calc(100% + ${siteHostPaddingX * 2}px)` : '720px',
-            'max-width': isSiteCode ? 'none' : '720px',
+            width: isSiteCode ? '100%' : '720px',
+            'max-width': isSiteCode ? '100%' : '720px',
             'min-width': '0',
-            margin: isSiteCode ? `-${siteHostPaddingY}px -${siteHostPaddingX}px` : '0 auto',
+            margin: '0 auto',
             padding: isSiteCode ? '0' : '14px 10px',
-            'border-radius': isSiteCode ? '0' : '18px',
+            'border-radius': isSiteCode ? '14px' : '18px',
             'box-sizing': 'border-box',
             'background-color': currentBrandBg,
             'box-shadow': 'none',
