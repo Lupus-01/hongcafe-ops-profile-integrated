@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const paletteContainer = document.querySelector('.pb-palette-container');
 
     const pptTemplate = document.getElementById('pb-ppt-template');
+    const pptWorkId = document.getElementById('pb-ppt-work-id');
     const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
     const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
     const pptFile = document.getElementById('pb-ppt-file');
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptImageIssue = document.getElementById('pb-ppt-image-issue');
 
     const aiTemplate = document.getElementById('pb-ai-template');
+    const aiWorkId = document.getElementById('pb-ai-work-id');
     const aiTarotCardTypeField = document.getElementById('pb-ai-tarot-card-type-field');
     const aiTarotCardType = document.getElementById('pb-ai-tarot-card-type');
     const aiName = document.getElementById('pb-ai-name');
@@ -311,7 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buildGenerationStatus(baseMessage, usage, imageMeta) {
-        const usageMessage = usage ? ` 오늘 사용량 ${usage.used}/${usage.limit}` : '';
+        const usageMessage = usage
+            ? ` ${usage.campaign ? '캠페인 누적' : '오늘 사용량'} ${usage.used}/${usage.limit}`
+            : '';
 
         if (imageMeta?.requested && !imageMeta?.hasAnyImage) {
             const imageMessage = imageMeta.message || '이미지는 프로필 빌더에서 직접 업로드할 수 있습니다.';
@@ -344,6 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
             panel.innerHTML = '';
             return;
         }
+
+        imageMeta = {
+            ...imageMeta,
+            hasAnyImage: imageMeta.success ?? imageMeta.hasAnyImage
+        };
 
         const statusLabel = imageMeta.hasAnyImage ? '정상 생성' : '생성 이슈 발생';
         const summary = imageMeta.hasAnyImage
@@ -1777,9 +1786,127 @@ document.addEventListener('DOMContentLoaded', () => {
         referenceFiles[scope].forEach((file) => formData.append('referenceImages', file, file.name));
     }
 
+    const PROFILE_JOB_POLL_INTERVAL_MS = 2000;
+    const PROFILE_JOB_STORAGE_KEY = 'pb-pending-profile-job';
+
+    function createProfileOperationKey() {
+        return window.crypto?.randomUUID?.() || `profile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    async function parseApiResponse(response) {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '프로필 생성 요청에 실패했습니다.');
+        return data;
+    }
+
+    async function waitForProfileJob(initialJob, statusUrl, statusTarget) {
+        let job = initialJob;
+        sessionStorage.setItem(PROFILE_JOB_STORAGE_KEY, JSON.stringify({
+            jobId: job.id,
+            statusUrl,
+            statusTargetId: statusTarget?.id || ''
+        }));
+
+        while (!['completed', 'partial', 'failed', 'needs_review'].includes(job.state)) {
+            const stageLabels = {
+                queued: '대기열 접수',
+                starting: '생성 준비',
+                text: '소개 문구 생성',
+                portrait: '대표 이미지 생성',
+                mood: '무드 이미지 생성'
+            };
+            setStatus(statusTarget, `${stageLabels[job.currentStage] || '프로필 생성'} 중입니다. 동일 작업은 다시 눌러도 중복 과금되지 않습니다.`, 'loading');
+            await new Promise((resolve) => window.setTimeout(resolve, PROFILE_JOB_POLL_INTERVAL_MS));
+            const response = await fetch(statusUrl, { method: 'GET' });
+            const data = await parseApiResponse(response);
+            job = data.job;
+        }
+
+        sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
+        if (job.result) return { ...job.result, job };
+        if (job.state === 'needs_review') {
+            throw new Error(job.error || '외부 AI 응답 상태를 확인할 수 없어 자동 재시도를 중단했습니다. 관리자에게 작업 ID를 전달해주세요.');
+        }
+        throw new Error(job.error || '프로필 생성 작업이 실패했습니다.');
+    }
+
+    async function requestProfileGeneration(url, options, statusTarget) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                'Idempotency-Key': createProfileOperationKey()
+            }
+        });
+        const data = await parseApiResponse(response);
+        const result = data.job
+            ? await waitForProfileJob(data.job, data.statusUrl || `/api/profile-jobs/${data.job.id}`, statusTarget)
+            : data;
+        return { ok: true, json: async () => result };
+    }
+
+    async function resumePendingProfileJob() {
+        let pending;
+        try {
+            pending = JSON.parse(sessionStorage.getItem(PROFILE_JOB_STORAGE_KEY) || 'null');
+        } catch {
+            sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
+            return;
+        }
+        if (!pending?.statusUrl) return;
+
+        const statusTarget = document.getElementById(pending.statusTargetId) || aiStatus || pptStatus;
+        try {
+            const response = await fetch(pending.statusUrl, { method: 'GET' });
+            const data = await parseApiResponse(response);
+            await waitForProfileJob(data.job, pending.statusUrl, statusTarget);
+            setStatus(statusTarget, '기존 프로필 작업이 완료되었습니다. 같은 입력으로 생성 버튼을 누르면 추가 AI 호출 없이 저장된 결과를 불러옵니다.', 'success');
+        } catch (error) {
+            setStatus(statusTarget, error.message || '기존 프로필 작업 상태를 확인하지 못했습니다.', 'error');
+        }
+    }
+
+    function attachSafeFailedStageRetry(panel, profileJob, statusTarget) {
+        if (!panel || !profileJob?.id) return;
+        const retryable = Object.values(profileJob.stages || {}).some((stage) => stage.state === 'failed');
+        if (!retryable) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'pb-action-btn secondary';
+        button.textContent = '실패한 단계만 이어서 생성';
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+                const response = await fetch(`/api/profile-jobs/${profileJob.id}/retry-failed`, { method: 'POST' });
+                const data = await parseApiResponse(response);
+                const result = await waitForProfileJob(
+                    data.job,
+                    data.statusUrl || `/api/profile-jobs/${profileJob.id}`,
+                    statusTarget
+                );
+                const presentation = getCurrentPresentationElement();
+                if (presentation && result.profile) {
+                    fillPresentation(presentation, result.profile);
+                    syncPresentationImageState(presentation, { textOnly: !result.imageMeta?.requested });
+                    renderProfileImageGuide(result.imageGuide);
+                    syncProfileImageAssets();
+                }
+                renderImageIssue(panel, result.imageMeta);
+                attachSafeFailedStageRetry(panel, result.job, statusTarget);
+                setStatus(statusTarget, '실패가 확인된 단계만 이어서 생성했습니다.', 'success');
+            } catch (error) {
+                setStatus(statusTarget, error.message || '실패 단계 이어서 생성에 실패했습니다.', 'error');
+                button.disabled = false;
+            }
+        });
+        panel.appendChild(button);
+    }
+
     async function requestAiProfile() {
         const templateType = aiTemplate.value;
         const templateConfig = templates[templateType];
+        const workId = aiWorkId?.value.trim() || '';
         const name = aiName.value.trim();
         const specialty = aiSpecialty.value.trim();
         const tone = aiTone.value.trim();
@@ -1787,6 +1914,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageStyle = aiImageStyle.value.trim();
         const shouldGenerateImages = aiGenerateImage.checked;
         const imageQuality = aiImageQuality?.value || 'standard';
+
+        if (!workId) {
+            setStatus(aiStatus, '중복 생성과 이중 과금을 막기 위해 캠페인 작업 ID를 입력해주세요.', 'error');
+            return;
+        }
 
         if (!name || !specialty || !tone || !career) {
             setStatus(aiStatus, '상담사명, 전문분야, 상담 톤, 경력/강점을 먼저 입력해주세요.', 'error');
@@ -1799,6 +1931,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const formData = new FormData();
             formData.append('templateType', templateType);
+            formData.append('workId', aiWorkId?.value.trim() || '');
             if (templateType === 'tarot-ppt') formData.append('tarotCardType', aiTarotCardType?.value || 'auto');
             formData.append('name', name);
             formData.append('specialty', specialty);
@@ -1809,10 +1942,10 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('imageQuality', imageQuality);
             appendReferenceImages(formData, 'ai', shouldGenerateImages);
 
-            const response = await fetch('/api/generate-profile', {
+            const response = await requestProfileGeneration('/api/generate-profile', {
                 method: 'POST',
                 body: formData
-            });
+            }, aiStatus);
 
             const data = await response.json();
             if (!response.ok) {
@@ -1850,6 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'success'
             );
             renderImageIssue(aiImageIssue, data.imageMeta);
+            attachSafeFailedStageRetry(aiImageIssue, data.job, aiStatus);
             updateSlotRegenerateState();
         } catch (error) {
             setStatus(aiStatus, error.message || 'AI 생성 중 오류가 발생했습니다.', 'error');
@@ -1861,10 +1995,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function requestPptGeneration() {
         const file = pptFile.files[0];
+        const workId = pptWorkId?.value.trim() || '';
         const templateType = pptTemplate.value;
         const templateConfig = templates[templateType];
         const shouldGenerateImages = pptGenerateImage.checked;
         const imageQuality = pptImageQuality?.value || 'standard';
+
+        if (!workId) {
+            setStatus(pptStatus, '중복 생성과 이중 과금을 막기 위해 캠페인 작업 ID를 입력해주세요.', 'error');
+            return;
+        }
 
         if (!file) {
             setStatus(pptStatus, '먼저 PPT 또는 Excel 파일을 선택해주세요.', 'error');
@@ -1873,6 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('pptFile', file);
+        formData.append('workId', pptWorkId?.value.trim() || '');
         formData.append('templateType', templateType);
         if (templateType === 'tarot-ppt') formData.append('tarotCardType', pptTarotCardType?.value || 'auto');
         formData.append('imageStyle', pptImageStyle.value.trim());
@@ -1884,10 +2025,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus(pptStatus, '문서 내용을 분석하고 완성형 소개 페이지를 구성하는 중입니다...', 'loading');
 
         try {
-            const response = await fetch('/api/generate-from-ppt', {
+            const response = await requestProfileGeneration('/api/generate-from-ppt', {
                 method: 'POST',
                 body: formData
-            });
+            }, pptStatus);
 
             const data = await response.json();
             if (!response.ok) {
@@ -1932,6 +2073,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'success'
             );
             renderImageIssue(pptImageIssue, data.imageMeta);
+            attachSafeFailedStageRetry(pptImageIssue, data.job, pptStatus);
             updateSlotRegenerateState();
         } catch (error) {
             setStatus(pptStatus, error.message || '문서 생성 중 오류가 발생했습니다.', 'error');
@@ -2503,4 +2645,5 @@ document.addEventListener('DOMContentLoaded', () => {
     renderProfileHistory();
     updateSlotRegenerateState();
     updateModeVisibility('profile');
+    resumePendingProfileJob();
 });

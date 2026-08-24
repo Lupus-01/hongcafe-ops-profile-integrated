@@ -10,6 +10,8 @@ import multer from 'multer';
 import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
+import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
+import { DurableProfileJobQueue } from './profile-job-queue.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +48,12 @@ const PROFILE_AUTH_COOKIE = 'profile_api_auth';
 const PROFILE_RATE_LIMIT_WINDOW_MS = Number(process.env.PROFILE_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const PROFILE_RATE_LIMIT_MAX = Number(process.env.PROFILE_RATE_LIMIT_MAX || 10);
 const PROFILE_TRUST_PROXY = process.env.PROFILE_TRUST_PROXY || 'loopback';
+const PROFILE_CAMPAIGN_MODE = process.env.PROFILE_CAMPAIGN_MODE === 'true';
+const PROFILE_CAMPAIGN_ID = process.env.PROFILE_CAMPAIGN_ID || 'profile-default';
+const PROFILE_CAMPAIGN_SAFETY_CAP = getPositiveIntegerEnv('PROFILE_CAMPAIGN_SAFETY_CAP', 1500);
+const PROFILE_JOB_RETENTION_DAYS = getPositiveIntegerEnv('PROFILE_JOB_RETENTION_DAYS', 45);
+const PROFILE_JOB_STORE_DIR = process.env.PROFILE_JOB_STORE_DIR || path.join(__dirname, '.profile-jobs');
+const PROFILE_AI_MOCK_MODE = process.env.NODE_ENV === 'test' && process.env.PROFILE_AI_MOCK_MODE === 'true';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-3.1-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
 const STANDARD_IMAGE_MODEL = getAllowedModel(process.env.STANDARD_IMAGE_MODEL, 'gemini-3.1-flash-lite-image', STANDARD_IMAGE_MODELS, 'STANDARD_IMAGE_MODEL');
@@ -56,6 +64,7 @@ let lastGeminiRequestAt = 0;
 let geminiQueueDepth = 0;
 const requestBuckets = new Map();
 const requestContext = new AsyncLocalStorage();
+const campaignJobContext = new AsyncLocalStorage();
 
 const app = express();
 app.set('trust proxy', PROFILE_TRUST_PROXY);
@@ -870,6 +879,7 @@ async function runGeminiRequest(label, task) {
             console.log(`[gemini-audit] time=${getKstTimestamp()} requestId=${context.requestId || 'none'} user=${context.userId || 'unknown'} ip=${context.ip || 'unknown'} call=${label} status=success durationMs=${Date.now() - startedAt}`);
             return result;
         } catch (error) {
+            error.externalRequestStarted = true;
             console.warn(`[gemini-audit] time=${getKstTimestamp()} requestId=${context.requestId || 'none'} user=${context.userId || 'unknown'} ip=${context.ip || 'unknown'} call=${label} status=failed durationMs=${Date.now() - startedAt} errorStatus=${Number(error?.status) || 'unknown'}`);
             throw error;
         }
@@ -1014,6 +1024,11 @@ function consumeRateLimitBucket(key, now) {
 }
 
 function enforceProfileRateLimit(req, res, next) {
+    const isCampaignJobRoute = req.path.includes('/profile-jobs/')
+        || req.path.endsWith('/generate-profile')
+        || req.path.endsWith('/generate-from-ppt');
+    if (PROFILE_CAMPAIGN_MODE && isCampaignJobRoute) return next();
+
     const now = Date.now();
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const ipBucket = consumeRateLimitBucket(`ip:${ip}`, now);
@@ -1109,19 +1124,20 @@ function reserveGeminiAttempt(label) {
     const isImage = String(label).startsWith('image:');
     const isPremiumImage = String(label).startsWith('image:premium:');
     const state = getGeminiAttemptUsageState();
-    if (state.geminiCount >= DAILY_GEMINI_REQUEST_LIMIT) {
+    const campaignJobExecution = PROFILE_CAMPAIGN_MODE && campaignJobContext.getStore()?.campaignJob === true;
+    if (!campaignJobExecution && state.geminiCount >= DAILY_GEMINI_REQUEST_LIMIT) {
         throw createHttpError(429, `오늘 AI 실제 요청 한도 ${DAILY_GEMINI_REQUEST_LIMIT}회를 모두 사용했습니다.`);
     }
-    if (isImage && state.imageAttemptCount >= DAILY_IMAGE_ATTEMPT_LIMIT) {
+    if (!campaignJobExecution && isImage && state.imageAttemptCount >= DAILY_IMAGE_ATTEMPT_LIMIT) {
         throw createHttpError(429, `오늘 AI 이미지 시도 한도 ${DAILY_IMAGE_ATTEMPT_LIMIT}회를 모두 사용했습니다.`);
     }
-    if (isPremiumImage && state.premiumImageAttemptCount >= DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT) {
+    if (!campaignJobExecution && isPremiumImage && state.premiumImageAttemptCount >= DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT) {
         throw createHttpError(429, `오늘 고급 품질 이미지 시도 한도 ${DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT}회를 모두 사용했습니다.`);
     }
     if (isImage) {
         const today = getKstDateString();
         const successfulImages = Number(state.usage[`${today}:images`] || 0);
-        if (successfulImages >= DAILY_IMAGE_LIMIT) {
+        if (!campaignJobExecution && successfulImages >= DAILY_IMAGE_LIMIT) {
             throw createHttpError(429, `오늘 이미지 생성 한도 ${DAILY_IMAGE_LIMIT}장을 모두 사용했습니다.`);
         }
     }
@@ -1153,7 +1169,8 @@ function ensureImageGenerationAllowed() {
     }
 
     const { count } = getImageUsageState();
-    if (count >= DAILY_IMAGE_LIMIT) {
+    const campaignJobExecution = PROFILE_CAMPAIGN_MODE && campaignJobContext.getStore()?.campaignJob === true;
+    if (!campaignJobExecution && count >= DAILY_IMAGE_LIMIT) {
         throw new Error(`오늘 이미지 생성 한도 ${DAILY_IMAGE_LIMIT}장을 모두 사용했습니다. 텍스트 결과를 만든 뒤 직접 이미지를 업로드해주세요.`);
     }
 
@@ -1250,7 +1267,12 @@ async function generateJsonContent(prompt) {
         }
     }));
 
-    return parseJsonResponse(await extractTextFromResponse(response));
+    try {
+        return parseJsonResponse(await extractTextFromResponse(response));
+    } catch (error) {
+        error.externalRequestStarted = true;
+        throw error;
+    }
 }
 
 function extractInlineImage(response) {
@@ -1823,9 +1845,10 @@ Requirements:
     return generateImage(posterPrompt, 'brand');
 }
 
-function reserveProfileUsage(req, res) {
+function reserveProfileUsage(req, res, { campaignJob = false } = {}) {
     const { usage, today, count } = getUsageState();
-    if (count >= DAILY_PROFILE_LIMIT) {
+    const enforceLimits = !(PROFILE_CAMPAIGN_MODE && campaignJob);
+    if (enforceLimits && count >= DAILY_PROFILE_LIMIT) {
         res.status(429).json({
             error: `오늘 생성 한도 ${DAILY_PROFILE_LIMIT}개를 모두 사용했습니다.`,
             usage: { used: count, limit: DAILY_PROFILE_LIMIT }
@@ -1834,7 +1857,7 @@ function reserveProfileUsage(req, res) {
     }
     const userKey = `${today}:user:${req.profileUserId || 'unknown'}:profiles`;
     const userCount = Number(usage[userKey] || 0);
-    if (userCount >= PROFILE_USER_DAILY_LIMIT) {
+    if (enforceLimits && userCount >= PROFILE_USER_DAILY_LIMIT) {
         res.status(429).json({
             error: `오늘 사용자별 생성 한도 ${PROFILE_USER_DAILY_LIMIT}개를 모두 사용했습니다.`,
             usage: { used: userCount, limit: PROFILE_USER_DAILY_LIMIT }
@@ -1844,6 +1867,9 @@ function reserveProfileUsage(req, res) {
     usage[today] = count + 1;
     usage[userKey] = userCount + 1;
     saveUsage(usage);
+    if (PROFILE_CAMPAIGN_MODE && campaignJob) {
+        return { used: profileJobStore.count(), limit: PROFILE_CAMPAIGN_SAFETY_CAP, campaign: true };
+    }
     return { used: usage[today], limit: DAILY_PROFILE_LIMIT };
 }
 
@@ -1857,15 +1883,29 @@ function validateApiKey(res) {
     return true;
 }
 
-function buildImageMeta(generateImageRequested, profileImage, moodImage, failures) {
+function buildImageMeta(generateImageRequested, profileImage, moodImage, failures, expectedImageCount = 2) {
     const filteredFailures = failures.filter(Boolean);
     const hasAnyImage = Boolean(profileImage || moodImage);
+    const hasAllImages = expectedImageCount === 1
+        ? Boolean(profileImage || moodImage)
+        : Boolean(profileImage && moodImage);
 
     if (!generateImageRequested) {
         return {
             requested: false,
             success: false,
             hasAnyImage: false,
+            hasAllImages: false,
+            message: ''
+        };
+    }
+
+    if (hasAllImages) {
+        return {
+            requested: true,
+            success: true,
+            hasAnyImage: true,
+            hasAllImages: true,
             message: ''
         };
     }
@@ -1873,9 +1913,10 @@ function buildImageMeta(generateImageRequested, profileImage, moodImage, failure
     if (hasAnyImage) {
         return {
             requested: true,
-            success: true,
+            success: false,
             hasAnyImage: true,
-            message: ''
+            hasAllImages: false,
+            message: filteredFailures[0] || 'One profile image is complete and the other image requires review.'
         };
     }
 
@@ -1883,6 +1924,7 @@ function buildImageMeta(generateImageRequested, profileImage, moodImage, failure
         requested: true,
         success: false,
         hasAnyImage: false,
+        hasAllImages: false,
         message: filteredFailures[0] || '이미지 생성에 실패했습니다. 프로필 빌더에서 직접 이미지를 업로드해주세요.'
     };
 }
@@ -1905,6 +1947,183 @@ function getReadableImageError(error) {
     return 'AI 이미지 생성에 실패했습니다. 프로필 빌더에서 직접 이미지를 업로드해주세요.';
 }
 
+const profileJobStore = new FileProfileJobStore({
+    directory: PROFILE_JOB_STORE_DIR,
+    campaignId: PROFILE_CAMPAIGN_ID,
+    safetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
+    retentionDays: PROFILE_JOB_RETENTION_DAYS
+});
+
+function getProfileJobRequestKey(req) {
+    return String(req.get('Idempotency-Key') || '').trim().slice(0, 200);
+}
+
+function normalizeProfileWorkId(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+}
+
+function isAmbiguousAiFailure(error) {
+    const status = Number(error?.status);
+    if ([400, 401, 403, 404, 409, 429].includes(status)) return false;
+    return Boolean(error?.externalRequestStarted || !status || status >= 500);
+}
+
+async function runPersistedProfileJobStage(jobId, stageName, task) {
+    const current = profileJobStore.read(jobId);
+    const currentStage = current?.stages?.[stageName];
+    if (!currentStage) throw createHttpError(500, `Unknown profile job stage: ${stageName}`);
+    if (currentStage.state === 'completed') return current.outputs?.[stageName];
+    if (currentStage.state === 'skipped') return '';
+    if (['running', 'unknown'].includes(currentStage.state)) {
+        throw createHttpError(409, `Profile job stage ${stageName} requires review before another AI call.`);
+    }
+
+    profileJobStore.update(jobId, (record) => {
+        record.currentStage = stageName;
+        record.stages[stageName] = {
+            ...record.stages[stageName],
+            state: 'running',
+            attempts: Number(record.stages[stageName].attempts || 0) + 1,
+            startedAt: new Date().toISOString(),
+            completedAt: null,
+            error: null
+        };
+        return record;
+    });
+
+    try {
+        const output = await task();
+        profileJobStore.update(jobId, (record) => {
+            record.outputs[stageName] = output;
+            record.stages[stageName].state = 'completed';
+            record.stages[stageName].completedAt = new Date().toISOString();
+            return record;
+        });
+        return output;
+    } catch (error) {
+        profileJobStore.update(jobId, (record) => {
+            record.stages[stageName].state = isAmbiguousAiFailure(error) ? 'unknown' : 'failed';
+            record.stages[stageName].completedAt = new Date().toISOString();
+            record.stages[stageName].error = error?.expose ? error.message : String(error?.message || 'AI request failed.');
+            return record;
+        });
+        throw error;
+    }
+}
+
+async function executePersistedProfileJob(jobId) {
+    const initialJob = profileJobStore.read(jobId);
+    if (!initialJob) throw createHttpError(404, 'Profile job was not found.');
+    const { payload, referenceImages = [], parsedDocument = null, sourceMeta = {}, usage } = initialJob.input;
+
+    const profile = await runPersistedProfileJobStage(jobId, 'text', () => {
+        if (PROFILE_AI_MOCK_MODE) {
+            return {
+                eyebrow: 'mock eyebrow',
+                headline: 'mock headline',
+                intro: 'mock intro',
+                sectionTitle: 'mock section',
+                sectionBody: 'mock section body',
+                bulletPoints: ['mock one', 'mock two', 'mock three'],
+                cardTitle: 'mock card',
+                cardBody: 'mock card body',
+                closingTitle: 'mock closing',
+                closingBody: 'mock closing body'
+            };
+        }
+        return initialJob.kind === 'document'
+            ? generateProfileTextFromPpt(payload, parsedDocument)
+            : generateProfileTextFromInput(payload);
+    });
+
+    let profileImage = profileJobStore.read(jobId)?.outputs?.portrait || '';
+    let moodImage = profileJobStore.read(jobId)?.outputs?.mood || '';
+    const imageFailures = [];
+    const directPortraitContext = `${payload.name || ''} / ${payload.specialty || ''}`;
+    const directMoodContext = `${payload.specialty || ''} / ${payload.tone || ''}`;
+    const documentContext = String(parsedDocument?.combinedText || '').slice(0, 1500);
+    const portraitContext = initialJob.kind === 'document' ? documentContext : directPortraitContext;
+    const moodContext = initialJob.kind === 'document' ? documentContext : directMoodContext;
+
+    if (initialJob.input.generateImageRequested) {
+        try {
+            profileImage = await runPersistedProfileJobStage(jobId, 'portrait', () => (
+                PROFILE_AI_MOCK_MODE
+                    ? 'data:image/png;base64,bW9jay1wb3J0cmFpdA=='
+                    : generatePortraitImage(payload, portraitContext, referenceImages)
+            ));
+        } catch (error) {
+            imageFailures.push(getReadableImageError(error));
+        }
+
+        try {
+            moodImage = await runPersistedProfileJobStage(jobId, 'mood', () => (
+                PROFILE_AI_MOCK_MODE
+                    ? 'data:image/png;base64,bW9jay1tb29k'
+                    : generateMoodImage(payload, moodContext, referenceImages)
+            ));
+        } catch (error) {
+            imageFailures.push(getReadableImageError(error));
+        }
+    }
+
+    return {
+        profile: { ...profile, profileImage, moodImage },
+        imageGuide: buildProfileImageGuide(payload, portraitContext, moodContext),
+        imageMeta: buildImageMeta(initialJob.input.generateImageRequested, profileImage, moodImage, imageFailures),
+        usage,
+        ...(initialJob.kind === 'document' ? { meta: sourceMeta } : {})
+    };
+}
+
+const profileJobQueue = new DurableProfileJobQueue({
+    store: profileJobStore,
+    execute: (jobId) => campaignJobContext.run(
+        { campaignJob: true, jobId },
+        () => executePersistedProfileJob(jobId)
+    )
+});
+
+function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey = '' }) {
+    const fingerprint = createProfileJobFingerprint({ kind, ...fingerprintInput });
+    const created = profileJobStore.createOrGet({
+        fingerprint,
+        kind,
+        input,
+        userId: req.profileUserId || 'unknown',
+        requestKey: requestKey || getProfileJobRequestKey(req)
+    });
+
+    res.setHeader('Idempotency-Replayed', created.replayed ? 'true' : 'false');
+    if (!created.replayed) {
+        const usage = reserveProfileUsage(req, res, { campaignJob: true });
+        if (!usage) {
+            profileJobStore.update(created.job.id, (record) => {
+                record.state = 'failed';
+                record.currentStage = 'failed';
+                record.error = 'Profile usage limit rejected this job before any AI request.';
+                return record;
+            });
+            return null;
+        }
+        profileJobStore.update(created.job.id, (record) => {
+            record.input.usage = usage;
+            return record;
+        });
+        profileJobQueue.enqueue(created.job.id);
+    }
+
+    const job = profileJobStore.read(created.job.id);
+    const terminal = ['completed', 'partial', 'failed', 'needs_review'].includes(job.state);
+    res.status(terminal ? 200 : 202).json({
+        job: profileJobStore.toPublicJob(job),
+        statusUrl: `/api/profile-jobs/${job.id}`
+    });
+    return job;
+}
+
+profileJobQueue.recover();
+
 app.get('/api/health', (req, res) => {
     const remoteAddress = req.socket.remoteAddress || '';
     const isLoopback = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
@@ -1917,6 +2136,13 @@ app.get('/api/health', (req, res) => {
     const attemptUsage = getGeminiAttemptUsageState();
     res.json({
         ok: true,
+        profileCampaignMode: PROFILE_CAMPAIGN_MODE,
+        profileCampaignId: PROFILE_CAMPAIGN_ID,
+        profileCampaignSafetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
+        profileCampaignJobs: profileJobStore.count(),
+        profileCampaignPendingJobs: profileJobQueue.pending.length,
+        profileCampaignWorkerRunning: profileJobQueue.running,
+        profileAiMockMode: PROFILE_AI_MOCK_MODE,
         dailyLimit: DAILY_PROFILE_LIMIT,
         usedToday: count,
         dailyImageLimit: DAILY_IMAGE_LIMIT,
@@ -1973,6 +2199,60 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+app.get('/api/profile-jobs/:jobId', ...protectedApiMiddleware, (req, res) => {
+    try {
+        const job = profileJobStore.read(req.params.jobId);
+        if (!job) return res.status(404).json({ error: 'Profile job was not found.' });
+        return res.json({ job: profileJobStore.toPublicJob(job) });
+    } catch (error) {
+        return sendGenerationError(res, error, 'Profile job lookup failed.');
+    }
+});
+
+app.post('/api/profile-jobs/:jobId/retry-failed', ...protectedApiMiddleware, (req, res) => {
+    try {
+        const job = profileJobStore.read(req.params.jobId);
+        if (!job) return res.status(404).json({ error: 'Profile job was not found.' });
+        if (job.state === 'needs_review' || Object.values(job.stages || {}).some((stage) => stage.state === 'unknown')) {
+            return res.status(409).json({
+                error: 'This job has an ambiguous external request. Automatic retry is blocked to prevent duplicate billing.'
+            });
+        }
+        const failedStageNames = Object.entries(job.stages || {})
+            .filter(([, stage]) => stage.state === 'failed')
+            .map(([stageName]) => stageName);
+        if (!failedStageNames.length) {
+            return res.status(409).json({ error: 'This job has no safely retryable failed stage.' });
+        }
+
+        profileJobStore.update(job.id, (record) => {
+            for (const stageName of failedStageNames) {
+                record.stages[stageName] = {
+                    ...record.stages[stageName],
+                    state: 'pending',
+                    startedAt: null,
+                    completedAt: null,
+                    error: null
+                };
+            }
+            record.state = 'queued';
+            record.currentStage = 'queued';
+            record.result = null;
+            record.error = null;
+            record.completedAt = null;
+            return record;
+        });
+        profileJobQueue.enqueue(job.id);
+        const queuedJob = profileJobStore.read(job.id);
+        return res.status(202).json({
+            job: profileJobStore.toPublicJob(queuedJob),
+            statusUrl: `/api/profile-jobs/${queuedJob.id}`
+        });
+    } catch (error) {
+        return sendGenerationError(res, error, 'Failed profile stages could not be queued.');
+    }
+});
+
 app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads, async (req, res) => {
     const payload = req.body || {};
     const requiredFields = ['templateType', 'name', 'specialty', 'tone', 'career'];
@@ -1992,6 +2272,23 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         return sendGenerationError(res, error, '이미지 품질 또는 참고 이미지 설정이 올바르지 않습니다.');
     }
     const generateImageRequested = payload.generateImage === true || String(payload.generateImage).toLowerCase() === 'true';
+    payload.workId = normalizeProfileWorkId(payload.workId);
+    if (PROFILE_CAMPAIGN_MODE && !payload.workId) {
+        return res.status(400).json({ error: 'Campaign work ID is required to prevent duplicate profile billing.' });
+    }
+    const fingerprintPayload = {
+        workId: payload.workId,
+        templateType: payload.templateType,
+        tarotCardType: payload.tarotCardType,
+        name: String(payload.name).trim(),
+        specialty: String(payload.specialty).trim(),
+        tone: String(payload.tone).trim(),
+        career: String(payload.career).trim(),
+        imageStyle: String(payload.imageStyle || '').trim(),
+        generateImageRequested,
+        imageQuality: payload.imageQuality,
+        referenceDigests: referenceImages.map((image) => image.digest)
+    };
     assignVisualIdentity(payload, [
         payload.templateType,
         payload.name,
@@ -2003,6 +2300,20 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
     ]);
 
     if (!validateApiKey(res)) return;
+    if (PROFILE_CAMPAIGN_MODE) {
+        try {
+            submitProfileJob(req, res, {
+                kind: 'direct',
+                fingerprintInput: fingerprintPayload,
+                input: { payload, referenceImages, generateImageRequested },
+                requestKey: payload.workId
+            });
+        } catch (error) {
+            console.error(error);
+            if (!res.headersSent) sendGenerationError(res, error, 'Profile job submission failed.');
+        }
+        return;
+    }
     const usage = reserveProfileUsage(req, res);
     if (!usage) return;
 
@@ -2072,9 +2383,17 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         return sendGenerationError(res, error, '이미지 품질 또는 참고 이미지 설정이 올바르지 않습니다.');
     }
 
+    payload.workId = normalizeProfileWorkId(payload.workId);
+    if (PROFILE_CAMPAIGN_MODE && !payload.workId) {
+        return res.status(400).json({ error: 'Campaign work ID is required to prevent duplicate profile billing.' });
+    }
+
     if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(req, res);
-    if (!usage) return;
+    let usage = null;
+    if (!PROFILE_CAMPAIGN_MODE) {
+        usage = reserveProfileUsage(req, res);
+        if (!usage) return;
+    }
 
     try {
         const parsedDocument = isPptx ? parsePptxBuffer(file.buffer) : parseXlsxBuffer(file.buffer);
@@ -2093,6 +2412,36 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             parsedDocument.combinedText,
             getReferenceFingerprint(referenceImages)
         ]);
+
+        if (PROFILE_CAMPAIGN_MODE) {
+            const generateImageRequested = String(payload.generateImage) === 'true';
+            submitProfileJob(req, res, {
+                kind: 'document',
+                fingerprintInput: {
+                    workId: payload.workId,
+                    templateType: payload.templateType,
+                    tarotCardType: payload.tarotCardType,
+                    imageStyle: String(payload.imageStyle || '').trim(),
+                    generateImageRequested,
+                    imageQuality: payload.imageQuality,
+                    documentText: parsedDocument.combinedText,
+                    referenceDigests: referenceImages.map((image) => image.digest)
+                },
+                input: {
+                    payload,
+                    referenceImages,
+                    parsedDocument,
+                    generateImageRequested,
+                    sourceMeta: {
+                        fileType: isPptx ? 'pptx' : 'xlsx',
+                        slidesCount: isPptx ? itemCount : 0,
+                        sheetsCount: isXlsx ? itemCount : 0
+                    }
+                },
+                requestKey: payload.workId
+            });
+            return;
+        }
 
         const profile = await generateProfileTextFromPpt(payload, parsedDocument);
         let profileImage = '';
@@ -2192,7 +2541,7 @@ app.post('/api/generate-brand-poster', ...protectedApiMiddleware, async (req, re
                 ...poster,
                 promoImage
             },
-            imageMeta: buildImageMeta(payload.generateImage, promoImage, '', imageFailures),
+            imageMeta: buildImageMeta(payload.generateImage, promoImage, '', imageFailures, 1),
             usage
         });
     } catch (error) {
