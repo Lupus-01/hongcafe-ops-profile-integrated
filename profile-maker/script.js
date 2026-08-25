@@ -1816,6 +1816,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const PROFILE_JOB_POLL_INTERVAL_MS = 2000;
+    const PROFILE_JOB_STATUS_MAX_CONSECUTIVE_ERRORS = 5;
     const PROFILE_JOB_STORAGE_KEY = 'pb-pending-profile-job';
 
     function createProfileOperationKey() {
@@ -1824,12 +1825,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function parseApiResponse(response) {
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || '프로필 생성 요청에 실패했습니다.');
+        if (!response.ok) {
+            const error = new Error(data.error || '프로필 생성 요청에 실패했습니다.');
+            error.status = response.status;
+            throw error;
+        }
         return data;
     }
 
     async function waitForProfileJob(initialJob, statusUrl, statusTarget) {
         let job = initialJob;
+        let consecutiveStatusErrors = 0;
         sessionStorage.setItem(PROFILE_JOB_STORAGE_KEY, JSON.stringify({
             jobId: job.id,
             statusUrl,
@@ -1846,9 +1852,25 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             setStatus(statusTarget, `${stageLabels[job.currentStage] || '프로필 생성'} 중입니다. 동일 작업은 다시 눌러도 중복 과금되지 않습니다.`, 'loading');
             await new Promise((resolve) => window.setTimeout(resolve, PROFILE_JOB_POLL_INTERVAL_MS));
-            const response = await fetch(statusUrl, { method: 'GET' });
-            const data = await parseApiResponse(response);
-            job = data.job;
+            try {
+                const response = await fetch(statusUrl, { method: 'GET' });
+                const data = await parseApiResponse(response);
+                if (!data.job) throw new Error('프로필 작업 상태 응답이 올바르지 않습니다.');
+                job = data.job;
+                consecutiveStatusErrors = 0;
+            } catch (error) {
+                consecutiveStatusErrors += 1;
+                if (consecutiveStatusErrors >= PROFILE_JOB_STATUS_MAX_CONSECUTIVE_ERRORS) {
+                    const lookupError = new Error('프로필 제작 요청은 접수됐지만 진행 상태를 확인하지 못했습니다. 잠시 후 같은 입력으로 다시 확인해주세요. 기존 작업을 재사용하므로 중복 과금되지 않습니다.');
+                    lookupError.cause = error;
+                    throw lookupError;
+                }
+                setStatus(
+                    statusTarget,
+                    `서버에서는 프로필 제작을 계속 진행하고 있습니다. 상태 연결을 다시 확인하는 중입니다. (${consecutiveStatusErrors}/${PROFILE_JOB_STATUS_MAX_CONSECUTIVE_ERRORS})`,
+                    'loading'
+                );
+            }
         }
 
         sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);

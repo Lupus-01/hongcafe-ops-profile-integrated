@@ -16,6 +16,8 @@ loadEnvFile();
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
+const PROFILE_API_PORT = Number(process.env.PROFILE_API_PORT || 3100);
+const PROFILE_API_PROXY_TIMEOUT_MS = Number(process.env.PROFILE_API_PROXY_TIMEOUT_MS || 15000);
 const LEGACY_LOGIN_URL = process.env.LEGACY_LOGIN_URL || "https://hongcafe.peoplev.co.kr/admin";
 const LEGACY_LOGIN_POST_URL = process.env.LEGACY_LOGIN_POST_URL || new URL("/api/admin/loginadmin", LEGACY_LOGIN_URL).toString();
 const LEGACY_USERNAME_FIELD = process.env.LEGACY_USERNAME_FIELD || "admin_id";
@@ -84,6 +86,11 @@ const server = http.createServer(async (req, res) => {
       if (sessionId) sessions.delete(sessionId);
       clearSessionCookies(res);
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (url.pathname.startsWith("/api/profile-jobs/")) {
+      proxyProfileApiRequest(req, res);
       return;
     }
 
@@ -547,6 +554,42 @@ function serveUpload(requestPath, res) {
   const fileName = path.basename(decodeURIComponent(requestPath));
   const filePath = path.join(UPLOAD_DIR, fileName);
   serveFile(filePath, res);
+}
+
+function proxyProfileApiRequest(req, res) {
+  const upstreamRequest = http.request({
+    hostname: "127.0.0.1",
+    port: PROFILE_API_PORT,
+    method: req.method,
+    path: req.url,
+    headers: {
+      ...req.headers,
+      host: `127.0.0.1:${PROFILE_API_PORT}`,
+    },
+  }, (upstreamResponse) => {
+    res.writeHead(upstreamResponse.statusCode || 502, upstreamResponse.headers);
+    upstreamResponse.pipe(res);
+  });
+
+  upstreamRequest.setTimeout(PROFILE_API_PROXY_TIMEOUT_MS, () => {
+    const error = new Error("Profile API request timed out.");
+    error.code = "ETIMEDOUT";
+    upstreamRequest.destroy(error);
+  });
+
+  upstreamRequest.on("error", (error) => {
+    if (res.headersSent) {
+      res.destroy(error);
+      return;
+    }
+    sendJson(res, error.code === "ETIMEDOUT" ? 504 : 502, {
+      error: error.code === "ETIMEDOUT"
+        ? "프로필 작업 상태 확인 시간이 초과되었습니다."
+        : "프로필 작업 상태 서버에 연결하지 못했습니다.",
+    });
+  });
+
+  req.pipe(upstreamRequest);
 }
 
 function serveHtml2Canvas(requestPath, res) {
