@@ -552,14 +552,15 @@ document.addEventListener('DOMContentLoaded', () => {
         fitPresentationHeadlines(canvas, { fontFamily: typography.fontFamily });
     }
 
-    function getHeadlineFitCqw(text, fontFamily) {
+    function getHeadlineFitCqw(text, fontFamily, containerFillPercent = 96) {
         const normalizedText = String(text || '').replace(/\s+/g, ' ').trim();
         if (!normalizedText) return '100cqw';
         const context = headlineMeasureCanvas.getContext('2d');
         if (!context) return '100cqw';
         context.font = `800 100px ${fontFamily || defaultTypography.fontFamily}`;
         const measuredWidth = Math.max(context.measureText(normalizedText).width, 1);
-        return `${Math.max(0.1, 9600 / measuredWidth).toFixed(3)}cqw`;
+        const resolvedFillPercent = Math.min(Math.max(Number(containerFillPercent) || 96, 1), 100);
+        return `${Math.max(0.1, (resolvedFillPercent * 100) / measuredWidth).toFixed(3)}cqw`;
     }
 
     function fitPresentationHeadlines(root = canvas, { fontFamily } = {}) {
@@ -1305,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? 'clamp(16px, 2.6vw, 21px)'
             : (computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`);
         const profileBodySize = isSiteCode
-            ? 'clamp(16px, 3cqw, 21px)'
+            ? 'clamp(16px, max(3cqw, 1.8vw), 23px)'
             : bodySize;
         const profilePointSize = isSiteCode ? profileBodySize : pointSize;
         const lineHeight = isSiteCode
@@ -1315,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
         const profileChipSize = isSiteCode
-            ? 'clamp(14px, 2.4cqw, 17px)'
+            ? 'clamp(14px, max(2.4cqw, 1.35vw), 18px)'
             : `${(Number.parseFloat(chipSize) || 16) + 3}px`;
         const profileEyebrowSize = isSiteCode ? 'clamp(11px, 1.7cqw, 12px)' : '12px';
 
@@ -1399,16 +1400,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const presentation = node.closest('.pb-presentation');
             const headline = presentation?.querySelector('.pb-presentation-title');
             const maxTitleSize = isSiteCode ? 42 : (Number.parseFloat(titleSize) || defaultTypography.titleSize);
-            const unifiedTitleSize = getHeadlineFitCqw(headline?.textContent || node.textContent, fontFamily);
+            const headlineText = headline?.textContent || node.textContent;
+            const unifiedTitleSize = getHeadlineFitCqw(headlineText, fontFamily, isSiteCode ? 98 : 96);
+            const isMainTitle = node.classList.contains('pb-presentation-title');
             setInlineStyles(node, {
                 margin: '0',
                 'font-size': `min(${maxTitleSize}px, ${unifiedTitleSize})`,
-                'line-height': node.classList.contains('pb-presentation-title') ? '1.08' : '1.18',
+                'line-height': isMainTitle ? '1.08' : '1.18',
                 'letter-spacing': '0',
                 'font-weight': '800',
-                'white-space': node.classList.contains('pb-presentation-title') ? 'nowrap' : 'normal',
-                'word-break': node.classList.contains('pb-presentation-title') ? 'normal' : 'keep-all',
-                'overflow-wrap': node.classList.contains('pb-presentation-title') ? 'normal' : 'anywhere'
+                'white-space': isMainTitle ? 'nowrap' : 'normal',
+                'word-break': isMainTitle ? 'normal' : 'keep-all',
+                'overflow-wrap': isMainTitle ? 'normal' : 'anywhere'
             });
         });
 
