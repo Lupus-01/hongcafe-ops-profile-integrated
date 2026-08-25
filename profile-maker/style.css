@@ -10,7 +10,6 @@
     --pb-body-size: 35px;
     --pb-point-size: 37px;
     --pb-body-line-height: 1.7;
-    --pb-subtitle-size: 52px;
     --pb-chip-size: 35px;
 }
 
@@ -567,6 +566,7 @@ body {
     box-shadow: none;
     overflow: hidden;
     position: relative;
+    container-type: inline-size;
 }
 
 .pb-presentation--tarot {
@@ -605,7 +605,6 @@ body {
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    container-type: inline-size;
 }
 
 .pb-presentation-eyebrow {
@@ -623,9 +622,14 @@ body {
     overflow-wrap: anywhere;
 }
 
+.pb-presentation-title,
+.pb-presentation-card h3,
+.pb-presentation-closing h3 {
+    font-size: min(var(--pb-title-size), var(--pb-unified-title-fit-size, var(--pb-title-size)));
+}
+
 .pb-presentation-title {
     margin: 0;
-    font-size: min(var(--pb-title-size), var(--pb-headline-fit-size, var(--pb-title-size)));
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 800;
@@ -860,7 +864,6 @@ body {
 .pb-presentation-card h3,
 .pb-presentation-closing h3 {
     margin: 0 0 16px;
-    font-size: var(--pb-subtitle-size);
     line-height: 1.18;
     letter-spacing: 0;
     font-weight: 800;
@@ -912,11 +915,7 @@ body {
     .pb-presentation-title,
     .pb-presentation-card h3,
     .pb-presentation-closing h3 {
-        font-size: min(var(--pb-subtitle-size), 45px);
-    }
-
-    .pb-presentation-title {
-        font-size: min(var(--pb-title-size), var(--pb-headline-fit-size, var(--pb-title-size)), 39px);
+        font-size: min(var(--pb-title-size), var(--pb-unified-title-fit-size, var(--pb-title-size)), 39px);
     }
 
     .pb-presentation-portrait {

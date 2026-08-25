@@ -543,7 +543,6 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.style.setProperty('--pb-body-size', `${typography.bodySize}px`);
         canvas.style.setProperty('--pb-point-size', `${typography.pointSize}px`);
         canvas.style.setProperty('--pb-body-line-height', String(typography.lineHeight));
-        canvas.style.setProperty('--pb-subtitle-size', `${typography.subtitleSize}px`);
         canvas.style.setProperty('--pb-chip-size', `${typography.chipSize}px`);
 
         if (titleSizeValue) titleSizeValue.textContent = `${typography.titleSize}px`;
@@ -566,9 +565,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function fitPresentationHeadlines(root = canvas, { fontFamily } = {}) {
         if (!root?.querySelectorAll) return;
         const resolvedFontFamily = fontFamily || getTypographySettings().fontFamily;
-        root.querySelectorAll('.pb-presentation-title').forEach((node) => {
-            node.parentElement?.style.setProperty('container-type', 'inline-size');
-            node.style.setProperty('--pb-headline-fit-size', getHeadlineFitCqw(node.textContent, resolvedFontFamily));
+        root.querySelectorAll('.pb-presentation').forEach((presentation) => {
+            const headline = presentation.querySelector('.pb-presentation-title');
+            if (!headline) return;
+            presentation.style.setProperty('container-type', 'inline-size');
+            presentation.style.setProperty(
+                '--pb-unified-title-fit-size',
+                getHeadlineFitCqw(headline.textContent, resolvedFontFamily)
+            );
         });
     }
 
@@ -584,7 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
             bodySize,
             pointSize,
             lineHeight,
-            subtitleSize: Math.max(bodySize + 17, 35),
             chipSize: Math.max(bodySize, 15)
         };
     }
@@ -1304,9 +1307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const lineHeight = isSiteCode
             ? '1.65'
             : (computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight));
-        const subtitleSize = isSiteCode
-            ? 'clamp(26px, 4vw, 35px)'
-            : (computedCanvas.getPropertyValue('--pb-subtitle-size').trim() || '26px');
         const chipSize = isSiteCode
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
@@ -1340,6 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'box-shadow': 'none',
                 overflow: 'hidden',
                 position: 'relative',
+                'container-type': 'inline-size',
                 'box-sizing': 'border-box',
                 background: 'transparent'
             });
@@ -1372,8 +1373,7 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '0',
             'border-radius': '0',
             background: 'transparent',
-            'box-shadow': 'none',
-            'container-type': 'inline-size'
+            'box-shadow': 'none'
         }));
 
         clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setInlineStyles(node, {
@@ -1390,17 +1390,20 @@ document.addEventListener('DOMContentLoaded', () => {
             'overflow-wrap': 'anywhere'
         }));
 
-        clone.querySelectorAll('.pb-presentation-title').forEach((node) => {
+        clone.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => {
+            const presentation = node.closest('.pb-presentation');
+            const headline = presentation?.querySelector('.pb-presentation-title');
             const maxTitleSize = isSiteCode ? 42 : (Number.parseFloat(titleSize) || defaultTypography.titleSize);
+            const unifiedTitleSize = getHeadlineFitCqw(headline?.textContent || node.textContent, fontFamily);
             setInlineStyles(node, {
                 margin: '0',
-                'font-size': `min(${maxTitleSize}px, ${getHeadlineFitCqw(node.textContent, fontFamily)})`,
-                'line-height': '1.08',
+                'font-size': `min(${maxTitleSize}px, ${unifiedTitleSize})`,
+                'line-height': node.classList.contains('pb-presentation-title') ? '1.08' : '1.18',
                 'letter-spacing': '0',
                 'font-weight': '800',
-                'white-space': 'nowrap',
-                'word-break': 'normal',
-                'overflow-wrap': 'normal'
+                'white-space': node.classList.contains('pb-presentation-title') ? 'nowrap' : 'normal',
+                'word-break': node.classList.contains('pb-presentation-title') ? 'normal' : 'keep-all',
+                'overflow-wrap': node.classList.contains('pb-presentation-title') ? 'normal' : 'anywhere'
             });
         });
 
@@ -1510,14 +1513,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 16px',
-            'font-size': subtitleSize,
-            'line-height': '1.18',
-            'letter-spacing': '0',
-            'font-weight': '800',
-            color: '#251d19',
-            'word-break': 'keep-all',
-            'overflow-wrap': 'anywhere'
+            'margin-bottom': '16px',
+            color: '#251d19'
         }));
 
         clone.querySelectorAll('.pb-presentation-card h3').forEach((node) => setInlineStyles(node, {
