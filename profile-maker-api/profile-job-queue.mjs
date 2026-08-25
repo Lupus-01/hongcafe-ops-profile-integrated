@@ -1,3 +1,10 @@
+export function isAmbiguousExternalFailure(error) {
+    const status = Number(error?.status);
+    if (error?.externalRequestStarted) return true;
+    if ([400, 401, 403, 404, 409, 429].includes(status)) return false;
+    return Boolean(!status || status >= 500);
+}
+
 export class DurableProfileJobQueue {
     constructor({ store, execute }) {
         this.store = store;

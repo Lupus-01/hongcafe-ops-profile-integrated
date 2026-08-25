@@ -20,9 +20,8 @@ async function waitForHealth(baseUrl) {
     throw new Error('Campaign API did not become healthy.');
 }
 
-function createProfileForm(name, generateImage = true, workId = name) {
+function createProfileForm(name, generateImage = true) {
     const form = new FormData();
-    form.append('workId', workId);
     form.append('templateType', 'tarot-ppt');
     form.append('tarotCardType', 'auto');
     form.append('name', name);
@@ -35,11 +34,11 @@ function createProfileForm(name, generateImage = true, workId = name) {
     return form;
 }
 
-async function submitProfile(baseUrl, name, requestKey, workId = name) {
+async function submitProfile(baseUrl, name, requestKey) {
     const response = await fetch(`${baseUrl}/api/generate-profile`, {
         method: 'POST',
         headers: { 'Idempotency-Key': requestKey },
-        body: createProfileForm(name, true, workId)
+        body: createProfileForm(name, true)
     });
     const data = await response.json();
     return { response, data };
@@ -105,9 +104,9 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(Boolean(duplicateJob.result.profile.profileImage), true);
     assert.equal(Boolean(duplicateJob.result.profile.moodImage), true);
 
-    const firstKeyUse = await submitProfile(baseUrl, 'key owner', 'fixed-idempotency-key-a', 'fixed-work-id');
+    const firstKeyUse = await submitProfile(baseUrl, 'key owner', 'fixed-idempotency-key');
     assert.ok([200, 202].includes(firstKeyUse.response.status));
-    const conflictingKeyUse = await submitProfile(baseUrl, 'different input', 'fixed-idempotency-key-b', 'fixed-work-id');
+    const conflictingKeyUse = await submitProfile(baseUrl, 'different input', 'fixed-idempotency-key');
     assert.equal(conflictingKeyUse.response.status, 409);
 
     const uniqueSubmissions = await Promise.all(

@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const paletteContainer = document.querySelector('.pb-palette-container');
 
     const pptTemplate = document.getElementById('pb-ppt-template');
-    const pptWorkId = document.getElementById('pb-ppt-work-id');
     const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
     const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
     const pptFile = document.getElementById('pb-ppt-file');
@@ -25,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptImageIssue = document.getElementById('pb-ppt-image-issue');
 
     const aiTemplate = document.getElementById('pb-ai-template');
-    const aiWorkId = document.getElementById('pb-ai-work-id');
     const aiTarotCardTypeField = document.getElementById('pb-ai-tarot-card-type-field');
     const aiTarotCardType = document.getElementById('pb-ai-tarot-card-type');
     const aiName = document.getElementById('pb-ai-name');
@@ -103,9 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_REFERENCE_IMAGES = 3;
     const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
     const referenceFiles = { ppt: [], ai: [] };
+    const headlineMeasureCanvas = document.createElement('canvas');
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
-        titleSize: 72,
+        titleSize: 66,
         bodySize: 35,
         pointSize: 37,
         lineHeight: 1.7
@@ -551,6 +550,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bodySizeValue) bodySizeValue.textContent = `${typography.bodySize}px`;
         if (pointSizeValue) pointSizeValue.textContent = `${typography.pointSize}px`;
         if (lineHeightValue) lineHeightValue.textContent = typography.lineHeight.toFixed(1);
+        fitPresentationHeadlines(canvas, { fontFamily: typography.fontFamily });
+    }
+
+    function getHeadlineFitCqw(text, fontFamily) {
+        const normalizedText = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!normalizedText) return '100cqw';
+        const context = headlineMeasureCanvas.getContext('2d');
+        if (!context) return '100cqw';
+        context.font = `800 100px ${fontFamily || defaultTypography.fontFamily}`;
+        const measuredWidth = Math.max(context.measureText(normalizedText).width, 1);
+        return `${Math.max(0.1, 9600 / measuredWidth).toFixed(3)}cqw`;
+    }
+
+    function fitPresentationHeadlines(root = canvas, { fontFamily } = {}) {
+        if (!root?.querySelectorAll) return;
+        const resolvedFontFamily = fontFamily || getTypographySettings().fontFamily;
+        root.querySelectorAll('.pb-presentation-title').forEach((node) => {
+            node.parentElement?.style.setProperty('container-type', 'inline-size');
+            node.style.setProperty('--pb-headline-fit-size', getHeadlineFitCqw(node.textContent, resolvedFontFamily));
+        });
     }
 
     function getTypographySettings() {
@@ -565,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bodySize,
             pointSize,
             lineHeight,
-            subtitleSize: Math.max(bodySize + 14, 32),
+            subtitleSize: Math.max(bodySize + 17, 35),
             chipSize: Math.max(bodySize, 15)
         };
     }
@@ -1016,7 +1035,11 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(slotMap).forEach(([slot, value]) => {
             if (!value) return;
             const node = element.querySelector(`[data-slot="${slot}"]`);
-            if (node) node.innerHTML = String(value).replace(/\n/g, '<br>');
+            if (node) {
+                node.innerHTML = slot === 'headline'
+                    ? String(value).replace(/\s+/g, ' ').trim()
+                    : String(value).replace(/\n/g, '<br>');
+            }
         });
 
         if (Array.isArray(payload.bulletPoints)) {
@@ -1049,6 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         syncPresentationImageState(element);
+        fitPresentationHeadlines(element);
     }
 
     function hasUploadedImage(container) {
@@ -1281,11 +1305,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '1.65'
             : (computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight));
         const subtitleSize = isSiteCode
-            ? 'clamp(23px, 4vw, 32px)'
+            ? 'clamp(26px, 4vw, 35px)'
             : (computedCanvas.getPropertyValue('--pb-subtitle-size').trim() || '26px');
         const chipSize = isSiteCode
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
+        const profileChipSize = isSiteCode
+            ? '17px'
+            : `${(Number.parseFloat(chipSize) || 16) + 3}px`;
 
         setInlineStyles(clone, {
             width: isSiteCode ? '100%' : '720px',
@@ -1345,7 +1372,8 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '0',
             'border-radius': '0',
             background: 'transparent',
-            'box-shadow': 'none'
+            'box-shadow': 'none',
+            'container-type': 'inline-size'
         }));
 
         clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setInlineStyles(node, {
@@ -1362,15 +1390,19 @@ document.addEventListener('DOMContentLoaded', () => {
             'overflow-wrap': 'anywhere'
         }));
 
-        clone.querySelectorAll('.pb-presentation-title').forEach((node) => setInlineStyles(node, {
-            margin: '0',
-            'font-size': titleSize,
-            'line-height': '1.08',
-            'letter-spacing': '0',
-            'font-weight': '800',
-            'word-break': 'keep-all',
-            'overflow-wrap': 'anywhere'
-        }));
+        clone.querySelectorAll('.pb-presentation-title').forEach((node) => {
+            const maxTitleSize = isSiteCode ? 42 : (Number.parseFloat(titleSize) || defaultTypography.titleSize);
+            setInlineStyles(node, {
+                margin: '0',
+                'font-size': `min(${maxTitleSize}px, ${getHeadlineFitCqw(node.textContent, fontFamily)})`,
+                'line-height': '1.08',
+                'letter-spacing': '0',
+                'font-weight': '800',
+                'white-space': 'nowrap',
+                'word-break': 'normal',
+                'overflow-wrap': 'normal'
+            });
+        });
 
         clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p').forEach((node) => setInlineStyles(node, {
             margin: '0',
@@ -1405,7 +1437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'border-radius': '12px',
             background: currentBrandLight,
             'box-shadow': 'none',
-            'font-size': chipSize,
+            'font-size': profileChipSize,
             'font-weight': '800',
             color: '#2a211c',
             'max-width': '100%',
@@ -1906,7 +1938,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function requestAiProfile() {
         const templateType = aiTemplate.value;
         const templateConfig = templates[templateType];
-        const workId = aiWorkId?.value.trim() || '';
         const name = aiName.value.trim();
         const specialty = aiSpecialty.value.trim();
         const tone = aiTone.value.trim();
@@ -1914,11 +1945,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageStyle = aiImageStyle.value.trim();
         const shouldGenerateImages = aiGenerateImage.checked;
         const imageQuality = aiImageQuality?.value || 'standard';
-
-        if (!workId) {
-            setStatus(aiStatus, '중복 생성과 이중 과금을 막기 위해 캠페인 작업 ID를 입력해주세요.', 'error');
-            return;
-        }
 
         if (!name || !specialty || !tone || !career) {
             setStatus(aiStatus, '상담사명, 전문분야, 상담 톤, 경력/강점을 먼저 입력해주세요.', 'error');
@@ -1931,7 +1957,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const formData = new FormData();
             formData.append('templateType', templateType);
-            formData.append('workId', aiWorkId?.value.trim() || '');
             if (templateType === 'tarot-ppt') formData.append('tarotCardType', aiTarotCardType?.value || 'auto');
             formData.append('name', name);
             formData.append('specialty', specialty);
@@ -1995,16 +2020,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function requestPptGeneration() {
         const file = pptFile.files[0];
-        const workId = pptWorkId?.value.trim() || '';
         const templateType = pptTemplate.value;
         const templateConfig = templates[templateType];
         const shouldGenerateImages = pptGenerateImage.checked;
         const imageQuality = pptImageQuality?.value || 'standard';
-
-        if (!workId) {
-            setStatus(pptStatus, '중복 생성과 이중 과금을 막기 위해 캠페인 작업 ID를 입력해주세요.', 'error');
-            return;
-        }
 
         if (!file) {
             setStatus(pptStatus, '먼저 PPT 또는 Excel 파일을 선택해주세요.', 'error');
@@ -2013,7 +2032,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('pptFile', file);
-        formData.append('workId', pptWorkId?.value.trim() || '');
         formData.append('templateType', templateType);
         if (templateType === 'tarot-ppt') formData.append('tarotCardType', pptTarotCardType?.value || 'auto');
         formData.append('imageStyle', pptImageStyle.value.trim());
@@ -2636,6 +2654,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentMode === 'brand') {
             applyBrandPosterTheme(event.target.value);
         }
+    });
+    canvas?.addEventListener('input', (event) => {
+        if (event.target.closest?.('.pb-presentation-title')) fitPresentationHeadlines(canvas);
     });
     applyTheme('pb-theme-sinjeom');
     applyTypographySettings();

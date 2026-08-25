@@ -6,11 +6,11 @@
     --pb-text-main: #1a1a1a;
     --pb-text-sub: #8b95a1;
     --pb-font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-    --pb-title-size: 72px;
+    --pb-title-size: 66px;
     --pb-body-size: 35px;
     --pb-point-size: 37px;
     --pb-body-line-height: 1.7;
-    --pb-subtitle-size: 49px;
+    --pb-subtitle-size: 52px;
     --pb-chip-size: 35px;
 }
 
@@ -605,6 +605,7 @@ body {
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+    container-type: inline-size;
 }
 
 .pb-presentation-eyebrow {
@@ -624,12 +625,13 @@ body {
 
 .pb-presentation-title {
     margin: 0;
-    font-size: var(--pb-title-size);
+    font-size: min(var(--pb-title-size), var(--pb-headline-fit-size, var(--pb-title-size)));
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 800;
-    word-break: keep-all;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
 .pb-presentation-hero .pb-presentation-intro {
@@ -730,7 +732,7 @@ body {
     border-radius: 12px;
     background: var(--pb-primary-light);
     box-shadow: none;
-    font-size: var(--pb-chip-size);
+    font-size: calc(var(--pb-chip-size) + 3px);
     font-weight: 800;
     color: #2a211c;
     max-width: 100%;
@@ -910,11 +912,11 @@ body {
     .pb-presentation-title,
     .pb-presentation-card h3,
     .pb-presentation-closing h3 {
-        font-size: min(var(--pb-subtitle-size), 42px);
+        font-size: min(var(--pb-subtitle-size), 45px);
     }
 
     .pb-presentation-title {
-        font-size: min(var(--pb-title-size), 42px);
+        font-size: min(var(--pb-title-size), var(--pb-headline-fit-size, var(--pb-title-size)), 39px);
     }
 
     .pb-presentation-portrait {

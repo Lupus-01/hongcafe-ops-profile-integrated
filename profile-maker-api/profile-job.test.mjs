@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue } from './profile-job-queue.mjs';
+import { DurableProfileJobQueue, isAmbiguousExternalFailure } from './profile-job-queue.mjs';
 
 function createTestStore(safetyCap = 1500) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-profile-job-'));
@@ -41,6 +41,12 @@ test('fingerprints are stable regardless of object key order', () => {
     );
 });
 
+test('any failure after an external request starts is never safely retryable', () => {
+    assert.equal(isAmbiguousExternalFailure({ status: 400, externalRequestStarted: true }), true);
+    assert.equal(isAmbiguousExternalFailure({ status: 429, externalRequestStarted: true }), true);
+    assert.equal(isAmbiguousExternalFailure({ status: 429 }), false);
+});
+
 test('same profile input replays one persisted job', (t) => {
     const { directory, store } = createTestStore();
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -64,6 +70,14 @@ test('same profile input replays one persisted job', (t) => {
     assert.equal(second.replayed, true);
     assert.equal(first.job.id, second.job.id);
     assert.equal(store.count(), 1);
+
+    assert.throws(() => store.createOrGet({
+        fingerprint: createProfileJobFingerprint({ profile: 2 }),
+        kind: 'direct',
+        input: createInput(),
+        userId: 'user-b',
+        requestKey: 'request-b'
+    }), (error) => error.status === 409);
 });
 
 test('one idempotency key cannot be reused for different input', (t) => {

@@ -56,6 +56,14 @@ export class FileProfileJobStore {
         return path.join(this.directory, '.requests', `${digest}.json`);
     }
 
+    writeRequestRecord(requestKey, { jobId, fingerprint, kind }) {
+        if (!requestKey) return;
+        fs.writeFileSync(this.getRequestPath(requestKey), JSON.stringify({ jobId, fingerprint, kind }), {
+            encoding: 'utf8',
+            mode: 0o600
+        });
+    }
+
     read(jobId) {
         try {
             return JSON.parse(fs.readFileSync(this.getJobPath(jobId), 'utf8'));
@@ -114,6 +122,7 @@ export class FileProfileJobStore {
             if (existing.fingerprint !== fingerprint || existing.kind !== kind) {
                 throw createHttpError(409, 'The idempotency key conflicts with another profile job.');
             }
+            this.writeRequestRecord(requestKey, { jobId, fingerprint, kind });
             return { job: existing, replayed: true };
         }
 
@@ -145,12 +154,7 @@ export class FileProfileJobStore {
             error: null
         };
         this.write(job);
-        if (requestKey) {
-            fs.writeFileSync(this.getRequestPath(requestKey), JSON.stringify({ jobId, fingerprint, kind }), {
-                encoding: 'utf8',
-                mode: 0o600
-            });
-        }
+        this.writeRequestRecord(requestKey, { jobId, fingerprint, kind });
         return { job, replayed: false };
     }
 

@@ -11,7 +11,7 @@ import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue } from './profile-job-queue.mjs';
+import { DurableProfileJobQueue, isAmbiguousExternalFailure } from './profile-job-queue.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1216,6 +1216,7 @@ function cleanGeneratedProfile(profile, templateType) {
 
     const guide = getTemplateGuide(templateType);
     const cleaned = { ...profile };
+    if (cleaned.headline) cleaned.headline = String(cleaned.headline).replace(/\s+/g, ' ').trim();
 
     if (hasContactGuidance(`${cleaned.cardTitle || ''}\n${cleaned.cardBody || ''}`)) {
         cleaned.cardTitle = guide.cardFallbackTitle;
@@ -1420,7 +1421,7 @@ ${guide.expertiseGuide}
 - 전화번호, 060 번호, 고유번호, 연결 후 0번 입력, 상담 연결 안내, 예약/문의 유도 문구를 쓰지 않는다.
 - 상담을 신청하거나 연결하는 방법을 설명하지 않는다.
 - eyebrow는 ${guide.labelKo} 분야의 전문성을 보여주는 10~18자 문구로 쓴다.
-- headline은 8~16자 내외의 짧은 핵심 제목으로 쓰고, 최대 2줄 안에 들어갈 분량으로 작성한다.
+- headline은 상담사별 개성이 드러나는 짧은 핵심 제목으로 쓰고, 줄바꿈 없이 반드시 한 줄 문장으로 작성한다.
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - "복잡한 관계의 흐름을 읽고 현실적인 해답을 드리는 희우입니다"처럼 이름이 들어간 설명형 문장은 headline이 아니라 intro에 넣는다.
 - intro는 상담사 이름과 경력/강점을 담되 2개의 자연스러운 문장으로 작성하고, 너무 짧은 단답형 문장으로 끝내지 않는다.
@@ -1493,7 +1494,7 @@ ${limitedDocumentText}
 
 추가 지침:
 - eyebrow는 ${guide.labelKo} 분야의 전문성을 보여주는 10~18자 문구로 쓴다.
-- headline은 8~16자 내외의 짧은 핵심 제목으로 쓰고, 최대 2줄 안에 들어갈 분량으로 작성한다.
+- headline은 상담사별 개성이 드러나는 짧은 핵심 제목으로 쓰고, 줄바꿈 없이 반드시 한 줄 문장으로 작성한다.
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - 상담사 이름이 들어간 설명형 문장은 headline이 아니라 intro에 자연스럽게 녹여 넣는다.
 - intro는 2개의 짧은 문장으로만 작성한다.
@@ -1767,7 +1768,7 @@ async function regenerateProfileSlot(payload) {
     const slotInstructions = {
         headline: {
             schema: '{"headline":"메인 제목"}',
-            instructions: '- headline만 다시 쓴다.\n- 기존 톤을 유지하되 더 선명하고 읽기 쉽게 만든다.\n- 1~2줄 분량으로 간결하게 쓴다.'
+            instructions: '- headline만 다시 쓴다.\n- 기존 톤을 유지하되 더 선명하고 읽기 쉽게 만든다.\n- 글자 수를 획일적으로 제한하지 않되 줄바꿈 없는 한 줄 제목으로 쓴다.'
         },
         intro: {
             schema: '{"intro":"상단 소개 문단 2~3문장"}',
@@ -1954,18 +1955,62 @@ const profileJobStore = new FileProfileJobStore({
     retentionDays: PROFILE_JOB_RETENTION_DAYS
 });
 
+function getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested) {
+    return {
+        templateType: payload.templateType,
+        tarotCardType: payload.tarotCardType,
+        name: String(payload.name).trim(),
+        specialty: String(payload.specialty).trim(),
+        tone: String(payload.tone).trim(),
+        career: String(payload.career).trim(),
+        imageStyle: String(payload.imageStyle || '').trim(),
+        generateImageRequested,
+        imageQuality: payload.imageQuality,
+        referenceDigests: referenceImages.map((image) => image.digest)
+    };
+}
+
+function getDocumentProfileFingerprintInput(payload, parsedDocument, referenceImages, generateImageRequested) {
+    return {
+        templateType: payload.templateType,
+        tarotCardType: payload.tarotCardType,
+        imageStyle: String(payload.imageStyle || '').trim(),
+        generateImageRequested,
+        imageQuality: payload.imageQuality,
+        documentText: parsedDocument.combinedText,
+        referenceDigests: referenceImages.map((image) => image.digest)
+    };
+}
+
+function getAutomaticStoredJobFingerprint(job) {
+    const input = job?.input;
+    if (!input?.payload) return '';
+    const fingerprintInput = job.kind === 'document'
+        ? getDocumentProfileFingerprintInput(
+            input.payload,
+            input.parsedDocument || { combinedText: '' },
+            input.referenceImages || [],
+            input.generateImageRequested
+        )
+        : getDirectProfileFingerprintInput(
+            input.payload,
+            input.referenceImages || [],
+            input.generateImageRequested
+        );
+    return createProfileJobFingerprint({ kind: job.kind, ...fingerprintInput });
+}
+
+const profileJobFingerprintAliases = new Map();
+for (const storedJobId of profileJobStore.listJobIds()) {
+    const storedJob = profileJobStore.read(storedJobId);
+    const automaticFingerprint = getAutomaticStoredJobFingerprint(storedJob);
+    if (automaticFingerprint && !profileJobFingerprintAliases.has(automaticFingerprint)) {
+        profileJobFingerprintAliases.set(automaticFingerprint, storedJobId);
+    }
+}
+
 function getProfileJobRequestKey(req) {
     return String(req.get('Idempotency-Key') || '').trim().slice(0, 200);
-}
-
-function normalizeProfileWorkId(value) {
-    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120);
-}
-
-function isAmbiguousAiFailure(error) {
-    const status = Number(error?.status);
-    if ([400, 401, 403, 404, 409, 429].includes(status)) return false;
-    return Boolean(error?.externalRequestStarted || !status || status >= 500);
 }
 
 async function runPersistedProfileJobStage(jobId, stageName, task) {
@@ -2002,7 +2047,7 @@ async function runPersistedProfileJobStage(jobId, stageName, task) {
         return output;
     } catch (error) {
         profileJobStore.update(jobId, (record) => {
-            record.stages[stageName].state = isAmbiguousAiFailure(error) ? 'unknown' : 'failed';
+            record.stages[stageName].state = isAmbiguousExternalFailure(error) ? 'unknown' : 'failed';
             record.stages[stageName].completedAt = new Date().toISOString();
             record.stages[stageName].error = error?.expose ? error.message : String(error?.message || 'AI request failed.');
             return record;
@@ -2086,6 +2131,17 @@ const profileJobQueue = new DurableProfileJobQueue({
 
 function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey = '' }) {
     const fingerprint = createProfileJobFingerprint({ kind, ...fingerprintInput });
+    const aliasedJobId = profileJobFingerprintAliases.get(fingerprint);
+    const aliasedJob = aliasedJobId ? profileJobStore.read(aliasedJobId) : null;
+    if (aliasedJob) {
+        res.setHeader('Idempotency-Replayed', 'true');
+        const terminal = ['completed', 'partial', 'failed', 'needs_review'].includes(aliasedJob.state);
+        res.status(terminal ? 200 : 202).json({
+            job: profileJobStore.toPublicJob(aliasedJob),
+            statusUrl: `/api/profile-jobs/${aliasedJob.id}`
+        });
+        return aliasedJob;
+    }
     const created = profileJobStore.createOrGet({
         fingerprint,
         kind,
@@ -2093,6 +2149,7 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
         userId: req.profileUserId || 'unknown',
         requestKey: requestKey || getProfileJobRequestKey(req)
     });
+    profileJobFingerprintAliases.set(fingerprint, created.job.id);
 
     res.setHeader('Idempotency-Replayed', created.replayed ? 'true' : 'false');
     if (!created.replayed) {
@@ -2272,23 +2329,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         return sendGenerationError(res, error, '이미지 품질 또는 참고 이미지 설정이 올바르지 않습니다.');
     }
     const generateImageRequested = payload.generateImage === true || String(payload.generateImage).toLowerCase() === 'true';
-    payload.workId = normalizeProfileWorkId(payload.workId);
-    if (PROFILE_CAMPAIGN_MODE && !payload.workId) {
-        return res.status(400).json({ error: 'Campaign work ID is required to prevent duplicate profile billing.' });
-    }
-    const fingerprintPayload = {
-        workId: payload.workId,
-        templateType: payload.templateType,
-        tarotCardType: payload.tarotCardType,
-        name: String(payload.name).trim(),
-        specialty: String(payload.specialty).trim(),
-        tone: String(payload.tone).trim(),
-        career: String(payload.career).trim(),
-        imageStyle: String(payload.imageStyle || '').trim(),
-        generateImageRequested,
-        imageQuality: payload.imageQuality,
-        referenceDigests: referenceImages.map((image) => image.digest)
-    };
+    const fingerprintPayload = getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested);
     assignVisualIdentity(payload, [
         payload.templateType,
         payload.name,
@@ -2305,8 +2346,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
             submitProfileJob(req, res, {
                 kind: 'direct',
                 fingerprintInput: fingerprintPayload,
-                input: { payload, referenceImages, generateImageRequested },
-                requestKey: payload.workId
+                input: { payload, referenceImages, generateImageRequested }
             });
         } catch (error) {
             console.error(error);
@@ -2383,11 +2423,6 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         return sendGenerationError(res, error, '이미지 품질 또는 참고 이미지 설정이 올바르지 않습니다.');
     }
 
-    payload.workId = normalizeProfileWorkId(payload.workId);
-    if (PROFILE_CAMPAIGN_MODE && !payload.workId) {
-        return res.status(400).json({ error: 'Campaign work ID is required to prevent duplicate profile billing.' });
-    }
-
     if (!validateApiKey(res)) return;
     let usage = null;
     if (!PROFILE_CAMPAIGN_MODE) {
@@ -2417,16 +2452,12 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             const generateImageRequested = String(payload.generateImage) === 'true';
             submitProfileJob(req, res, {
                 kind: 'document',
-                fingerprintInput: {
-                    workId: payload.workId,
-                    templateType: payload.templateType,
-                    tarotCardType: payload.tarotCardType,
-                    imageStyle: String(payload.imageStyle || '').trim(),
-                    generateImageRequested,
-                    imageQuality: payload.imageQuality,
-                    documentText: parsedDocument.combinedText,
-                    referenceDigests: referenceImages.map((image) => image.digest)
-                },
+                fingerprintInput: getDocumentProfileFingerprintInput(
+                    payload,
+                    parsedDocument,
+                    referenceImages,
+                    generateImageRequested
+                ),
                 input: {
                     payload,
                     referenceImages,
@@ -2437,8 +2468,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
                         slidesCount: isPptx ? itemCount : 0,
                         sheetsCount: isXlsx ? itemCount : 0
                     }
-                },
-                requestKey: payload.workId
+                }
             });
             return;
         }
