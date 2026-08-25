@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
         titleSize: 66,
         bodySize: 35,
-        pointSize: 37,
+        pointSize: 35,
         lineHeight: 1.7
     };
 
@@ -1304,6 +1304,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const pointSize = isSiteCode
             ? 'clamp(16px, 2.6vw, 21px)'
             : (computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`);
+        const profileBodySize = isSiteCode
+            ? 'clamp(16px, 3cqw, 21px)'
+            : bodySize;
+        const profilePointSize = isSiteCode ? profileBodySize : pointSize;
         const lineHeight = isSiteCode
             ? '1.65'
             : (computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight));
@@ -1311,8 +1315,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
         const profileChipSize = isSiteCode
-            ? '17px'
+            ? 'clamp(14px, 2.4cqw, 17px)'
             : `${(Number.parseFloat(chipSize) || 16) + 3}px`;
+        const profileEyebrowSize = isSiteCode ? 'clamp(11px, 1.7cqw, 12px)' : '12px';
 
         setInlineStyles(clone, {
             width: isSiteCode ? '100%' : '720px',
@@ -1382,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'border-radius': '999px',
             background: 'rgba(255,255,255,0.72)',
             color: currentBrandColor,
-            'font-size': '12px',
+            'font-size': profileEyebrowSize,
             'font-weight': '800',
             'line-height': '1.35',
             'letter-spacing': '0',
@@ -1409,7 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p').forEach((node) => setInlineStyles(node, {
             margin: '0',
-            'font-size': bodySize,
+            'font-size': profileBodySize,
             'line-height': lineHeight,
             color: '#554840',
             'word-break': 'keep-all',
@@ -1417,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setInlineStyles(node, {
-            'font-size': bodySize,
+            'font-size': profileBodySize,
             'line-height': lineHeight
         }));
 
@@ -1480,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
-            'font-size': pointSize,
+            'font-size': profilePointSize,
             'font-weight': '700',
             'line-height': '1.55',
             color: '#3a2f28',
@@ -1574,7 +1579,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!hasImage) {
-                node.innerHTML = `<div style="font-size:${bodySize}; line-height:${lineHeight}; color:#8c7a70; font-weight:600;">이미지 등록 영역</div>`;
+                node.innerHTML = `<div style="font-size:${profileBodySize}; line-height:${lineHeight}; color:#8c7a70; font-weight:600;">이미지 등록 영역</div>`;
             }
         });
 
