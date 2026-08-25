@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue, isAmbiguousExternalFailure } from './profile-job-queue.mjs';
+import { DurableProfileJobQueue, isAmbiguousExternalFailure, reuseCompletedProfileImageStages } from './profile-job-queue.mjs';
 
 function createTestStore(safetyCap = 1500) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-profile-job-'));
@@ -45,6 +45,41 @@ test('any failure after an external request starts is never safely retryable', (
     assert.equal(isAmbiguousExternalFailure({ status: 400, externalRequestStarted: true }), true);
     assert.equal(isAmbiguousExternalFailure({ status: 429, externalRequestStarted: true }), true);
     assert.equal(isAmbiguousExternalFailure({ status: 429 }), false);
+});
+
+test('a new text prompt version reuses only safely completed image stages', () => {
+    const record = {
+        stages: {
+            text: { state: 'pending', attempts: 0 },
+            portrait: { state: 'pending', attempts: 0 },
+            mood: { state: 'pending', attempts: 0 }
+        },
+        outputs: {}
+    };
+    const sourceJob = {
+        stages: {
+            text: { state: 'completed', attempts: 1 },
+            portrait: { state: 'completed', attempts: 1, completedAt: '2026-08-25T00:00:00.000Z' },
+            mood: { state: 'unknown', attempts: 1, error: 'ambiguous legacy image request' }
+        },
+        outputs: {
+            text: { headline: 'legacy title' },
+            portrait: 'data:image/png;base64,legacy-portrait'
+        }
+    };
+
+    reuseCompletedProfileImageStages(record, sourceJob);
+
+    assert.equal(record.stages.text.state, 'pending');
+    assert.equal(record.outputs.text, undefined);
+    assert.equal(record.stages.portrait.state, 'completed');
+    assert.equal(record.stages.portrait.reused, true);
+    assert.equal(record.stages.portrait.attempts, 0);
+    assert.equal(record.outputs.portrait, sourceJob.outputs.portrait);
+    assert.equal(record.stages.mood.state, 'unknown');
+    assert.equal(record.stages.mood.reused, true);
+    assert.equal(record.stages.mood.error, 'ambiguous legacy image request');
+    assert.equal(record.outputs.mood, undefined);
 });
 
 test('same profile input replays one persisted job', (t) => {

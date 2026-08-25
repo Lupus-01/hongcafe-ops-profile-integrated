@@ -5,6 +5,38 @@ export function isAmbiguousExternalFailure(error) {
     return Boolean(!status || status >= 500);
 }
 
+export function reuseCompletedProfileImageStages(record, sourceJob) {
+    for (const stageName of ['portrait', 'mood']) {
+        const sourceStage = sourceJob?.stages?.[stageName];
+        const sourceOutput = sourceJob?.outputs?.[stageName];
+        if (!record?.stages?.[stageName]) continue;
+        if (['running', 'unknown'].includes(sourceStage?.state)) {
+            record.stages[stageName] = {
+                ...record.stages[stageName],
+                state: 'unknown',
+                attempts: 0,
+                startedAt: null,
+                completedAt: sourceStage.completedAt || null,
+                error: sourceStage.error || 'A previous external image request requires review.',
+                reused: true
+            };
+            continue;
+        }
+        if (sourceStage?.state !== 'completed' || !sourceOutput) continue;
+        record.stages[stageName] = {
+            ...record.stages[stageName],
+            state: 'completed',
+            attempts: 0,
+            startedAt: null,
+            completedAt: sourceStage.completedAt || null,
+            error: null,
+            reused: true
+        };
+        record.outputs[stageName] = sourceOutput;
+    }
+    return record;
+}
+
 export class DurableProfileJobQueue {
     constructor({ store, execute }) {
         this.store = store;

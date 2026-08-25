@@ -11,7 +11,7 @@ import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue, isAmbiguousExternalFailure } from './profile-job-queue.mjs';
+import { DurableProfileJobQueue, isAmbiguousExternalFailure, reuseCompletedProfileImageStages } from './profile-job-queue.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -446,6 +446,7 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = 'profile-visual-v7-no-human-reading-scenes';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v2-two-line-headline';
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
@@ -1421,7 +1422,8 @@ ${guide.expertiseGuide}
 - 전화번호, 060 번호, 고유번호, 연결 후 0번 입력, 상담 연결 안내, 예약/문의 유도 문구를 쓰지 않는다.
 - 상담을 신청하거나 연결하는 방법을 설명하지 않는다.
 - eyebrow는 ${guide.labelKo} 분야의 전문성을 보여주는 10~18자 문구로 쓴다.
-- headline은 상담사별 개성이 드러나는 짧은 핵심 제목으로 쓰고, 줄바꿈 없이 반드시 한 줄 문장으로 작성한다.
+- headline은 상담사별 개성이 드러나는 완결된 핵심 제목으로 쓰고, 글자 수를 획일적으로 제한하지 않는다.
+- headline은 화면에서 자연스럽게 최대 두 줄로 배치될 분량으로 작성하되, 줄바꿈 문자를 직접 넣지 않는다.
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - "복잡한 관계의 흐름을 읽고 현실적인 해답을 드리는 희우입니다"처럼 이름이 들어간 설명형 문장은 headline이 아니라 intro에 넣는다.
 - intro는 상담사 이름과 경력/강점을 담되 2개의 자연스러운 문장으로 작성하고, 너무 짧은 단답형 문장으로 끝내지 않는다.
@@ -1494,7 +1496,8 @@ ${limitedDocumentText}
 
 추가 지침:
 - eyebrow는 ${guide.labelKo} 분야의 전문성을 보여주는 10~18자 문구로 쓴다.
-- headline은 상담사별 개성이 드러나는 짧은 핵심 제목으로 쓰고, 줄바꿈 없이 반드시 한 줄 문장으로 작성한다.
+- headline은 상담사별 개성이 드러나는 완결된 핵심 제목으로 쓰고, 글자 수를 획일적으로 제한하지 않는다.
+- headline은 화면에서 자연스럽게 최대 두 줄로 배치될 분량으로 작성하되, 줄바꿈 문자를 직접 넣지 않는다.
 - headline에 상담사 이름을 넣지 않고, 쉼표로 긴 문장을 이어 쓰지 않는다.
 - 상담사 이름이 들어간 설명형 문장은 headline이 아니라 intro에 자연스럽게 녹여 넣는다.
 - intro는 2개의 짧은 문장으로만 작성한다.
@@ -1768,7 +1771,7 @@ async function regenerateProfileSlot(payload) {
     const slotInstructions = {
         headline: {
             schema: '{"headline":"메인 제목"}',
-            instructions: '- headline만 다시 쓴다.\n- 기존 톤을 유지하되 더 선명하고 읽기 쉽게 만든다.\n- 글자 수를 획일적으로 제한하지 않되 줄바꿈 없는 한 줄 제목으로 쓴다.'
+            instructions: '- headline만 다시 쓴다.\n- 기존 톤을 유지하되 더 선명하고 읽기 쉽게 만든다.\n- 글자 수를 획일적으로 제한하지 않고 화면에서 자연스럽게 최대 두 줄로 배치될 완결된 제목으로 쓴다.\n- 줄바꿈 문자를 직접 넣지 않는다.'
         },
         intro: {
             schema: '{"intro":"상단 소개 문단 2~3문장"}',
@@ -1957,6 +1960,7 @@ const profileJobStore = new FileProfileJobStore({
 
 function getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested) {
     return {
+        profileTextPromptVersion: String(payload.profileTextPromptVersion || 'legacy'),
         templateType: payload.templateType,
         tarotCardType: payload.tarotCardType,
         name: String(payload.name).trim(),
@@ -1972,6 +1976,7 @@ function getDirectProfileFingerprintInput(payload, referenceImages, generateImag
 
 function getDocumentProfileFingerprintInput(payload, parsedDocument, referenceImages, generateImageRequested) {
     return {
+        profileTextPromptVersion: String(payload.profileTextPromptVersion || 'legacy'),
         templateType: payload.templateType,
         tarotCardType: payload.tarotCardType,
         imageStyle: String(payload.imageStyle || '').trim(),
@@ -2131,6 +2136,11 @@ const profileJobQueue = new DurableProfileJobQueue({
 
 function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey = '' }) {
     const fingerprint = createProfileJobFingerprint({ kind, ...fingerprintInput });
+    const legacyFingerprint = fingerprintInput.profileTextPromptVersion === PROFILE_TEXT_PROMPT_VERSION
+        ? createProfileJobFingerprint({ kind, ...fingerprintInput, profileTextPromptVersion: 'legacy' })
+        : '';
+    const reusableLegacyJobId = legacyFingerprint ? profileJobFingerprintAliases.get(legacyFingerprint) : '';
+    const reusableLegacyJob = reusableLegacyJobId ? profileJobStore.read(reusableLegacyJobId) : null;
     const aliasedJobId = profileJobFingerprintAliases.get(fingerprint);
     const aliasedJob = aliasedJobId ? profileJobStore.read(aliasedJobId) : null;
     if (aliasedJob) {
@@ -2153,6 +2163,11 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
 
     res.setHeader('Idempotency-Replayed', created.replayed ? 'true' : 'false');
     if (!created.replayed) {
+        if (reusableLegacyJob) {
+            profileJobStore.update(created.job.id, (record) => (
+                reuseCompletedProfileImageStages(record, reusableLegacyJob)
+            ));
+        }
         const usage = reserveProfileUsage(req, res, { campaignJob: true });
         if (!usage) {
             profileJobStore.update(created.job.id, (record) => {
@@ -2230,6 +2245,7 @@ app.get('/api/health', (req, res) => {
             premium: PREMIUM_IMAGE_MODEL
         },
         visualVariationVersion: VISUAL_VARIATION_VERSION,
+        profileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION,
         pairedSceneSubjects: Object.fromEntries(
             Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => [templateType, guide.visualSubjects.length])
         ),
@@ -2323,6 +2339,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
     try {
         payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
+        payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
     } catch (error) {
@@ -2417,6 +2434,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
     try {
         payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
+        payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
     } catch (error) {

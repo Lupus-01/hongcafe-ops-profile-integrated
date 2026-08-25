@@ -26,11 +26,12 @@ test('profile site typography scales from its own container without changing bra
     assert.doesNotMatch(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': profilePointSize,/);
 });
 
-test('site main titles stay single-line while using the available width safely', () => {
-    assert.match(script, /function getHeadlineFitCqw\(text, fontFamily, containerFillPercent = 96\)/);
-    assert.match(script, /getHeadlineFitCqw\(headlineText, fontFamily, isSiteCode \? 98 : 96\)/);
-    assert.match(script, /'white-space': isMainTitle \? 'nowrap' : 'normal'/);
-    assert.match(script, /'word-break': isMainTitle \? 'normal' : 'keep-all'/);
-    assert.doesNotMatch(script, /twoLineTitleSize/);
+test('site main titles grow within a balanced two-line capacity', () => {
+    assert.match(script, /function getHeadlineFitCqw\(text, fontFamily, \{ containerFillPercent = 96, lineCapacity = 1 \} = \{\}\)/);
+    assert.match(script, /const twoLineTitleSize = getHeadlineFitCqw\(headlineText, fontFamily, \{/);
+    assert.match(script, /lineCapacity: 2/);
+    assert.match(script, /clamp\(24px, 2\.4vw, 42px\)/);
+    assert.match(script, /'white-space': isMainTitle && !isSiteCode \? 'nowrap' : 'normal'/);
+    assert.match(script, /'text-wrap': isSiteCode \? 'balance' : 'wrap'/);
     assert.match(script, /const maxTitleSize = isSiteCode \? 42/);
 });
