@@ -1307,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? 'clamp(16px, 2.6vw, 21px)'
             : (computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`);
         const profileBodySize = isSiteCode
-            ? 'clamp(16px, max(3cqw, 1.8vw), 23px)'
+            ? '20px'
             : bodySize;
         const profilePointSize = isSiteCode ? profileBodySize : pointSize;
         const lineHeight = isSiteCode
