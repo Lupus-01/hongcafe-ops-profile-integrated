@@ -1222,6 +1222,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function compactExportFormattingWhitespace(root) {
+        const structuralSelector = [
+            '.pb-presentation',
+            '.pb-presentation-hero',
+            '.pb-presentation-copy',
+            '.pb-presentation-portrait',
+            '.pb-presentation-section',
+            '.pb-presentation-grid',
+            '.pb-presentation-card',
+            '.pb-presentation-photo',
+            '.pb-presentation-detail',
+            '.pb-presentation-side',
+            '.pb-presentation-closing'
+        ].join(', ');
+        const structuralContainers = [root, ...root.querySelectorAll(structuralSelector)];
+
+        structuralContainers.forEach((container) => {
+            Array.from(container.childNodes).forEach((node) => {
+                if (node.nodeType === Node.TEXT_NODE && !node.textContent.trim()) node.remove();
+            });
+        });
+    }
+
     function updateTarotCardTypeControls() {
         const aiIsTarot = aiTemplate?.value === 'tarot-ppt';
         const pptIsTarot = pptTemplate?.value === 'tarot-ppt';
@@ -2314,6 +2337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clone = getCleanCanvasClone();
             if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
             applyEditorFriendlyExportStyles(clone, { outputMode: 'site' });
+            compactExportFormattingWhitespace(clone);
             const wrapper = document.createElement('div');
             wrapper.appendChild(clone);
             codeOutput.value = wrapper.innerHTML.trim();
