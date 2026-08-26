@@ -7,8 +7,8 @@
     "start": "node server/server.js",
     "dev": "node server/server.js",
     "profile-api": "node profile-maker-api/server.mjs",
-    "check": "node --check app.js && node --check server/server.js && node --check profile-maker-api/server.mjs && node --check profile-maker-api/profile-job-store.mjs && node --check profile-maker-api/profile-job-queue.mjs && node --check profile-maker/script.js",
-    "test": "node --test profile-maker-api/profile-job.test.mjs profile-maker-api/profile-campaign-api.test.mjs profile-maker-api/profile-copy.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs server/profile-api-proxy.test.mjs"
+    "check": "node --check app.js && node --check server/server.js && node --check profile-maker-api/server.mjs && node --check profile-maker-api/profile-image-context.mjs && node --check profile-maker-api/profile-job-store.mjs && node --check profile-maker-api/profile-job-queue.mjs && node --check profile-maker/script.js",
+    "test": "node --test profile-maker-api/profile-job.test.mjs profile-maker-api/profile-campaign-api.test.mjs profile-maker-api/profile-copy.test.mjs profile-maker-api/profile-image-context.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-history.test.mjs profile-maker/profile-typography.test.mjs server/profile-api-proxy.test.mjs"
   },
   "engines": {
     "node": ">=18"

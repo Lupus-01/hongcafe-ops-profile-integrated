@@ -417,8 +417,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderProfileImageGuide(imageGuide) {
-        if (portraitPromptGuide) portraitPromptGuide.value = imageGuide?.portrait?.prompt || '';
-        if (moodPromptGuide) moodPromptGuide.value = imageGuide?.mood?.prompt || '';
+        if (portraitPromptGuide) portraitPromptGuide.value = sanitizeDisplayedImagePrompt(imageGuide?.portrait?.prompt);
+        if (moodPromptGuide) moodPromptGuide.value = sanitizeDisplayedImagePrompt(imageGuide?.mood?.prompt);
+    }
+
+    function sanitizeDisplayedImagePrompt(value) {
+        return String(value || '')
+            .replace(/&lt;\/?[A-Za-z][\s\S]{0,1000}?&gt;/gi, ' ')
+            .replace(/<\/?[A-Za-z][^>]{0,1000}>/g, ' ')
+            .replace(/(?:상담사\s*)?(?:고유\s*번호|상담\s*번호|전화\s*번호|연락처|대표\s*번호)\s*[:：#-]?\s*(?:[A-Za-z0-9_-]{2,})?/gi, ' ')
+            .replace(/(?:\+?82[-.\s]?)?(?:\(0\d{1,2}\)|0\d{1,2})[-.\s]*\d{3,4}[-.\s]*\d{4}/g, ' ')
+            .replace(/\b1[5-8]\d{2}[-.\s]*\d{4}\b/g, ' ')
+            .replace(/\b0\d{9,10}\b/g, ' ')
+            .replace(/\b(?:\d[\s,().-]*){7,12}\b/g, ' ')
+            .replace(/연결\s*후\s*\d+\s*번(?:을)?\s*(?:입력|선택)?/g, ' ')
+            .replace(/번호를\s*(?:입력|선택)/g, ' ')
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/ *\n */g, '\n')
+            .trim();
     }
 
     function sanitizeDownloadFileName(value) {

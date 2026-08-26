@@ -12,6 +12,7 @@ import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
 import { DurableProfileJobQueue, isAmbiguousExternalFailure, reuseCompletedProfileImageStages } from './profile-job-queue.mjs';
+import { sanitizeImagePromptContext } from './profile-image-context.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -422,6 +423,7 @@ const SMARTPHONE_PHOTO_REQUIREMENTS = `
 - The result may use restrained brand photography direction, but it must not look like CGI, a 3D rendering, an illustration, a surreal scene, or fantasy artwork.
 - Do not create warped, melted, fused, floating, duplicated, cropped-halfway, or anatomically strange objects. Avoid excessive sharpness, HDR, saturation, reflections, glow, smoke, particles, and plastic-looking textures.
 - Do not create fake readable writing, random Korean or Chinese characters, logos, signatures, captions, borders, or watermarks.
+- Do not reproduce contact details or identifying codes from supplied context as visible text, labels, screens, cards, signs, or decorative elements.
 - Do not depict identifiable faces, portraits, horror, fear, ghosts, blood, weapons, possession, or occult shock imagery. Printed illustrations that naturally belong on tarot cards are allowed.
 `.trim();
 
@@ -1325,10 +1327,7 @@ function summarizeResponseForLog(response) {
 }
 
 function sanitizeExtraPrompt(value, maxLength = MAX_IMAGE_CONTEXT_CHARS) {
-    return String(value || '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, maxLength);
+    return sanitizeImagePromptContext(value, maxLength);
 }
 
 function decodeXmlEntities(value) {

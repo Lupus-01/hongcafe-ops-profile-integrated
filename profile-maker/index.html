@@ -207,14 +207,19 @@
             </section>
 
             <section class="pb-section pb-ai-panel">
-                <div class="pb-ai-header">
-                    <h3>생성 히스토리</h3>
-                    <span class="pb-ai-badge">최근 작업</span>
-                </div>
-                <div class="pb-ai-form">
-                    <div id="pb-history-list" class="pb-history-list"></div>
-                    <p id="pb-history-empty" class="pb-ai-status">아직 저장된 생성 결과가 없습니다.</p>
-                </div>
+                <details class="pb-history-disclosure">
+                    <summary class="pb-ai-header pb-history-summary">
+                        <h3>생성 히스토리</h3>
+                        <span class="pb-history-summary-meta">
+                            <span class="pb-ai-badge">최근 작업</span>
+                            <span class="pb-history-toggle-icon" aria-hidden="true">⌄</span>
+                        </span>
+                    </summary>
+                    <div class="pb-ai-form">
+                        <div id="pb-history-list" class="pb-history-list"></div>
+                        <p id="pb-history-empty" class="pb-ai-status">아직 저장된 생성 결과가 없습니다.</p>
+                    </div>
+                </details>
             </section>
 
             <section class="pb-section pb-ai-panel">
