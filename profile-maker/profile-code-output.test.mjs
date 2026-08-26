@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const profileMakerDirectory = path.dirname(fileURLToPath(import.meta.url));
 const script = fs.readFileSync(path.join(profileMakerDirectory, 'script.js'), 'utf8');
+const html = fs.readFileSync(path.join(profileMakerDirectory, 'index.html'), 'utf8');
 
 function getFunctionSource(source, functionName) {
     const start = source.indexOf(`function ${functionName}(`);
@@ -68,4 +69,13 @@ test('site code compaction removes only formatting whitespace from structural co
 test('site code compaction runs after styling and before serialization', () => {
     assert.match(script, /applyEditorFriendlyExportStyles\(clone, \{ outputMode: 'site' \}\);\s*compactExportFormattingWhitespace\(clone\);\s*const wrapper/);
     assert.doesNotMatch(script, /innerHTML\.replace\(\s*\/>\\s\+</);
+});
+
+test('site code can be downloaded as the same UTF-8 text generated for the modal', () => {
+    assert.match(html, /id="pb-code-download-btn"[^>]*>사이트 코드 파일 저장 \(\.txt\)<\/button>/);
+    assert.match(script, /codeOutput\.value = createSiteRegistrationCode\(\)/);
+    assert.match(script, /const code = createSiteRegistrationCode\(\);\s*downloadSiteRegistrationCode\(code\);/);
+    assert.match(script, /new Blob\(\[code\], \{ type: 'text\/plain;charset=utf-8' \}\)/);
+    assert.match(script, /-site-code\.txt/);
+    assert.match(script, /URL\.revokeObjectURL\(objectUrl\)/);
 });

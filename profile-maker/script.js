@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const codeOutput = document.getElementById('pb-code-output');
     const copyButton = document.getElementById('pb-copy-btn');
     const codeGenerateButton = document.getElementById('pb-code-generate-btn');
+    const codeDownloadButton = document.getElementById('pb-code-download-btn');
     const exportButton = document.getElementById('pb-export-btn');
     const downloadPortraitButton = document.getElementById('pb-download-portrait-btn');
     const downloadMoodButton = document.getElementById('pb-download-mood-btn');
@@ -848,6 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appContainer.classList.add('pb-mode-brand');
             if (exportButton) exportButton.textContent = '이미지 파일 저장';
             if (codeGenerateButton) codeGenerateButton.hidden = true;
+            if (codeDownloadButton) codeDownloadButton.hidden = true;
             if (!canvas.children.length || canvas.querySelector('.pb-empty-state')) {
                 canvas.innerHTML = createBrandEmptyState();
             }
@@ -855,6 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appContainer.classList.remove('pb-mode-brand');
             if (exportButton) exportButton.textContent = '프로필 이미지 저장';
             if (codeGenerateButton) codeGenerateButton.hidden = false;
+            if (codeDownloadButton) codeDownloadButton.hidden = false;
             if (!canvas.children.length || canvas.querySelector('.pb-brand-empty-state')) {
                 canvas.innerHTML = `
                     <div class="pb-empty-state">
@@ -2338,26 +2341,44 @@ document.addEventListener('DOMContentLoaded', () => {
         await downloadProfileImage();
     });
 
-    codeGenerateButton?.addEventListener('click', () => {
-        if (currentMode === 'brand') {
-            window.alert('업체 이미지 생성 모드에서는 코드보다 이미지 파일 저장을 사용해주세요.');
-            return;
-        }
-
+    function createSiteRegistrationCode() {
         const presentation = getCurrentPresentationElement();
         if (!presentation) {
-            window.alert('먼저 프로필 결과를 생성해주세요.');
-            return;
+            throw new Error('먼저 프로필 결과를 생성해주세요.');
         }
 
+        const clone = getCleanCanvasClone();
+        if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
+        applyEditorFriendlyExportStyles(clone, { outputMode: 'site' });
+        compactExportFormattingWhitespace(clone);
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(clone);
+        return wrapper.innerHTML.trim();
+    }
+
+    function downloadSiteRegistrationCode(code) {
+        const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = `${sanitizeDownloadFileName(lastProfileDownloadName)}-site-code.txt`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+    }
+
+    function ensureProfileCodeMode() {
+        if (currentMode !== 'brand') return true;
+        window.alert('업체 이미지 생성 모드에서는 코드보다 이미지 파일 저장을 사용해주세요.');
+        return false;
+    }
+
+    codeGenerateButton?.addEventListener('click', () => {
+        if (!ensureProfileCodeMode()) return;
+
         try {
-            const clone = getCleanCanvasClone();
-            if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
-            applyEditorFriendlyExportStyles(clone, { outputMode: 'site' });
-            compactExportFormattingWhitespace(clone);
-            const wrapper = document.createElement('div');
-            wrapper.appendChild(clone);
-            codeOutput.value = wrapper.innerHTML.trim();
+            codeOutput.value = createSiteRegistrationCode();
             codeModal.classList.add('active');
             setStatus(
                 imageAssetsStatus,
@@ -2369,6 +2390,19 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             setStatus(imageAssetsStatus, error.message || '사이트용 코드 생성 중 오류가 발생했습니다.', 'error');
             window.alert(error.message || '사이트용 코드 생성 중 오류가 발생했습니다.');
+        }
+    });
+
+    codeDownloadButton?.addEventListener('click', () => {
+        if (!ensureProfileCodeMode()) return;
+
+        try {
+            const code = createSiteRegistrationCode();
+            downloadSiteRegistrationCode(code);
+            setStatus(imageAssetsStatus, '사이트 등록용 코드를 UTF-8 메모장 파일로 저장했습니다.', 'success');
+        } catch (error) {
+            setStatus(imageAssetsStatus, error.message || '사이트 코드 파일 저장 중 오류가 발생했습니다.', 'error');
+            window.alert(error.message || '사이트 코드 파일 저장 중 오류가 발생했습니다.');
         }
     });
 
