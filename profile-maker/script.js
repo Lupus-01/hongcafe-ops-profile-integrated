@@ -1317,7 +1317,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '14px'
             : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
         const profileChipSize = isSiteCode
-            ? 'clamp(14px, max(2.4cqw, 1.35vw), 18px)'
+            ? '20px'
             : `${(Number.parseFloat(chipSize) || 16) + 3}px`;
         const profileEyebrowSize = isSiteCode ? 'clamp(11px, 1.7cqw, 12px)' : '12px';
 
@@ -1416,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInlineStyles(node, {
                 margin: '0',
                 'font-size': `min(${maxTitleSize}px, ${unifiedTitleSize})`,
-                'line-height': isMainTitle ? '1.08' : '1.18',
+                'line-height': isSiteCode ? '1.25' : (isMainTitle ? '1.08' : '1.18'),
                 'letter-spacing': '0',
                 'font-weight': '800',
                 'white-space': isMainTitle && !isSiteCode ? 'nowrap' : 'normal',

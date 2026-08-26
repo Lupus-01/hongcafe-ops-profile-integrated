@@ -18,9 +18,9 @@ test('profile site body text and points stay aligned at 20px', () => {
     assert.match(script, /\.pb-presentation-points'[\s\S]*?'font-size': profilePointSize,/);
 });
 
-test('profile site typography scales from its own container without changing brand poster sizing', () => {
+test('profile site labels use 20px without changing brand poster sizing', () => {
     assert.match(style, /\.pb-presentation\s*\{[\s\S]*?container-type:\s*inline-size;/);
-    assert.match(script, /const profileChipSize = isSiteCode\s*\? 'clamp\(14px, max\(2\.4cqw, 1\.35vw\), 18px\)'/);
+    assert.match(script, /const profileChipSize = isSiteCode\s*\? '20px'/);
     assert.match(script, /const profileEyebrowSize = isSiteCode \? 'clamp\(11px, 1\.7cqw, 12px\)' : '12px';/);
     assert.match(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': pointSize,/);
     assert.doesNotMatch(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': profilePointSize,/);
@@ -33,5 +33,6 @@ test('site main titles grow within a balanced two-line capacity', () => {
     assert.match(script, /clamp\(24px, 2\.4vw, 42px\)/);
     assert.match(script, /'white-space': isMainTitle && !isSiteCode \? 'nowrap' : 'normal'/);
     assert.match(script, /'text-wrap': isSiteCode \? 'balance' : 'wrap'/);
+    assert.match(script, /'line-height': isSiteCode \? '1\.25' : \(isMainTitle \? '1\.08' : '1\.18'\)/);
     assert.match(script, /const maxTitleSize = isSiteCode \? 42/);
 });
