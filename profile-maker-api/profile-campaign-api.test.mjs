@@ -105,6 +105,16 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v8-distinct-location-groups');
+    assert.deepEqual(initialHealth.visualCombinationConfiguration, {
+        realizationCombinationsPerBase: '61440000',
+        groupsPerImage: {
+            'tarot-ppt': '2064384000000',
+            'saju-ppt': '1769472000000',
+            'sinjeom-ppt': '5308416000000'
+        },
+        fixedTarotDeckGroupsPerImage: '147456000000'
+    });
     assert.deepEqual(initialHealth.profileCopyConfiguration, {
         categories: 3,
         groupsPerCategory: 1474560,
@@ -130,6 +140,12 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(duplicateJob.stages.mood.attempts, 1);
     assert.equal(Boolean(duplicateJob.result.profile.profileImage), true);
     assert.equal(Boolean(duplicateJob.result.profile.moodImage), true);
+    assert.ok(duplicateJob.result.imageGuide.portrait.visualGroupId);
+    assert.ok(duplicateJob.result.imageGuide.mood.visualGroupId);
+    assert.notEqual(duplicateJob.result.imageGuide.portrait.visualGroupId, duplicateJob.result.imageGuide.mood.visualGroupId);
+    assert.notEqual(duplicateJob.result.imageGuide.portrait.locationId, duplicateJob.result.imageGuide.mood.locationId);
+    assert.notEqual(duplicateJob.result.imageGuide.portrait.physicalPlaceId, duplicateJob.result.imageGuide.mood.physicalPlaceId);
+    assert.notEqual(duplicateJob.result.imageGuide.portrait.placementId, duplicateJob.result.imageGuide.mood.placementId);
 
     const firstKeyUse = await submitProfile(baseUrl, 'key owner', 'fixed-idempotency-key');
     assert.ok([200, 202].includes(firstKeyUse.response.status));

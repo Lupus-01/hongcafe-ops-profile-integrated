@@ -23,6 +23,13 @@ import {
     sanitizeProfileReferenceText,
     selectProfileCopyVariant
 } from './profile-copy-engine.mjs';
+import {
+    buildVisualRealizationPrompt,
+    calculateStructuredImageGroupCount,
+    getVisualRealizationPair,
+    PROFILE_VISUAL_VARIATION_VERSION,
+    VISUAL_REALIZATION_COUNT_PER_BASE
+} from './profile-visual-engine.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -458,7 +465,7 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 - A reference image must never override category identity or safety, replace the assigned category-defining hero subject with an unrelated object, introduce the paired image's excluded subject, or make both outputs reuse one room.
 `.trim();
 
-const VISUAL_VARIATION_VERSION = 'profile-visual-v7-no-human-reading-scenes';
+const VISUAL_VARIATION_VERSION = PROFILE_VISUAL_VARIATION_VERSION;
 const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v5-generation-sequence';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
 const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
@@ -572,6 +579,32 @@ const VISUAL_VARIATION_OPTIONS = {
         'use a broad architectural composition with the assigned object as a small but unmistakable anchor'
     ]
 };
+
+function getVisualCombinationConfigurationSummary() {
+    const groupsPerImage = Object.fromEntries(Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => {
+        const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support').length;
+        const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support').length;
+        const palettes = templateType === 'tarot-ppt'
+            ? TAROT_VISUAL_PALETTES.length
+            : VISUAL_VARIATION_OPTIONS.palettes.length;
+        return [templateType, calculateStructuredImageGroupCount({
+            heroSubjects,
+            supportSubjects,
+            scenes: SCENE_ARCHETYPES[templateType].length,
+            palettes
+        }).toString()];
+    }));
+    return {
+        realizationCombinationsPerBase: String(VISUAL_REALIZATION_COUNT_PER_BASE),
+        groupsPerImage,
+        fixedTarotDeckGroupsPerImage: calculateStructuredImageGroupCount({
+            heroSubjects: 1,
+            scenes: SCENE_ARCHETYPES['tarot-ppt'].length,
+            palettes: TAROT_VISUAL_PALETTES.length,
+            fixedHeroSubject: true
+        }).toString()
+    };
+}
 
 const IMAGE_QUALITY_PROFILES = {
     standard: {
@@ -719,8 +752,16 @@ function getVisualPair(payload) {
     const moodSupportIndex = supportSubjects.length
         ? getDifferentOptionIndex(supportSubjects, portraitSupportIndex, pairDigest, 6)
         : -1;
+    const realizationPair = getVisualRealizationPair({
+        templateType: payload.templateType,
+        stableIdentity,
+        nonce,
+        generationSequence: payload.copyVariant?.generationSequence || 0,
+        portraitScene,
+        moodScene
+    });
 
-    function buildKindVariation(imageKind, subject, counterpartSubject, scene, counterpartScene, palette, supportSubject) {
+    function buildKindVariation(imageKind, subject, counterpartSubject, scene, counterpartScene, palette, paletteIndex, supportSubject, realization) {
         const variationDigest = crypto.createHash('sha256')
             .update(`${VISUAL_VARIATION_VERSION}\0${stableIdentity}\0${nonce}\0${imageKind}`)
             .digest();
@@ -732,9 +773,19 @@ function getVisualPair(payload) {
             counterpartSubject,
             supportSubject,
             palette,
+            paletteId: `palette-${paletteIndex + 1}`,
             scene,
             counterpartScene,
-            allowPairedTabletop
+            allowPairedTabletop,
+            realization,
+            visualGroupId: [
+                payload.templateType,
+                subject.id,
+                supportSubject?.id || 'no-support',
+                scene.id,
+                `palette-${paletteIndex + 1}`,
+                realization.id
+            ].join(':')
         };
     }
 
@@ -746,7 +797,9 @@ function getVisualPair(payload) {
             portraitScene,
             moodScene,
             paletteOptions[portraitPaletteIndex],
-            portraitSupportIndex >= 0 ? supportSubjects[portraitSupportIndex] : null
+            portraitPaletteIndex,
+            portraitSupportIndex >= 0 ? supportSubjects[portraitSupportIndex] : null,
+            realizationPair.portrait
         ),
         mood: buildKindVariation(
             'mood',
@@ -755,7 +808,9 @@ function getVisualPair(payload) {
             moodScene,
             portraitScene,
             paletteOptions[moodPaletteIndex],
-            moodSupportIndex >= 0 ? supportSubjects[moodSupportIndex] : null
+            moodPaletteIndex,
+            moodSupportIndex >= 0 ? supportSubjects[moodSupportIndex] : null,
+            realizationPair.mood
         )
     };
     const separationChecks = [
@@ -767,6 +822,12 @@ function getVisualPair(payload) {
         pair.portrait.scene.baseVenueId !== pair.mood.scene.baseVenueId,
         pair.portrait.scene.family !== pair.mood.scene.family,
         pair.portrait.palette !== pair.mood.palette,
+        pair.portrait.realization.location.id !== pair.mood.realization.location.id,
+        pair.portrait.realization.environmentLocation.id !== pair.mood.realization.environmentLocation.id,
+        pair.portrait.realization.placement.id !== pair.mood.realization.placement.id,
+        pair.portrait.realization.lighting.id !== pair.mood.realization.lighting.id,
+        pair.portrait.realization.focus.id !== pair.mood.realization.focus.id,
+        pair.portrait.realization.depth.id !== pair.mood.realization.depth.id,
         allowPairedTabletop || !(pair.portrait.scene.tabletop && pair.mood.scene.tabletop)
     ];
     if (separationChecks.some((isSeparated) => !isSeparated)) {
@@ -848,6 +909,8 @@ Consultant-specific paired visual direction (pair ${variation.pairId}, variant $
 - ${tabletopRule}
 - ${supportRule}
 - Color family: ${variation.palette}.
+- Distinct location and photographic realization:
+${buildVisualRealizationPrompt(variation.realization)}
 - Do not reuse or resemble the paired image's scene (${variation.counterpartScene.id}, family ${variation.counterpartScene.family}): ${variation.counterpartScene.prompt}.
 - ${sceneScope}
 - ${pairDifferenceRule}
@@ -1518,10 +1581,10 @@ async function generateImage(prompt, imageKind, imageQuality = 'standard', visua
         }
 
         const imageUsage = incrementImageUsage();
-        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
+        console.log(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} group=${visualVariation?.visualGroupId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=success imageUsage=${imageUsage.used}/${imageUsage.limit}`);
         return imageDataUrl;
     } catch (error) {
-        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=failed`, error?.message || error);
+        console.warn(`[image] quality=${quality} kind=${imageKind} model=${model} pair=${visualVariation?.pairId || 'none'} group=${visualVariation?.visualGroupId || 'none'} subject=${visualVariation?.subject?.id || 'none'} family=${visualVariation?.scene?.family || 'none'} scene=${visualVariation?.scene?.id || 'none'} venue=${visualVariation?.scene?.venueId || 'none'} shot=${visualVariation?.scene?.shotMode || 'none'} variant=${visualVariation?.id || 'none'} references=${referenceImages.length} status=failed`, error?.message || error);
         throw error;
     }
 }
@@ -1644,6 +1707,14 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             recommendedSize: '1600x900 이상',
             pairId: portraitVariation.pairId,
             variationId: portraitVariation.id,
+            visualGroupId: portraitVariation.visualGroupId,
+            realizationId: portraitVariation.realization.id,
+            locationId: portraitVariation.realization.location.id,
+            physicalPlaceId: portraitVariation.realization.environmentLocation.id,
+            placementId: portraitVariation.realization.placement.id,
+            lightingId: portraitVariation.realization.lighting.id,
+            focusId: portraitVariation.realization.focus.id,
+            depthId: portraitVariation.realization.depth.id,
             subjectId: portraitVariation.subject.id,
             sceneFamily: portraitVariation.scene.family,
             sceneId: portraitVariation.scene.id,
@@ -1658,6 +1729,14 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             recommendedSize: '1600x900 이상',
             pairId: moodVariation.pairId,
             variationId: moodVariation.id,
+            visualGroupId: moodVariation.visualGroupId,
+            realizationId: moodVariation.realization.id,
+            locationId: moodVariation.realization.location.id,
+            physicalPlaceId: moodVariation.realization.environmentLocation.id,
+            placementId: moodVariation.realization.placement.id,
+            lightingId: moodVariation.realization.lighting.id,
+            focusId: moodVariation.realization.focus.id,
+            depthId: moodVariation.realization.depth.id,
             subjectId: moodVariation.subject.id,
             sceneFamily: moodVariation.scene.family,
             sceneId: moodVariation.scene.id,
@@ -1936,6 +2015,7 @@ function getDirectProfileFingerprintInput(payload, referenceImages, generateImag
     return {
         profileTextPromptVersion: String(payload.profileTextPromptVersion || 'legacy'),
         referenceInfluenceVersion: String(payload.referenceInfluenceVersion || 'legacy'),
+        visualVariationVersion: generateImageRequested ? String(payload.visualVariationVersion || 'legacy') : 'none',
         templateType: payload.templateType,
         tarotCardType: payload.tarotCardType,
         name: String(payload.name).trim(),
@@ -1954,6 +2034,7 @@ function getDocumentProfileFingerprintInput(payload, parsedDocument, referenceIm
     return {
         profileTextPromptVersion: String(payload.profileTextPromptVersion || 'legacy'),
         referenceInfluenceVersion: String(payload.referenceInfluenceVersion || 'legacy'),
+        visualVariationVersion: generateImageRequested ? String(payload.visualVariationVersion || 'legacy') : 'none',
         templateType: payload.templateType,
         tarotCardType: payload.tarotCardType,
         imageStyle: String(payload.imageStyle || '').trim(),
@@ -2237,6 +2318,7 @@ app.get('/api/health', (req, res) => {
             premium: PREMIUM_IMAGE_MODEL
         },
         visualVariationVersion: VISUAL_VARIATION_VERSION,
+        visualCombinationConfiguration: getVisualCombinationConfigurationSummary(),
         profileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION,
         referenceInfluenceVersion: REFERENCE_INFLUENCE_VERSION,
         profileCopyConfiguration: getProfileCopyConfigurationSummary(),
@@ -2335,6 +2417,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         payload.referenceInfluenceVersion = REFERENCE_INFLUENCE_VERSION;
+        payload.visualVariationVersion = VISUAL_VARIATION_VERSION;
         payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
@@ -2433,6 +2516,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         payload.referenceInfluenceVersion = REFERENCE_INFLUENCE_VERSION;
+        payload.visualVariationVersion = VISUAL_VARIATION_VERSION;
         payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
