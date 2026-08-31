@@ -131,6 +131,7 @@ test('recent copy assignments use the lightweight index after job creation', (t)
         reloadedStore.getRecentCopyAssignments('tarot-ppt', 3).map((variant) => variant.groupId),
         ['group-11', 'group-10', 'group-9']
     );
+    assert.equal(reloadedStore.getCopyAssignmentCount('tarot-ppt'), 12);
 });
 
 test('same profile input replays one persisted job', (t) => {

@@ -25,6 +25,26 @@ test('copy variants are deterministic and never repeat recent group, signature, 
     assert.notEqual(second.styleId, first.styleId);
 });
 
+test('generation sequence spreads identical input beyond the recent-history window without changing its topic', () => {
+    const input = { templateType: 'tarot-ppt', sourceText: '관계와 상대방 속마음', identity: 'same-consultant' };
+    const selected = [];
+    let recent = [];
+    for (let generationSequence = 0; generationSequence < 1000; generationSequence += 1) {
+        const variant = selectProfileCopyVariant({ ...input, recent, generationSequence });
+        assert.equal(variant.topicIndex, 0);
+        assert.equal(variant.topicMatchMode, 'keyword');
+        assert.equal(variant.generationSequence, generationSequence);
+        assert.equal(recent.some((item) => (
+            item.groupId === variant.groupId
+            || item.signature === variant.signature
+            || item.styleId === variant.styleId
+        )), false);
+        selected.push(`${variant.groupId}|${variant.styleId}`);
+        recent = [variant, ...recent].slice(0, 10);
+    }
+    assert.ok(new Set(selected).size > 990);
+});
+
 test('tarot, saju, and sinjeom directions retain separate category language', () => {
     const tarot = buildProfileCopyDirection(selectProfileCopyVariant({ templateType: 'tarot-ppt', sourceText: '관계', identity: 'a' }));
     const saju = buildProfileCopyDirection(selectProfileCopyVariant({ templateType: 'saju-ppt', sourceText: '오행', identity: 'b' }));

@@ -141,7 +141,8 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     );
     const uniqueJobIds = new Set(uniqueSubmissions.map(({ data }) => data.job.id));
     assert.equal(uniqueJobIds.size, 5);
-    await Promise.all([...uniqueJobIds].map((jobId) => waitForJob(baseUrl, jobId)));
+    const uniqueJobs = await Promise.all([...uniqueJobIds].map((jobId) => waitForJob(baseUrl, jobId)));
+    assert.equal(new Set(uniqueJobs.map((job) => job.result.copyMeta.generationSequence)).size, 5);
 
     const documentSubmission = await submitTextDocument(baseUrl, 'text-document-key');
     assert.ok([200, 202].includes(documentSubmission.response.status));

@@ -135,17 +135,21 @@ function pickRelevantTopic(topics, sourceText, digest, fallbackTopicIndex) {
     };
 }
 
-export function selectProfileCopyVariant({ templateType, sourceText = '', identity = '', recent = [] }) {
+export function selectProfileCopyVariant({ templateType, sourceText = '', identity = '', recent = [], generationSequence = 0 }) {
     const resolvedType = Object.hasOwn(TOPICS, templateType) ? templateType : 'sinjeom-ppt';
     const topics = TOPICS[resolvedType];
     const categoryLanguage = CATEGORY_LANGUAGE[resolvedType];
-    const baseDigest = digestFor(`${resolvedType}\0${identity}\0${sourceText}`);
+    const topicDigest = digestFor(`${resolvedType}\0${identity}\0${sourceText}`);
     const { topicIndex, topicMatchMode } = pickRelevantTopic(
         topics,
         sourceText,
-        baseDigest,
+        topicDigest,
         categoryLanguage.fallbackTopicIndex
     );
+    const normalizedGenerationSequence = Number.isSafeInteger(Number(generationSequence))
+        ? Math.max(Number(generationSequence), 0)
+        : 0;
+    const baseDigest = digestFor(`${topicDigest.toString('hex')}\0${normalizedGenerationSequence}`);
     const recentExact = new Set(recent.map((item) => item?.groupId).filter(Boolean));
     const recentSignatures = new Set(recent.slice(0, 10).map((item) => item?.signature).filter(Boolean));
     const recentStyleIds = new Set(recent.map((item) => item?.styleId).filter(Boolean));
@@ -162,7 +166,7 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
         const signature = `${resolvedType}:${topicIndex}:${lensIndex}:${structureIndex}`;
         const styleId = `style-${styleIndex + 1}`;
         if (recentExact.has(groupId) || recentSignatures.has(signature) || recentStyleIds.has(styleId)) continue;
-        return { templateType: resolvedType, groupId, signature, styleId, topicIndex, topicMatchMode, lensIndex, structureIndex, emphasisIndex, openingIndex, closingIndex, styleIndex };
+        return { templateType: resolvedType, groupId, signature, styleId, topicIndex, topicMatchMode, generationSequence: normalizedGenerationSequence, lensIndex, structureIndex, emphasisIndex, openingIndex, closingIndex, styleIndex };
     }
     throw new Error('[copy-config] A non-repeating profile copy variant could not be selected.');
 }

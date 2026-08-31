@@ -99,6 +99,10 @@ export class FileProfileJobStore {
             .map((assignment) => assignment.copyVariant);
     }
 
+    getCopyAssignmentCount(templateType) {
+        return (this.copyAssignmentsByTemplate.get(templateType) || []).length;
+    }
+
     indexCopyAssignment(job) {
         const templateType = job?.input?.payload?.templateType;
         const copyVariant = job?.input?.payload?.copyVariant;

@@ -25,6 +25,14 @@ function createWorkbookBuffer(bookType) {
     return XLSX.write(workbook, { type: 'buffer', bookType });
 }
 
+function createUtf16BeBuffer(value) {
+    const body = Buffer.from(value, 'utf16le');
+    for (let index = 0; index < body.length; index += 2) {
+        [body[index], body[index + 1]] = [body[index + 1], body[index]];
+    }
+    return Buffer.concat([Buffer.from([0xfe, 0xff]), body]);
+}
+
 test('supported document list covers modern Office and notepad formats', () => {
     assert.deepEqual(SUPPORTED_DOCUMENT_EXTENSIONS, [
         '.docx', '.pptx', '.xlsx', '.xls', '.txt', '.csv', '.tsv', '.md'
@@ -69,9 +77,27 @@ test('XLSX and legacy XLS spreadsheets are extracted', () => {
 
 test('UTF-8 and UTF-16 notepad files are extracted', () => {
     const utf8 = parseDocumentBuffer(Buffer.from('상담 특징\n차분한 설명', 'utf8'), 'memo.txt');
-    const utf16 = parseDocumentBuffer(Buffer.from('\ufeff상담 특징\r\n현실적인 조언', 'utf16le'), 'memo.txt');
+    const utf16Le = parseDocumentBuffer(Buffer.from('\ufeff상담 특징\r\n현실적인 조언', 'utf16le'), 'memo.txt');
+    const utf16Be = parseDocumentBuffer(createUtf16BeBuffer('상담 특징\r\n차분한 방향'), 'memo.txt');
     assert.match(utf8.combinedText, /차분한 설명/);
-    assert.match(utf16.combinedText, /현실적인 조언/);
+    assert.match(utf16Le.combinedText, /현실적인 조언/);
+    assert.match(utf16Be.combinedText, /차분한 방향/);
+});
+
+test('EUC-KR notepad, CSV, and TSV files preserve Korean text', () => {
+    const text = parseDocumentBuffer(Buffer.from('bbf3b4e320c6afc2a10ab5fbb6e6c7d120bcb3b8ed', 'hex'), 'memo.txt');
+    const csv = parseDocumentBuffer(Buffer.from('c0ccb8a72cbad0bedf0ac8abb1e6b5bf2cc5b8b7ce', 'hex'), 'profile.csv');
+    const tsv = parseDocumentBuffer(Buffer.from('c0ccb8a709bad0bedf0ac8abb1e6b5bf09bbe7c1d6', 'hex'), 'profile.tsv');
+    assert.match(text.combinedText, /따뜻한 설명/);
+    assert.match(csv.combinedText, /홍길동 \| 타로/);
+    assert.match(tsv.combinedText, /홍길동 \| 사주/);
+});
+
+test('notepad files containing binary null bytes are rejected', () => {
+    assert.throws(
+        () => parseDocumentBuffer(Buffer.from([0x41, 0x00, 0x42]), 'binary.txt'),
+        /읽을 수 없는 바이너리 데이터/
+    );
 });
 
 test('CSV and TSV files are parsed as spreadsheet text', () => {

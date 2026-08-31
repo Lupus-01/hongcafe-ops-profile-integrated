@@ -459,9 +459,9 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = 'profile-visual-v7-no-human-reading-scenes';
-const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v4-category-language-separation';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v5-generation-sequence';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
-const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
+const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
@@ -1910,19 +1910,25 @@ const profileJobStore = new FileProfileJobStore({
     retentionDays: PROFILE_JOB_RETENTION_DAYS
 });
 const recentNonCampaignCopyAssignments = new Map();
+const nonCampaignCopyGenerationSequences = new Map();
 
 function assignProfileCopyVariant(payload, sourceText) {
     const recent = PROFILE_CAMPAIGN_MODE
         ? profileJobStore.getRecentCopyAssignments(payload.templateType, 10)
         : (recentNonCampaignCopyAssignments.get(payload.templateType) || []);
+    const generationSequence = PROFILE_CAMPAIGN_MODE
+        ? profileJobStore.getCopyAssignmentCount(payload.templateType)
+        : (nonCampaignCopyGenerationSequences.get(payload.templateType) || 0);
     payload.copyVariant = selectProfileCopyVariant({
         templateType: payload.templateType,
         sourceText,
         identity: payload.visualIdentity || [payload.name, payload.specialty, payload.career].join('\0'),
-        recent
+        recent,
+        generationSequence
     });
     if (!PROFILE_CAMPAIGN_MODE) {
         recentNonCampaignCopyAssignments.set(payload.templateType, [payload.copyVariant, ...recent].slice(0, 10));
+        nonCampaignCopyGenerationSequences.set(payload.templateType, generationSequence + 1);
     }
 }
 
