@@ -10,7 +10,7 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, '..');
 
 async function waitForHealth(baseUrl) {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
         try {
             const response = await fetch(`${baseUrl}/api/health`);
             if (response.ok) return response.json();
@@ -39,6 +39,25 @@ async function submitProfile(baseUrl, name, requestKey) {
         method: 'POST',
         headers: { 'Idempotency-Key': requestKey },
         body: createProfileForm(name, true)
+    });
+    const data = await response.json();
+    return { response, data };
+}
+
+async function submitTextDocument(baseUrl, requestKey) {
+    const form = new FormData();
+    form.append('pptFile', new Blob([
+        Buffer.from('상담사 홍길동\n관계 상담과 현실적인 조언에 강점이 있습니다.', 'utf8')
+    ], { type: 'text/plain' }), 'consultant.txt');
+    form.append('templateType', 'tarot-ppt');
+    form.append('tarotCardType', 'auto');
+    form.append('imageStyle', 'natural');
+    form.append('generateImage', 'false');
+    form.append('imageQuality', 'standard');
+    const response = await fetch(`${baseUrl}/api/generate-from-ppt`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': requestKey },
+        body: form
     });
     const data = await response.json();
     return { response, data };
@@ -124,7 +143,14 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(uniqueJobIds.size, 5);
     await Promise.all([...uniqueJobIds].map((jobId) => waitForJob(baseUrl, jobId)));
 
+    const documentSubmission = await submitTextDocument(baseUrl, 'text-document-key');
+    assert.ok([200, 202].includes(documentSubmission.response.status));
+    const documentJob = await waitForJob(baseUrl, documentSubmission.data.job.id);
+    assert.equal(documentJob.state, 'completed');
+    assert.equal(documentJob.result.meta.fileType, 'txt');
+    assert.equal(documentJob.result.meta.sourceLabel, '메모장 텍스트');
+
     const finalHealth = await (await fetch(`${baseUrl}/api/health`)).json();
-    assert.equal(finalHealth.profileCampaignJobs, 7);
+    assert.equal(finalHealth.profileCampaignJobs, 8);
     assert.equal(finalHealth.usedGeminiRequestsToday, 0);
 });

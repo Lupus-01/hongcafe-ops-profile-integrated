@@ -11,7 +11,7 @@
         <aside class="pb-sidebar">
             <div class="pb-sidebar-header">
                 <h2>프로필 빌더 <span>V8</span></h2>
-                <p>PPT 또는 Excel 내용을 바탕으로 상담사 소개 페이지를 자동 구성합니다.</p>
+                <p>Microsoft Office 문서나 메모장 파일을 바탕으로 상담사 소개 페이지를 자동 구성합니다.</p>
             </div>
 
             <div class="pb-section">
@@ -25,7 +25,7 @@
             <section class="pb-section pb-ai-panel">
                 <div class="pb-ai-header">
                     <h3>문서 업로드 생성</h3>
-                    <span class="pb-ai-badge">지원 .pptx / .xlsx</span>
+                    <span class="pb-ai-badge">Office · 메모장 파일 지원</span>
                 </div>
                 <div class="pb-ai-form">
                     <label class="pb-ai-field">
@@ -56,9 +56,10 @@
                         </select>
                     </label>
                     <label class="pb-ai-field">
-                        <span>PPT / Excel 파일 업로드</span>
-                        <input id="pb-ppt-file" type="file" accept=".pptx,.xlsx,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                        <span>Office / 메모장 참고 파일 업로드</span>
+                        <input id="pb-ppt-file" type="file" accept=".docx,.pptx,.xlsx,.xls,.txt,.csv,.tsv,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/plain,text/csv,text/tab-separated-values,text/markdown">
                     </label>
+                    <p class="pb-ai-inline-help">Microsoft Word, PowerPoint, Excel과 메모장 파일의 내용을 확인할 수 있습니다. 지원 형식: DOCX, PPTX, XLSX, XLS, TXT, CSV, TSV, MD.</p>
                     <label class="pb-ai-field">
                         <span>추가 참고 텍스트</span>
                         <textarea id="pb-ppt-reference-text" rows="3" maxlength="3000" placeholder="문서에서 특히 살릴 상담 특징, 표현, 분위기를 입력하세요."></textarea>
@@ -90,7 +91,7 @@
                     </label>
                     <p id="pb-ppt-generate-image-help" class="pb-ai-inline-help">이미지를 끄면 사진 영역 없이 텍스트 전용 프로필로 정리됩니다.</p>
                     <button id="pb-ppt-generate-btn" class="pb-action-btn primary" type="button">문서로 결과 생성</button>
-                    <p id="pb-ppt-status" class="pb-ai-status">PPT 또는 Excel 내용을 읽어 웹용 소개 페이지로 재구성합니다.</p>
+                    <p id="pb-ppt-status" class="pb-ai-status">Office 또는 메모장 참고 파일을 읽어 웹용 소개 페이지로 재구성합니다.</p>
                     <div id="pb-ppt-image-issue" class="pb-issue-panel" hidden></div>
                 </div>
             </section>

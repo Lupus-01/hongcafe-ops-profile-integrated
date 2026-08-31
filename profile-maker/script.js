@@ -2125,7 +2125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const referenceText = pptReferenceText?.value.trim() || '';
 
         if (!file) {
-            setStatus(pptStatus, '먼저 PPT 또는 Excel 파일을 선택해주세요.', 'error');
+            setStatus(pptStatus, '먼저 Office 또는 메모장 참고 파일을 선택해주세요.', 'error');
             return;
         }
 
@@ -2184,7 +2184,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const slideMessage = data.meta?.slidesCount ? `슬라이드 ${data.meta.slidesCount}장 분석 완료.` : '';
             const sheetMessage = data.meta?.sheetsCount ? `시트 ${data.meta.sheetsCount}개 분석 완료.` : '';
-            const sourceMessage = [slideMessage, sheetMessage].filter(Boolean).join(' ');
+            const documentMessage = !slideMessage && !sheetMessage && data.meta?.itemCount
+                ? `${data.meta.sourceLabel || '문서'} 내용 확인 완료.`
+                : '';
+            const sourceMessage = [slideMessage, sheetMessage, documentMessage].filter(Boolean).join(' ');
             setStatus(
                 pptStatus,
                 buildGenerationStatus(

@@ -7,9 +7,8 @@ import crypto from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
-import AdmZip from 'adm-zip';
-import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
+import { parseDocumentBuffer, SUPPORTED_DOCUMENT_EXTENSIONS } from './profile-document-parser.mjs';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
 import {
     canReuseLegacyProfileImages,
@@ -1344,76 +1343,6 @@ function sanitizeExtraPrompt(value, maxLength = MAX_IMAGE_CONTEXT_CHARS) {
     return sanitizeImagePromptContext(value, maxLength);
 }
 
-function decodeXmlEntities(value) {
-    return value
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function extractSlideTexts(slideXml) {
-    const matches = [...slideXml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)];
-    return matches
-        .map((match) => decodeXmlEntities(match[1]))
-        .filter(Boolean);
-}
-
-function parsePptxBuffer(buffer) {
-    const zip = new AdmZip(buffer);
-    const slideEntries = zip
-        .getEntries()
-        .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/i.test(entry.entryName))
-        .sort((a, b) => {
-            const aNum = Number(a.entryName.match(/slide(\d+)\.xml/i)?.[1] || 0);
-            const bNum = Number(b.entryName.match(/slide(\d+)\.xml/i)?.[1] || 0);
-            return aNum - bNum;
-        });
-
-    const slides = slideEntries.map((entry, index) => {
-        const xml = entry.getData().toString('utf8');
-        const texts = extractSlideTexts(xml);
-        return {
-            index: index + 1,
-            text: texts.join('\n')
-        };
-    }).filter((slide) => slide.text.trim());
-
-    return {
-        slides,
-        combinedText: slides.map((slide) => `[slide ${slide.index}]\n${slide.text}`).join('\n\n')
-    };
-}
-
-function parseXlsxBuffer(buffer) {
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheets = workbook.SheetNames.map((sheetName) => {
-        const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, {
-            header: 1,
-            blankrows: false,
-            defval: ''
-        });
-
-        const lines = rows
-            .map((row) => row.map((cell) => String(cell || '').trim()).filter(Boolean).join(' | '))
-            .filter(Boolean);
-
-        return {
-            name: sheetName,
-            text: lines.join('\n')
-        };
-    }).filter((sheet) => sheet.text.trim());
-
-    return {
-        sheets,
-        combinedText: sheets.map((sheet) => `[sheet ${sheet.name}]\n${sheet.text}`).join('\n\n')
-    };
-}
-
 async function generateProfileTextFromInput(payload) {
     const guide = getTemplateGuide(payload.templateType);
     const copyDirection = buildProfileCopyDirection(payload.copyVariant);
@@ -1471,21 +1400,19 @@ ${payload.referenceText || '없음'}
     return cleanGeneratedProfile(await generateJsonContent(prompt), payload.templateType);
 }
 
-async function generateProfileTextFromPpt(payload, pptInfo) {
+async function generateProfileTextFromPpt(payload, documentInfo) {
     const guide = getTemplateGuide(payload.templateType);
     const copyDirection = buildProfileCopyDirection(payload.copyVariant);
-    const slideCount = Array.isArray(pptInfo?.slides) ? pptInfo.slides.length : 0;
-    const sheetCount = Array.isArray(pptInfo?.sheets) ? pptInfo.sheets.length : 0;
-    const itemCount = slideCount || sheetCount;
-    const limitedDocumentText = getLimitedDocumentText(pptInfo.combinedText);
+    const itemCount = Number(documentInfo?.itemCount || 0);
+    const limitedDocumentText = getLimitedDocumentText(documentInfo.combinedText);
     const prompt = `
 너는 한국어 상담사 소개 페이지를 구성하는 카피라이터다.
-사용자가 업로드한 PPT의 내용에서 핵심 메시지를 추출해서, 상담사 소개 랜딩페이지용 문구로 다시 구성한다.
-PPT 문장을 그대로 복사하지 말고, 소개 페이지 문체로 자연스럽게 재작성한다.
+사용자가 업로드한 문서의 내용에서 핵심 메시지를 추출해서, 상담사 소개 랜딩페이지용 문구로 다시 구성한다.
+원문 문장을 그대로 복사하지 말고, 소개 페이지 문체로 자연스럽게 재작성한다.
 응답은 JSON만 반환하고 코드블록은 절대 사용하지 않는다.
 
 분야: ${guide.labelKo}
-슬라이드 수: ${itemCount}
+문서 구분 수: ${itemCount}
 
 분야별 전문 구성 방향:
 ${guide.expertiseGuide}
@@ -1497,14 +1424,14 @@ ${copyDirection}
 ${payload.referenceText || '없음'}
 
 반드시 제외할 내용:
-- PPT 원문에 전화번호, 060 번호, 고유번호, 연결 후 0번 입력, 상담 연결 안내가 있어도 결과에 포함하지 않는다.
+- 업로드 문서 원문에 전화번호, 060 번호, 고유번호, 연결 후 0번 입력, 상담 연결 안내가 있어도 결과에 포함하지 않는다.
 - 예약, 문의, 전화 연결, 상담 신청 방법 같은 행동 유도 문구를 쓰지 않는다.
 - cardTitle/cardBody는 연결 안내가 아니라 ${guide.labelKo} 분야의 전문성, 상담 방식, 해석 강점을 꾸며서 설명한다.
 - closingTitle/closingBody는 연락 유도 없이 상담사의 분위기와 신뢰감을 정리하는 마무리로 작성한다.
-- PPT 원문이 짧더라도 결과가 빈약해 보이지 않도록 상담사의 전문성, 해석 관점, 상담 후 정리되는 지점을 자연스럽게 보강한다.
+- 업로드 문서 원문이 짧더라도 결과가 빈약해 보이지 않도록 상담사의 전문성, 해석 관점, 상담 후 정리되는 지점을 자연스럽게 보강한다.
 - 원문을 과장하지 말고, 업로드 자료에서 읽히는 톤과 분야 정보를 바탕으로 소개 페이지에 어울리는 깊이를 더한다.
 
-PPT 원문:
+업로드 문서 원문:
 ${limitedDocumentText}
 
 반환 스키마:
@@ -1531,7 +1458,7 @@ ${limitedDocumentText}
 - intro는 2개의 문장으로 쓰되 상담사의 이름, 경력, 강점이 자연스럽게 연결되도록 작성한다.
 - sectionBody와 cardBody는 단순 홍보 문구가 아니라 상담의 관점과 해석 방식이 구체적으로 보이게 작성한다.
 - bulletPoints는 분야 전문성이 보이도록 짧고 읽기 쉽게 작성하되, 너무 일반적인 표현만 반복하지 않는다.
-- 상담사 이름이 PPT에 드러나면 intro에 자연스럽게 녹여 넣는다.
+- 상담사 이름이 업로드 문서에 드러나면 intro에 자연스럽게 녹여 넣는다.
 `.trim();
 
     return cleanGeneratedProfile(await generateJsonContent(prompt), payload.templateType);
@@ -2487,12 +2414,11 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         return res.status(400).json({ error: '문서 파일이 업로드되지 않았습니다.' });
     }
 
-    const lowerFileName = file.originalname.toLowerCase();
-    const isPptx = lowerFileName.endsWith('.pptx');
-    const isXlsx = lowerFileName.endsWith('.xlsx');
-
-    if (!isPptx && !isXlsx) {
-        return res.status(400).json({ error: '현재는 .pptx 와 .xlsx 형식만 지원합니다.' });
+    const fileExtension = path.extname(file.originalname || '').toLowerCase();
+    if (!SUPPORTED_DOCUMENT_EXTENSIONS.includes(fileExtension)) {
+        return res.status(400).json({
+            error: `지원하지 않는 문서 형식입니다. 지원 형식: ${SUPPORTED_DOCUMENT_EXTENSIONS.join(', ')}`
+        });
     }
 
     let referenceImages;
@@ -2516,12 +2442,12 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
     }
 
     try {
-        const parsedDocument = isPptx ? parsePptxBuffer(file.buffer) : parseXlsxBuffer(file.buffer);
-        const itemCount = isPptx ? parsedDocument.slides.length : parsedDocument.sheets.length;
+        const parsedDocument = parseDocumentBuffer(file.buffer, file.originalname);
+        const itemCount = parsedDocument.itemCount;
 
         if (!itemCount) {
             return res.status(400).json({
-                error: isPptx ? 'PPT에서 읽을 수 있는 텍스트를 찾지 못했습니다.' : '엑셀에서 읽을 수 있는 텍스트를 찾지 못했습니다.'
+                error: `${parsedDocument.sourceLabel}에서 읽을 수 있는 텍스트를 찾지 못했습니다.`
             });
         }
 
@@ -2550,9 +2476,11 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
                     parsedDocument,
                     generateImageRequested,
                     sourceMeta: {
-                        fileType: isPptx ? 'pptx' : 'xlsx',
-                        slidesCount: isPptx ? itemCount : 0,
-                        sheetsCount: isXlsx ? itemCount : 0
+                        fileType: parsedDocument.fileType,
+                        sourceLabel: parsedDocument.sourceLabel,
+                        itemCount,
+                        slidesCount: parsedDocument.slides.length,
+                        sheetsCount: parsedDocument.sheets.length
                     }
                 }
             });
@@ -2592,14 +2520,16 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             imageMeta: buildImageMeta(String(payload.generateImage) === 'true', profileImage, moodImage, imageFailures),
             usage,
             meta: {
-                fileType: isPptx ? 'pptx' : 'xlsx',
-                slidesCount: isPptx ? itemCount : 0,
-                sheetsCount: isXlsx ? itemCount : 0
+                fileType: parsedDocument.fileType,
+                sourceLabel: parsedDocument.sourceLabel,
+                itemCount,
+                slidesCount: parsedDocument.slides.length,
+                sheetsCount: parsedDocument.sheets.length
             }
         });
     } catch (error) {
         console.error(error);
-        sendGenerationError(res, error, isPptx ? 'PPT 분석 또는 AI 구성 중 오류가 발생했습니다.' : '엑셀 분석 또는 AI 구성 중 오류가 발생했습니다.');
+        sendGenerationError(res, error, '문서 분석 또는 AI 구성 중 오류가 발생했습니다.');
     }
 });
 
