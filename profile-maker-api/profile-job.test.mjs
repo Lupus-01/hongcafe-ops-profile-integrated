@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue, isAmbiguousExternalFailure, reuseCompletedProfileImageStages } from './profile-job-queue.mjs';
+import {
+    canReuseLegacyProfileImages,
+    DurableProfileJobQueue,
+    isAmbiguousExternalFailure,
+    reuseCompletedProfileImageStages
+} from './profile-job-queue.mjs';
 
 function createTestStore(safetyCap = 1500) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-profile-job-'));
@@ -80,6 +85,52 @@ test('a new text prompt version reuses only safely completed image stages', () =
     assert.equal(record.stages.mood.reused, true);
     assert.equal(record.stages.mood.error, 'ambiguous legacy image request');
     assert.equal(record.outputs.mood, undefined);
+});
+
+test('legacy images are reused only when no new reference input exists', () => {
+    const baseInput = {
+        profileTextPromptVersion: 'current',
+        currentProfileTextPromptVersion: 'current'
+    };
+    assert.equal(canReuseLegacyProfileImages(baseInput), true);
+    assert.equal(canReuseLegacyProfileImages({ ...baseInput, referenceText: '따뜻한 상담실 분위기' }), false);
+    assert.equal(canReuseLegacyProfileImages({ ...baseInput, referenceImages: [{ digest: 'reference' }] }), false);
+    assert.equal(canReuseLegacyProfileImages({
+        ...baseInput,
+        profileTextPromptVersion: 'different'
+    }), false);
+});
+
+test('recent copy assignments use the lightweight index after job creation', (t) => {
+    const { directory, store } = createTestStore();
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    for (let index = 0; index < 12; index += 1) {
+        store.createOrGet({
+            fingerprint: createProfileJobFingerprint({ copy: index }),
+            kind: 'direct',
+            input: {
+                ...createInput(false),
+                payload: {
+                    templateType: 'tarot-ppt',
+                    copyVariant: { groupId: `group-${index}` }
+                }
+            },
+            userId: 'user-a'
+        });
+    }
+    const reloadedStore = new FileProfileJobStore({
+        directory,
+        campaignId: 'test-campaign',
+        safetyCap: 1500,
+        retentionDays: 1
+    });
+    reloadedStore.read = () => {
+        throw new Error('getRecentCopyAssignments must not read full job files');
+    };
+    assert.deepEqual(
+        reloadedStore.getRecentCopyAssignments('tarot-ppt', 3).map((variant) => variant.groupId),
+        ['group-11', 'group-10', 'group-9']
+    );
 });
 
 test('same profile input replays one persisted job', (t) => {

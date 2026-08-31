@@ -85,6 +85,14 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileCampaignMode, true);
     assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
     assert.equal(initialHealth.profileAiMockMode, true);
+    assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
+    assert.deepEqual(initialHealth.profileCopyConfiguration, {
+        categories: 3,
+        groupsPerCategory: 1474560,
+        groupsTotal: 4423680,
+        expressionStyles: 20,
+        variantsTotal: 88473600
+    });
 
     const duplicateSubmissions = await Promise.all(
         Array.from({ length: 20 }, (_, index) => submitProfile(baseUrl, 'same consultant', `duplicate-${index}`))

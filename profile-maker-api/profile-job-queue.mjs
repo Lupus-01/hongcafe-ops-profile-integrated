@@ -5,6 +5,17 @@ export function isAmbiguousExternalFailure(error) {
     return Boolean(!status || status >= 500);
 }
 
+export function canReuseLegacyProfileImages({
+    profileTextPromptVersion,
+    currentProfileTextPromptVersion,
+    referenceImages = [],
+    referenceText = ''
+}) {
+    return profileTextPromptVersion === currentProfileTextPromptVersion
+        && referenceImages.length === 0
+        && String(referenceText || '').trim() === '';
+}
+
 export function reuseCompletedProfileImageStages(record, sourceJob) {
     for (const stageName of ['portrait', 'mood']) {
         const sourceStage = sourceJob?.stages?.[stageName];

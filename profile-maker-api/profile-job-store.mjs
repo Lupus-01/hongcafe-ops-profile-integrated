@@ -36,6 +36,8 @@ export class FileProfileJobStore {
         fs.mkdirSync(this.directory, { recursive: true });
         fs.mkdirSync(path.join(this.directory, '.requests'), { recursive: true });
         this.cleanupExpiredJobs();
+        this.copyAssignmentsByTemplate = new Map();
+        this.rebuildCopyAssignmentIndex();
     }
 
     getJobId(fingerprint) {
@@ -92,12 +94,29 @@ export class FileProfileJobStore {
     }
 
     getRecentCopyAssignments(templateType, limit = 10) {
-        return this.listJobIds()
-            .map((jobId) => this.read(jobId))
-            .filter((job) => job?.input?.payload?.templateType === templateType && job.input.payload.copyVariant)
-            .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))
+        return (this.copyAssignmentsByTemplate.get(templateType) || [])
             .slice(0, Math.max(Number(limit) || 0, 0))
-            .map((job) => job.input.payload.copyVariant);
+            .map((assignment) => assignment.copyVariant);
+    }
+
+    indexCopyAssignment(job) {
+        const templateType = job?.input?.payload?.templateType;
+        const copyVariant = job?.input?.payload?.copyVariant;
+        if (!templateType || !copyVariant) return;
+        const assignments = this.copyAssignmentsByTemplate.get(templateType) || [];
+        const nextAssignments = [
+            { jobId: job.id, createdAt: job.createdAt || '', copyVariant },
+            ...assignments.filter((assignment) => assignment.jobId !== job.id)
+        ].sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''));
+        this.copyAssignmentsByTemplate.set(templateType, nextAssignments);
+    }
+
+    rebuildCopyAssignmentIndex() {
+        this.copyAssignmentsByTemplate.clear();
+        for (const jobId of this.listJobIds()) {
+            const job = this.read(jobId);
+            if (job) this.indexCopyAssignment(job);
+        }
     }
 
     cleanupExpiredJobs() {
@@ -163,6 +182,7 @@ export class FileProfileJobStore {
             error: null
         };
         this.write(job);
+        this.indexCopyAssignment(job);
         this.writeRequestRecord(requestKey, { jobId, fingerprint, kind });
         return { job, replayed: false };
     }

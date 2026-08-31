@@ -11,7 +11,12 @@ import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
-import { DurableProfileJobQueue, isAmbiguousExternalFailure, reuseCompletedProfileImageStages } from './profile-job-queue.mjs';
+import {
+    canReuseLegacyProfileImages,
+    DurableProfileJobQueue,
+    isAmbiguousExternalFailure,
+    reuseCompletedProfileImageStages
+} from './profile-job-queue.mjs';
 import { sanitizeImagePromptContext } from './profile-image-context.mjs';
 import {
     buildProfileCopyDirection,
@@ -2177,8 +2182,12 @@ const profileJobQueue = new DurableProfileJobQueue({
 
 function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey = '' }) {
     const fingerprint = createProfileJobFingerprint({ kind, ...fingerprintInput });
-    const reusableLegacyJobId = fingerprintInput.profileTextPromptVersion === PROFILE_TEXT_PROMPT_VERSION
-        && !(input.referenceImages || []).length
+    const reusableLegacyJobId = canReuseLegacyProfileImages({
+        profileTextPromptVersion: fingerprintInput.profileTextPromptVersion,
+        currentProfileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION,
+        referenceImages: input.referenceImages,
+        referenceText: fingerprintInput.referenceText
+    })
         ? PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS
             .map((profileTextPromptVersion) => createProfileJobFingerprint({
                 kind,
