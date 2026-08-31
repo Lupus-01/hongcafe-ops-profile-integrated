@@ -76,6 +76,42 @@ const CATEGORY_VOICE = {
     'sinjeom-ppt': '핵심을 직관적으로 짚되 공포나 운명 단정을 피하고 현실에서 확인할 방향으로 연결한다. 카드와 대운·세운 중심 설명을 쓰지 않는다.'
 };
 
+const CATEGORY_LANGUAGE = {
+    'tarot-ppt': {
+        fallbackTopicIndex: 15,
+        fallbackTopic: '카드 상징으로 현재 고민의 위치와 선택지를 폭넓게 정리',
+        evidence: '카드 배열과 상징의 연결을',
+        focus: '감정 이동과 선택지의 차이에',
+        openingBasis: '현재 펼쳐진 카드가 보여주는 장면',
+        closingBasis: '내담자가 선택할 수 있는 현실 기준',
+        styleBasis: '상징을 해석하되 미래를 단정하지 않는 리딩 문체',
+        preferredWords: ['카드', '상징', '배열', '감정 이동', '선택지'],
+        excludedWords: ['오행', '대운', '세운', '신령', '계시', '신내림']
+    },
+    'saju-ppt': {
+        fallbackTopicIndex: 15,
+        fallbackTopic: '타고난 기질과 시기 흐름을 폭넓게 살펴 현실적인 선택 기준 정리',
+        evidence: '타고난 기질·오행 구성과 대운·세운의 변화를',
+        focus: '구조의 균형과 장단기 시기에',
+        openingBasis: '타고난 구성과 현재 운의 조건',
+        closingBasis: '기질과 시기에 맞춘 준비 기준',
+        styleBasis: '구조와 시기를 차분하게 설명하는 분석 문체',
+        preferredWords: ['기질', '오행', '구조', '균형', '대운·세운', '시기'],
+        excludedWords: ['타로 카드', '카드 배열', '리딩', '신령', '계시', '신내림']
+    },
+    'sinjeom-ppt': {
+        fallbackTopicIndex: 15,
+        fallbackTopic: '현재 막힘의 핵심과 우선 확인할 현실 방향을 직관적으로 정리',
+        evidence: '현재 드러난 징후와 직관적으로 포착한 핵심을',
+        focus: '막힘의 원인과 현실에서 확인할 전환점에',
+        openingBasis: '지금 두드러지는 징후와 고민의 핵심',
+        closingBasis: '당장 지킬 경계와 우선 확인할 방향',
+        styleBasis: '핵심을 선명하게 짚되 공포와 운명 단정을 피하는 문체',
+        preferredWords: ['직관', '징후', '막힘의 원인', '전환점', '경계', '확인할 방향'],
+        excludedWords: ['타로 카드', '카드 배열', '리딩', '오행', '대운', '세운']
+    }
+};
+
 export const COPY_EXPRESSION_STYLE_COUNT = STYLES.length;
 export const COPY_GROUP_COUNT_PER_CATEGORY = 16 * 12 * 12 * 10 * 8 * 8;
 export const COPY_GROUP_COUNT_TOTAL = COPY_GROUP_COUNT_PER_CATEGORY * Object.keys(TOPICS).length;
@@ -85,19 +121,31 @@ function digestFor(value) {
     return crypto.createHash('sha256').update(String(value || '')).digest();
 }
 
-function pickRelevantTopic(topics, sourceText, digest) {
+function pickRelevantTopic(topics, sourceText, digest, fallbackTopicIndex) {
     const normalized = String(sourceText || '').toLowerCase();
     const scores = topics.map((topic) => topic[1].reduce((score, keyword) => score + (normalized.includes(keyword) ? 1 : 0), 0));
     const highest = Math.max(...scores);
+    if (highest === 0) {
+        return { topicIndex: fallbackTopicIndex, topicMatchMode: 'fallback' };
+    }
     const candidates = scores.map((score, index) => score === highest ? index : -1).filter((index) => index >= 0);
-    return candidates[digest.readUInt32BE(0) % candidates.length];
+    return {
+        topicIndex: candidates[digest.readUInt32BE(0) % candidates.length],
+        topicMatchMode: 'keyword'
+    };
 }
 
 export function selectProfileCopyVariant({ templateType, sourceText = '', identity = '', recent = [] }) {
     const resolvedType = Object.hasOwn(TOPICS, templateType) ? templateType : 'sinjeom-ppt';
     const topics = TOPICS[resolvedType];
+    const categoryLanguage = CATEGORY_LANGUAGE[resolvedType];
     const baseDigest = digestFor(`${resolvedType}\0${identity}\0${sourceText}`);
-    const topicIndex = pickRelevantTopic(topics, sourceText, baseDigest);
+    const { topicIndex, topicMatchMode } = pickRelevantTopic(
+        topics,
+        sourceText,
+        baseDigest,
+        categoryLanguage.fallbackTopicIndex
+    );
     const recentExact = new Set(recent.map((item) => item?.groupId).filter(Boolean));
     const recentSignatures = new Set(recent.slice(0, 10).map((item) => item?.signature).filter(Boolean));
     const recentStyleIds = new Set(recent.map((item) => item?.styleId).filter(Boolean));
@@ -114,23 +162,31 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
         const signature = `${resolvedType}:${topicIndex}:${lensIndex}:${structureIndex}`;
         const styleId = `style-${styleIndex + 1}`;
         if (recentExact.has(groupId) || recentSignatures.has(signature) || recentStyleIds.has(styleId)) continue;
-        return { templateType: resolvedType, groupId, signature, styleId, topicIndex, lensIndex, structureIndex, emphasisIndex, openingIndex, closingIndex, styleIndex };
+        return { templateType: resolvedType, groupId, signature, styleId, topicIndex, topicMatchMode, lensIndex, structureIndex, emphasisIndex, openingIndex, closingIndex, styleIndex };
     }
     throw new Error('[copy-config] A non-repeating profile copy variant could not be selected.');
 }
 
 export function buildProfileCopyDirection(copyVariant) {
     const resolvedType = Object.hasOwn(TOPICS, copyVariant?.templateType) ? copyVariant.templateType : 'sinjeom-ppt';
+    const categoryLanguage = CATEGORY_LANGUAGE[resolvedType];
     const topic = TOPICS[resolvedType][copyVariant?.topicIndex ?? 0];
+    const topicDirection = copyVariant?.topicMatchMode === 'fallback'
+        ? categoryLanguage.fallbackTopic
+        : topic[2];
     return [
         `카테고리 고유 문체: ${CATEGORY_VOICE[resolvedType]}`,
-        `핵심 상담 주제: ${topic[2]}`,
+        `핵심 상담 주제: ${topicDirection}`,
         `해석 관점: ${LENSES[resolvedType][copyVariant?.lensIndex ?? 0]}`,
-        `글 전개 구조: ${STRUCTURES[copyVariant?.structureIndex ?? 0]}`,
-        `가장 강조할 가치: ${EMPHASES[copyVariant?.emphasisIndex ?? 0]}`,
-        `도입 방식: ${OPENINGS[copyVariant?.openingIndex ?? 0]}`,
-        `마무리 방식: ${CLOSINGS[copyVariant?.closingIndex ?? 0]}`,
-        `표현 방식: ${STYLES[copyVariant?.styleIndex ?? 0]}`,
+        `글 전개 구조: ${categoryLanguage.evidence} 근거로 ${STRUCTURES[copyVariant?.structureIndex ?? 0]} 순서로 전개한다.`,
+        `가장 강조할 가치: ${EMPHASES[copyVariant?.emphasisIndex ?? 0]}을 ${categoryLanguage.focus} 연결한다.`,
+        `도입 방식: ${categoryLanguage.openingBasis}에서 ${OPENINGS[copyVariant?.openingIndex ?? 0]} 방식으로 시작한다.`,
+        `마무리 방식: ${categoryLanguage.closingBasis}을 중심으로 ${CLOSINGS[copyVariant?.closingIndex ?? 0]} 방식으로 끝맺는다.`,
+        `표현 방식: ${STYLES[copyVariant?.styleIndex ?? 0]}을 유지하되 ${categoryLanguage.styleBasis}를 사용한다.`,
+        `권장 핵심 어휘: ${categoryLanguage.preferredWords.join(', ')} 중 문맥에 맞는 표현을 결과 전체에 2개 이상 자연스럽게 사용한다.`,
+        `교차 카테고리 금지 어휘: ${categoryLanguage.excludedWords.join(', ')}를 결과 문구에 사용하지 않는다.`,
+        '공통적인 "흐름·방향·현실적인 조언"만 반복하지 말고, 해당 카테고리의 해석 근거가 각 본문과 핵심 포인트에 드러나게 한다.',
+        '입력 자료에 없는 경력, 상담 사례, 세부 전문 주제는 만들어내지 않는다.',
         '각 슬롯은 앞 슬롯을 바꾸어 말하지 말고 서로 다른 정보를 담당한다.'
     ].join('\n');
 }

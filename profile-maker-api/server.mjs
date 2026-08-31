@@ -459,9 +459,9 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = 'profile-visual-v7-no-human-reading-scenes';
-const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v3-category-combinations';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v4-category-language-separation';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
-const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v2-two-line-headline', 'legacy'];
+const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
