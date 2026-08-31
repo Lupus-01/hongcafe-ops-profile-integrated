@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
     const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
     const pptFile = document.getElementById('pb-ppt-file');
+    const pptReferenceText = document.getElementById('pb-ppt-reference-text');
     const pptImageStyle = document.getElementById('pb-ppt-image-style');
     const pptReferenceImages = document.getElementById('pb-ppt-reference-images');
     const pptReferencePreview = document.getElementById('pb-ppt-reference-preview');
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiSpecialty = document.getElementById('pb-ai-specialty');
     const aiTone = document.getElementById('pb-ai-tone');
     const aiCareer = document.getElementById('pb-ai-career');
+    const aiReferenceText = document.getElementById('pb-ai-reference-text');
     const aiImageStyle = document.getElementById('pb-ai-image-style');
     const aiReferenceImages = document.getElementById('pb-ai-reference-images');
     const aiReferencePreview = document.getElementById('pb-ai-reference-preview');
@@ -97,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMode = 'profile';
     let currentBrandLogoDataUrl = '';
     let lastProfileDownloadName = 'profile-builder';
+    let activeProfileCopyMeta = null;
+    let activeProfileReferenceText = '';
     const PROFILE_HISTORY_KEY = 'pb-profile-history-v1';
     const MAX_PROFILE_HISTORY = 8;
     const MAX_REFERENCE_IMAGES = 3;
@@ -251,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function storeProfileHistoryItem({ source, templateType, tarotCardType = '', profile, nameHint, imageMode, imageQuality = 'standard' }) {
+    function storeProfileHistoryItem({ source, templateType, tarotCardType = '', profile, nameHint, imageMode, imageQuality = 'standard', copyMeta = null, referenceText = '' }) {
         if (!profile) return;
 
         const now = new Date();
@@ -266,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tarotCardType,
             imageMode,
             imageQuality,
+            copyMeta,
+            referenceText,
             title: `${nameHint || '프로필'} / ${sourceLabel}`,
             summary: summary || '저장된 프로필 결과',
             createdAtLabel,
@@ -296,6 +302,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pptGenerateImage) pptGenerateImage.checked = Boolean(item.imageMode);
         if (aiImageQuality) aiImageQuality.value = item.imageQuality || 'standard';
         if (pptImageQuality) pptImageQuality.value = item.imageQuality || 'standard';
+        activeProfileCopyMeta = item.copyMeta || null;
+        activeProfileReferenceText = item.referenceText || '';
+        if (pptReferenceText) pptReferenceText.value = activeProfileReferenceText;
+        if (aiReferenceText) aiReferenceText.value = activeProfileReferenceText;
         updateImageGenerationControls();
         updateTarotCardTypeControls();
 
@@ -2000,6 +2010,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 const presentation = getCurrentPresentationElement();
                 if (presentation && result.profile) {
+                    activeProfileCopyMeta = result.copyMeta || activeProfileCopyMeta;
                     fillPresentation(presentation, result.profile);
                     syncPresentationImageState(presentation, { textOnly: !result.imageMeta?.requested });
                     renderProfileImageGuide(result.imageGuide);
@@ -2023,6 +2034,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const specialty = aiSpecialty.value.trim();
         const tone = aiTone.value.trim();
         const career = aiCareer.value.trim();
+        const referenceText = aiReferenceText?.value.trim() || '';
         const imageStyle = aiImageStyle.value.trim();
         const shouldGenerateImages = aiGenerateImage.checked;
         const imageQuality = aiImageQuality?.value || 'standard';
@@ -2043,6 +2055,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('specialty', specialty);
             formData.append('tone', tone);
             formData.append('career', career);
+            formData.append('referenceText', referenceText);
             formData.append('imageStyle', imageStyle);
             formData.append('generateImage', String(shouldGenerateImages));
             formData.append('imageQuality', imageQuality);
@@ -2063,6 +2076,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fillPresentation(element, data.profile);
             syncPresentationImageState(element, { textOnly: !shouldGenerateImages });
             lastProfileDownloadName = (name || specialty || 'profile-builder').trim();
+            activeProfileCopyMeta = data.copyMeta || null;
+            activeProfileReferenceText = referenceText;
             resetProfileImageAssets();
             renderProfileImageGuide(data.imageGuide);
             syncProfileImageAssets();
@@ -2080,7 +2095,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
                 imageMode: shouldGenerateImages,
-                imageQuality
+                imageQuality,
+                copyMeta: activeProfileCopyMeta,
+                referenceText: activeProfileReferenceText
             });
 
             setStatus(
@@ -2105,6 +2122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const templateConfig = templates[templateType];
         const shouldGenerateImages = pptGenerateImage.checked;
         const imageQuality = pptImageQuality?.value || 'standard';
+        const referenceText = pptReferenceText?.value.trim() || '';
 
         if (!file) {
             setStatus(pptStatus, '먼저 PPT 또는 Excel 파일을 선택해주세요.', 'error');
@@ -2116,6 +2134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('templateType', templateType);
         if (templateType === 'tarot-ppt') formData.append('tarotCardType', pptTarotCardType?.value || 'auto');
         formData.append('imageStyle', pptImageStyle.value.trim());
+        formData.append('referenceText', referenceText);
         formData.append('generateImage', String(shouldGenerateImages));
         formData.append('imageQuality', imageQuality);
         appendReferenceImages(formData, 'ppt', shouldGenerateImages);
@@ -2139,6 +2158,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fillPresentation(element, data.profile);
             syncPresentationImageState(element, { textOnly: !shouldGenerateImages });
             lastProfileDownloadName = file.name.replace(/\.[^.]+$/, '') || 'profile-builder';
+            activeProfileCopyMeta = data.copyMeta || null;
+            activeProfileReferenceText = referenceText;
             resetProfileImageAssets();
             renderProfileImageGuide(data.imageGuide);
             syncProfileImageAssets();
@@ -2156,7 +2177,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
                 nameHint: lastProfileDownloadName,
                 imageMode: shouldGenerateImages,
-                imageQuality
+                imageQuality,
+                copyMeta: activeProfileCopyMeta,
+                referenceText: activeProfileReferenceText
             });
 
             const slideMessage = data.meta?.slidesCount ? `슬라이드 ${data.meta.slidesCount}장 분석 완료.` : '';
@@ -2328,6 +2351,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="pb-empty-icon">DOC</div>
                 <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
             </div>`;
+        activeProfileCopyMeta = null;
+        activeProfileReferenceText = '';
         resetProfileImageAssets();
         updateSlotRegenerateState();
     });
@@ -2578,7 +2603,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     templateType,
                     slotKey,
-                    currentProfile
+                    currentProfile,
+                    copyVariant: activeProfileCopyMeta,
+                    referenceText: activeProfileReferenceText
                 })
             });
 
@@ -2588,6 +2615,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             fillPresentation(presentation, data.profile);
+            activeProfileCopyMeta = data.copyMeta || activeProfileCopyMeta;
             syncPresentationImageState(presentation, { textOnly: textOnlyChoice });
             const restoredProfile = getCurrentPresentationPayload(presentation);
             storeProfileHistoryItem({
@@ -2595,7 +2623,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 templateType,
                 profile: restoredProfile,
                 nameHint: lastProfileDownloadName,
-                imageMode: !textOnlyChoice
+                imageMode: !textOnlyChoice,
+                copyMeta: activeProfileCopyMeta,
+                referenceText: activeProfileReferenceText
             });
             setStatus(slotStatus, `${slotLabelMap[slotKey] || '선택 영역'}를 다시 생성했습니다.`, 'success');
         } catch (error) {

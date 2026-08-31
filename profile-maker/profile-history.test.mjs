@@ -25,3 +25,12 @@ test('stored image prompt guides are sanitized before display and copy', () => {
     assert.match(script, /고유\\s\*번호/);
     assert.match(script, /\\b1\[5-8\]\\d\{2\}/);
 });
+
+test('copy group and reference text survive history restore and slot regeneration', () => {
+    assert.match(html, /id="pb-ppt-reference-text"/);
+    assert.match(html, /id="pb-ai-reference-text"/);
+    assert.match(script, /copyMeta: activeProfileCopyMeta/);
+    assert.match(script, /referenceText: activeProfileReferenceText/);
+    assert.match(script, /activeProfileCopyMeta = item\.copyMeta \|\| null/);
+    assert.match(script, /copyVariant: activeProfileCopyMeta/);
+});

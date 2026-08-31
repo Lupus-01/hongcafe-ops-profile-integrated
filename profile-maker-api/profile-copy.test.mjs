@@ -16,12 +16,20 @@ test('profile headline prompts allow complete titles that naturally wrap to two 
     assert.match(serverSource, /줄바꿈 문자를 직접 넣지 않는다/);
 });
 
-test('new headline prompts create a new fingerprint without reindexing legacy jobs', () => {
-    assert.match(serverSource, /const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v2-two-line-headline';/);
+test('category copy prompts create a new fingerprint while preserving safe legacy image reuse', () => {
+    assert.match(serverSource, /const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v3-category-combinations';/);
     assert.match(serverSource, /profileTextPromptVersion: String\(payload\.profileTextPromptVersion \|\| 'legacy'\)/);
     const versionAssignments = serverSource.match(/payload\.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;/g) || [];
     assert.equal(versionAssignments.length, 2);
     assert.match(serverSource, /profileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION/);
-    assert.match(serverSource, /profileTextPromptVersion: 'legacy'/);
+    assert.match(serverSource, /PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = \['profile-copy-v2-two-line-headline', 'legacy'\]/);
     assert.match(serverSource, /reuseCompletedProfileImageStages\(record, reusableLegacyJob\)/);
+});
+
+test('all text generation paths use copy variants and strong reference context', () => {
+    const directionCalls = serverSource.match(/buildProfileCopyDirection\(payload\.copyVariant\)/g) || [];
+    assert.equal(directionCalls.length, 3);
+    assert.match(serverSource, /All \$\{referenceImageCount\} uploaded references are primary visual evidence/);
+    assert.match(serverSource, /return referenceImages;/);
+    assert.match(serverSource, /payload\.referenceText = sanitizeProfileReferenceText/);
 });

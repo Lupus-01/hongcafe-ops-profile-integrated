@@ -91,6 +91,15 @@ export class FileProfileJobStore {
         return this.listJobIds().length;
     }
 
+    getRecentCopyAssignments(templateType, limit = 10) {
+        return this.listJobIds()
+            .map((jobId) => this.read(jobId))
+            .filter((job) => job?.input?.payload?.templateType === templateType && job.input.payload.copyVariant)
+            .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))
+            .slice(0, Math.max(Number(limit) || 0, 0))
+            .map((job) => job.input.payload.copyVariant);
+    }
+
     cleanupExpiredJobs() {
         const cutoff = Date.now() - this.retentionMs;
         for (const jobId of this.listJobIds()) {
