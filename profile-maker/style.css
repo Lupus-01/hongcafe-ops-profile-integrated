@@ -625,7 +625,7 @@ body {
 .pb-presentation-title,
 .pb-presentation-card h3,
 .pb-presentation-closing h3 {
-    font-size: min(var(--pb-title-size), var(--pb-unified-title-fit-size, var(--pb-title-size)));
+    font-size: var(--pb-title-size);
 }
 
 .pb-presentation-title {
@@ -633,9 +633,10 @@ body {
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 800;
-    white-space: nowrap;
-    word-break: normal;
-    overflow-wrap: normal;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
 }
 
 .pb-presentation-hero .pb-presentation-intro {
@@ -915,7 +916,7 @@ body {
     .pb-presentation-title,
     .pb-presentation-card h3,
     .pb-presentation-closing h3 {
-        font-size: min(var(--pb-title-size), var(--pb-unified-title-fit-size, var(--pb-title-size)), 39px);
+        font-size: min(var(--pb-title-size), 39px);
     }
 
     .pb-presentation-portrait {

@@ -26,13 +26,24 @@ test('profile site labels use 20px without changing brand poster sizing', () => 
     assert.doesNotMatch(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': profilePointSize,/);
 });
 
-test('site main titles grow within a balanced two-line capacity', () => {
+test('profile canvas and image export keep the configured title pixels without automatic shrinking', () => {
+    assert.match(style, /--pb-title-size:\s*66px;/);
+    assert.match(html, /id="pb-title-size"[^>]*value="66"/);
+    assert.match(style, /\.pb-presentation-title,[\s\S]*?font-size:\s*var\(--pb-title-size\);/);
+    assert.doesNotMatch(style, /--pb-unified-title-fit-size/);
+    assert.match(style, /\.pb-presentation-title\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?word-break:\s*keep-all;[\s\S]*?text-wrap:\s*balance;/);
+    assert.match(script, /const resolvedTitleSize = isSiteCode[\s\S]*?: `\$\{maxTitleSize\}px`;/);
+    assert.match(script, /'font-size': resolvedTitleSize,/);
+    assert.match(script, /'white-space': 'normal',[\s\S]*?'word-break': 'keep-all',[\s\S]*?'text-wrap': 'balance'/);
+    assert.doesNotMatch(script, /fitPresentationHeadlines/);
+});
+
+test('site main titles retain the existing responsive two-line capacity', () => {
     assert.match(script, /function getHeadlineFitCqw\(text, fontFamily, \{ containerFillPercent = 96, lineCapacity = 1 \} = \{\}\)/);
-    assert.match(script, /const twoLineTitleSize = getHeadlineFitCqw\(headlineText, fontFamily, \{/);
+    assert.match(script, /const twoLineTitleSize = isSiteCode[\s\S]*?getHeadlineFitCqw\(headlineText, fontFamily, \{/);
     assert.match(script, /lineCapacity: 2/);
     assert.match(script, /clamp\(24px, 2\.4vw, 42px\)/);
-    assert.match(script, /'white-space': isMainTitle && !isSiteCode \? 'nowrap' : 'normal'/);
-    assert.match(script, /'text-wrap': isSiteCode \? 'balance' : 'wrap'/);
     assert.match(script, /'line-height': isSiteCode \? '1\.25' : \(isMainTitle \? '1\.08' : '1\.18'\)/);
     assert.match(script, /const maxTitleSize = isSiteCode \? 42/);
+    assert.match(style, /font-size:\s*min\(var\(--pb-title-size\), 39px\);/);
 });

@@ -580,7 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bodySizeValue) bodySizeValue.textContent = `${typography.bodySize}px`;
         if (pointSizeValue) pointSizeValue.textContent = `${typography.pointSize}px`;
         if (lineHeightValue) lineHeightValue.textContent = typography.lineHeight.toFixed(1);
-        fitPresentationHeadlines(canvas, { fontFamily: typography.fontFamily });
     }
 
     function getHeadlineFitCqw(text, fontFamily, { containerFillPercent = 96, lineCapacity = 1 } = {}) {
@@ -593,20 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const resolvedFillPercent = Math.min(Math.max(Number(containerFillPercent) || 96, 1), 100);
         const resolvedLineCapacity = Math.max(Number(lineCapacity) || 1, 1);
         return `${Math.max(0.1, (resolvedFillPercent * 100 * resolvedLineCapacity) / measuredWidth).toFixed(3)}cqw`;
-    }
-
-    function fitPresentationHeadlines(root = canvas, { fontFamily } = {}) {
-        if (!root?.querySelectorAll) return;
-        const resolvedFontFamily = fontFamily || getTypographySettings().fontFamily;
-        root.querySelectorAll('.pb-presentation').forEach((presentation) => {
-            const headline = presentation.querySelector('.pb-presentation-title');
-            if (!headline) return;
-            presentation.style.setProperty('container-type', 'inline-size');
-            presentation.style.setProperty(
-                '--pb-unified-title-fit-size',
-                getHeadlineFitCqw(headline.textContent, resolvedFontFamily)
-            );
-        });
     }
 
     function getTypographySettings() {
@@ -1110,7 +1095,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         syncPresentationImageState(element);
-        fitPresentationHeadlines(element);
     }
 
     function hasUploadedImage(container) {
@@ -1458,27 +1442,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const headline = presentation?.querySelector('.pb-presentation-title');
             const maxTitleSize = isSiteCode ? 42 : (Number.parseFloat(titleSize) || defaultTypography.titleSize);
             const headlineText = headline?.textContent || node.textContent;
-            const oneLineTitleSize = getHeadlineFitCqw(headlineText, fontFamily, {
-                containerFillPercent: isSiteCode ? 98 : 96
-            });
-            const twoLineTitleSize = getHeadlineFitCqw(headlineText, fontFamily, {
-                containerFillPercent: 98,
-                lineCapacity: 2
-            });
-            const unifiedTitleSize = isSiteCode
-                ? `max(${oneLineTitleSize}, min(${twoLineTitleSize}, clamp(24px, 2.4vw, 42px)))`
-                : oneLineTitleSize;
+            const oneLineTitleSize = isSiteCode
+                ? getHeadlineFitCqw(headlineText, fontFamily, { containerFillPercent: 98 })
+                : '';
+            const twoLineTitleSize = isSiteCode
+                ? getHeadlineFitCqw(headlineText, fontFamily, {
+                    containerFillPercent: 98,
+                    lineCapacity: 2
+                })
+                : '';
+            const resolvedTitleSize = isSiteCode
+                ? `min(${maxTitleSize}px, max(${oneLineTitleSize}, min(${twoLineTitleSize}, clamp(24px, 2.4vw, 42px))))`
+                : `${maxTitleSize}px`;
             const isMainTitle = node.classList.contains('pb-presentation-title');
             setInlineStyles(node, {
                 margin: '0',
-                'font-size': `min(${maxTitleSize}px, ${unifiedTitleSize})`,
+                'font-size': resolvedTitleSize,
                 'line-height': isSiteCode ? '1.25' : (isMainTitle ? '1.08' : '1.18'),
                 'letter-spacing': '0',
                 'font-weight': '800',
-                'white-space': isMainTitle && !isSiteCode ? 'nowrap' : 'normal',
-                'word-break': isMainTitle && !isSiteCode ? 'normal' : 'keep-all',
-                'overflow-wrap': isMainTitle && !isSiteCode ? 'normal' : 'anywhere',
-                'text-wrap': isSiteCode ? 'balance' : 'wrap'
+                'white-space': 'normal',
+                'word-break': 'keep-all',
+                'overflow-wrap': 'anywhere',
+                'text-wrap': 'balance'
             });
         });
 
@@ -2837,9 +2823,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentMode === 'brand') {
             applyBrandPosterTheme(event.target.value);
         }
-    });
-    canvas?.addEventListener('input', (event) => {
-        if (event.target.closest?.('.pb-presentation-title')) fitPresentationHeadlines(canvas);
     });
     applyTheme('pb-theme-sinjeom');
     applyTypographySettings();
