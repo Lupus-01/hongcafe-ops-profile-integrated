@@ -57,9 +57,10 @@
                     </label>
                     <label class="pb-ai-field">
                         <span>Office / 메모장 참고 파일 업로드</span>
-                        <input id="pb-ppt-file" type="file" accept=".docx,.pptx,.xlsx,.xls,.txt,.csv,.tsv,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/plain,text/csv,text/tab-separated-values,text/markdown">
+                        <input id="pb-ppt-file" type="file" accept=".docx,.pptx,.xlsx,.xls,.txt,.csv,.tsv,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/plain,text/csv,text/tab-separated-values,text/markdown" multiple>
                     </label>
-                    <p class="pb-ai-inline-help">Microsoft Word, PowerPoint, Excel과 메모장 파일의 내용을 확인할 수 있습니다. 지원 형식: DOCX, PPTX, XLSX, XLS, TXT, CSV, TSV, MD.</p>
+                    <p class="pb-ai-inline-help">Microsoft Word, PowerPoint, Excel과 메모장 파일을 최대 5개, 합계 25MB까지 함께 참고할 수 있습니다. 지원 형식: DOCX, PPTX, XLSX, XLS, TXT, CSV, TSV, MD.</p>
+                    <p id="pb-ppt-file-summary" class="pb-ai-inline-help">선택한 참고 파일이 없습니다.</p>
                     <label class="pb-ai-field">
                         <span>추가 참고 텍스트</span>
                         <textarea id="pb-ppt-reference-text" rows="3" maxlength="3000" placeholder="문서에서 특히 살릴 상담 특징, 표현, 분위기를 입력하세요."></textarea>

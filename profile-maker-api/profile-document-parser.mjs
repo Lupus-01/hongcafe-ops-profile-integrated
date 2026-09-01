@@ -237,3 +237,119 @@ export function parseDocumentBuffer(buffer, fileName) {
     if (fileType === 'csv' || fileType === 'tsv') return parseDelimitedTextBuffer(buffer, fileType);
     return parseTextBuffer(buffer, fileType);
 }
+
+function getSafeDocumentFileName(value, index) {
+    return path.basename(String(value || '').trim()) || `참고파일-${index + 1}`;
+}
+
+export function parseDocumentFiles(files) {
+    if (!Array.isArray(files) || files.length === 0) {
+        throw createDocumentError('문서 파일이 업로드되지 않았습니다.');
+    }
+
+    const documents = files.map((file, index) => {
+        const fileName = getSafeDocumentFileName(file?.originalname || file?.fileName, index);
+        let parsed;
+        try {
+            parsed = parseDocumentBuffer(file?.buffer, fileName);
+        } catch (error) {
+            throw createDocumentError(`${fileName}: ${error?.message || '문서 내용을 확인하지 못했습니다.'}`);
+        }
+        if (!parsed.itemCount || !String(parsed.combinedText || '').trim()) {
+            throw createDocumentError(`${fileName}: 읽을 수 있는 텍스트를 찾지 못했습니다.`);
+        }
+        return {
+            ...parsed,
+            fileName,
+            slidesCount: parsed.slides.length,
+            sheetsCount: parsed.sheets.length
+        };
+    });
+
+    const isSingleDocument = documents.length === 1;
+    const combinedText = isSingleDocument
+        ? documents[0].combinedText
+        : documents.map((document, index) => (
+            `[참고 파일 ${index + 1}: ${document.fileName}]\n${document.combinedText}`
+        )).join('\n\n');
+    const slides = documents.flatMap((document) => document.slides.map((slide) => ({
+        ...slide,
+        fileName: document.fileName
+    })));
+    const sheets = documents.flatMap((document) => document.sheets.map((sheet) => ({
+        ...sheet,
+        fileName: document.fileName
+    })));
+
+    return {
+        fileType: isSingleDocument ? documents[0].fileType : 'multiple',
+        documentType: isSingleDocument ? documents[0].documentType : 'multiple',
+        sourceLabel: isSingleDocument ? documents[0].sourceLabel : `참고 문서 ${documents.length}개`,
+        fileCount: documents.length,
+        itemCount: documents.reduce((total, document) => total + document.itemCount, 0),
+        slides,
+        sheets,
+        documents,
+        combinedText
+    };
+}
+
+function getUniqueDocumentBody(document, seenBlocks) {
+    const blocks = String(document?.combinedText || '')
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+    return blocks.filter((block) => {
+        const normalized = block.replace(/\s+/g, ' ').toLocaleLowerCase('ko-KR');
+        if (seenBlocks.has(normalized)) return false;
+        seenBlocks.add(normalized);
+        return true;
+    }).join('\n\n');
+}
+
+export function buildLimitedDocumentText(documentInfo, maxChars) {
+    const limit = Math.max(Number(maxChars) || 0, 1);
+    const documents = Array.isArray(documentInfo?.documents) && documentInfo.documents.length
+        ? documentInfo.documents
+        : null;
+    if (!documents || documents.length === 1) {
+        const text = String(documentInfo?.combinedText ?? documentInfo ?? '');
+        if (text.length <= limit) return text;
+        return `${text.slice(0, limit)}\n\n[문서가 길어 비용 보호를 위해 앞부분 ${limit}자까지만 반영되었습니다.]`;
+    }
+
+    const seenBlocks = new Set();
+    const sections = documents.map((document, index) => ({
+        header: `[참고 파일 ${index + 1}: ${document.fileName}]`,
+        body: getUniqueDocumentBody(document, seenBlocks)
+    }));
+    const fullText = sections.map(({ header, body }) => `${header}\n${body}`).join('\n\n');
+    if (fullText.length <= limit) return fullText;
+
+    const truncationNote = '\n\n[전체 참고 자료가 길어 각 파일의 내용을 균등하게 나누어 반영했습니다.]';
+    const fixedLength = sections.reduce((total, section) => total + section.header.length + 1, 0)
+        + Math.max(sections.length - 1, 0) * 2
+        + truncationNote.length;
+    let remaining = Math.max(limit - fixedLength, 0);
+    const allocations = Array(sections.length).fill(0);
+    let active = sections.map((section, index) => ({ index, length: section.body.length }));
+
+    while (remaining > 0 && active.length) {
+        const share = Math.max(Math.floor(remaining / active.length), 1);
+        const nextActive = [];
+        for (const item of active) {
+            if (remaining <= 0) break;
+            const available = item.length - allocations[item.index];
+            const amount = Math.min(share, available, remaining);
+            allocations[item.index] += amount;
+            remaining -= amount;
+            if (allocations[item.index] < item.length) nextActive.push(item);
+        }
+        active = nextActive;
+    }
+
+    if (fixedLength > limit) return `${fullText.slice(0, limit)}${truncationNote}`;
+    return sections.map((section, index) => (
+        `${section.header}\n${section.body.slice(0, allocations[index]).trimEnd()}`
+    )).join('\n\n') + truncationNote;
+}

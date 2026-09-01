@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
     const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
     const pptFile = document.getElementById('pb-ppt-file');
+    const pptFileSummary = document.getElementById('pb-ppt-file-summary');
     const pptReferenceText = document.getElementById('pb-ppt-reference-text');
     const pptImageStyle = document.getElementById('pb-ppt-image-style');
     const pptReferenceImages = document.getElementById('pb-ppt-reference-images');
@@ -105,6 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_PROFILE_HISTORY = 8;
     const MAX_REFERENCE_IMAGES = 3;
     const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
+    const MAX_DOCUMENT_FILES = 5;
+    const MAX_DOCUMENT_TOTAL_BYTES = 25 * 1024 * 1024;
     const referenceFiles = { ppt: [], ai: [] };
     const headlineMeasureCanvas = document.createElement('canvas');
     const defaultTypography = {
@@ -1887,6 +1890,29 @@ document.addEventListener('DOMContentLoaded', () => {
         referenceFiles[scope].forEach((file) => formData.append('referenceImages', file, file.name));
     }
 
+    function selectDocumentFiles(selectedFiles) {
+        const files = Array.from(selectedFiles || []);
+        const totalBytes = files.reduce((total, file) => total + Number(file.size || 0), 0);
+        let validationError = '';
+        if (files.length > MAX_DOCUMENT_FILES) {
+            validationError = `참고 문서는 최대 ${MAX_DOCUMENT_FILES}개까지 선택할 수 있습니다.`;
+        } else if (totalBytes > MAX_DOCUMENT_TOTAL_BYTES) {
+            validationError = '참고 문서 전체 크기는 25MB 이하여야 합니다.';
+        }
+        if (validationError) {
+            if (pptFile) pptFile.value = '';
+            if (pptFileSummary) pptFileSummary.textContent = '선택한 참고 파일이 없습니다.';
+            setStatus(pptStatus, validationError, 'error');
+            return [];
+        }
+        if (pptFileSummary) {
+            pptFileSummary.textContent = files.length
+                ? `선택한 참고 파일 ${files.length}개: ${files.map((file) => file.name).join(', ')}`
+                : '선택한 참고 파일이 없습니다.';
+        }
+        return files;
+    }
+
     const PROFILE_JOB_POLL_INTERVAL_MS = 2000;
     const PROFILE_JOB_STATUS_MAX_CONSECUTIVE_ERRORS = 5;
     const PROFILE_JOB_STORAGE_KEY = 'pb-pending-profile-job';
@@ -2117,7 +2143,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function requestPptGeneration() {
-        const file = pptFile.files[0];
+        const files = Array.from(pptFile.files || []);
+        const file = files[0];
         const templateType = pptTemplate.value;
         const templateConfig = templates[templateType];
         const shouldGenerateImages = pptGenerateImage.checked;
@@ -2128,9 +2155,17 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus(pptStatus, '먼저 Office 또는 메모장 참고 파일을 선택해주세요.', 'error');
             return;
         }
+        if (files.length > MAX_DOCUMENT_FILES) {
+            setStatus(pptStatus, `참고 문서는 최대 ${MAX_DOCUMENT_FILES}개까지 선택할 수 있습니다.`, 'error');
+            return;
+        }
+        if (files.reduce((total, selectedFile) => total + Number(selectedFile.size || 0), 0) > MAX_DOCUMENT_TOTAL_BYTES) {
+            setStatus(pptStatus, '참고 문서 전체 크기는 25MB 이하여야 합니다.', 'error');
+            return;
+        }
 
         const formData = new FormData();
-        formData.append('pptFile', file);
+        files.forEach((selectedFile) => formData.append('pptFile', selectedFile, selectedFile.name));
         formData.append('templateType', templateType);
         if (templateType === 'tarot-ppt') formData.append('tarotCardType', pptTarotCardType?.value || 'auto');
         formData.append('imageStyle', pptImageStyle.value.trim());
@@ -2182,12 +2217,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 referenceText: activeProfileReferenceText
             });
 
+            const fileMessage = Number(data.meta?.fileCount || 1) > 1 ? `참고 파일 ${data.meta.fileCount}개 분석 완료.` : '';
             const slideMessage = data.meta?.slidesCount ? `슬라이드 ${data.meta.slidesCount}장 분석 완료.` : '';
             const sheetMessage = data.meta?.sheetsCount ? `시트 ${data.meta.sheetsCount}개 분석 완료.` : '';
             const documentMessage = !slideMessage && !sheetMessage && data.meta?.itemCount
                 ? `${data.meta.sourceLabel || '문서'} 내용 확인 완료.`
                 : '';
-            const sourceMessage = [slideMessage, sheetMessage, documentMessage].filter(Boolean).join(' ');
+            const sourceMessage = [fileMessage, slideMessage, sheetMessage, documentMessage].filter(Boolean).join(' ');
             setStatus(
                 pptStatus,
                 buildGenerationStatus(
@@ -2774,6 +2810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aiGenerateButton?.addEventListener('click', requestAiProfile);
     pptGenerateButton?.addEventListener('click', requestPptGeneration);
+    pptFile?.addEventListener('change', (event) => selectDocumentFiles(event.target.files));
     aiReferenceImages?.addEventListener('change', (event) => selectReferenceFiles('ai', event.target.files));
     pptReferenceImages?.addEventListener('change', (event) => selectReferenceFiles('ppt', event.target.files));
     slotRegenerateButtons.forEach((button) => {

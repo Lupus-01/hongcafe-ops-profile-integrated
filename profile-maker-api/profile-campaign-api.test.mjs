@@ -63,6 +63,39 @@ async function submitTextDocument(baseUrl, requestKey) {
     return { response, data };
 }
 
+async function submitMultipleTextDocuments(baseUrl, requestKey, reverse = false) {
+    const form = new FormData();
+    const documents = [
+        {
+            content: '첫 번째 자료\n따뜻한 공감과 관계 상담을 강조합니다.',
+            type: 'text/plain',
+            name: 'introduction.txt'
+        },
+        {
+            content: '두 번째 자료\n현실적인 선택과 차분한 설명을 강조합니다.',
+            type: 'text/markdown',
+            name: 'direction.md'
+        }
+    ];
+    for (const document of (reverse ? documents.reverse() : documents)) {
+        form.append('pptFile', new Blob([
+            Buffer.from(document.content, 'utf8')
+        ], { type: document.type }), document.name);
+    }
+    form.append('templateType', 'tarot-ppt');
+    form.append('tarotCardType', 'auto');
+    form.append('imageStyle', 'natural');
+    form.append('generateImage', 'false');
+    form.append('imageQuality', 'standard');
+    const response = await fetch(`${baseUrl}/api/generate-from-ppt`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': requestKey },
+        body: form
+    });
+    const data = await response.json();
+    return { response, data };
+}
+
 async function waitForJob(baseUrl, jobId) {
     for (let attempt = 0; attempt < 100; attempt += 1) {
         const response = await fetch(`${baseUrl}/api/profile-jobs/${jobId}`);
@@ -166,8 +199,29 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(documentJob.state, 'completed');
     assert.equal(documentJob.result.meta.fileType, 'txt');
     assert.equal(documentJob.result.meta.sourceLabel, '메모장 텍스트');
+    assert.equal(documentJob.result.meta.fileCount, 1);
+
+    const multipleDocumentSubmission = await submitMultipleTextDocuments(baseUrl, 'multiple-document-key');
+    assert.ok([200, 202].includes(multipleDocumentSubmission.response.status));
+    const repeatedMultipleDocumentSubmission = await submitMultipleTextDocuments(baseUrl, 'multiple-document-repeat-key');
+    assert.ok([200, 202].includes(repeatedMultipleDocumentSubmission.response.status));
+    assert.equal(repeatedMultipleDocumentSubmission.data.job.id, multipleDocumentSubmission.data.job.id);
+    const multipleDocumentJob = await waitForJob(baseUrl, multipleDocumentSubmission.data.job.id);
+    assert.equal(multipleDocumentJob.state, 'completed');
+    assert.equal(multipleDocumentJob.result.meta.fileType, 'multiple');
+    assert.equal(multipleDocumentJob.result.meta.sourceLabel, '참고 문서 2개');
+    assert.equal(multipleDocumentJob.result.meta.fileCount, 2);
+    assert.deepEqual(
+        multipleDocumentJob.result.meta.documents.map((document) => document.fileName),
+        ['introduction.txt', 'direction.md']
+    );
+    const reversedMultipleDocumentSubmission = await submitMultipleTextDocuments(baseUrl, 'multiple-document-reversed-key', true);
+    assert.ok([200, 202].includes(reversedMultipleDocumentSubmission.response.status));
+    assert.notEqual(reversedMultipleDocumentSubmission.data.job.id, multipleDocumentSubmission.data.job.id);
 
     const finalHealth = await (await fetch(`${baseUrl}/api/health`)).json();
-    assert.equal(finalHealth.profileCampaignJobs, 8);
+    assert.equal(finalHealth.profileCampaignJobs, 10);
+    assert.equal(finalHealth.maxDocumentFileCount, 5);
+    assert.equal(finalHealth.maxDocumentTotalBytes, 26214400);
     assert.equal(finalHealth.usedGeminiRequestsToday, 0);
 });

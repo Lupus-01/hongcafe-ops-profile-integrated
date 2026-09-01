@@ -3,7 +3,9 @@ import test from 'node:test';
 import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import {
+    buildLimitedDocumentText,
     parseDocumentBuffer,
+    parseDocumentFiles,
     SUPPORTED_DOCUMENT_EXTENSIONS
 } from './profile-document-parser.mjs';
 
@@ -123,5 +125,54 @@ test('unsupported legacy Word and disguised DOCX files are rejected', () => {
     assert.throws(
         () => parseDocumentBuffer(Buffer.from('not-an-excel-file'), 'profile.xls'),
         /실제 Excel 파일 형식/
+    );
+});
+
+test('multiple mixed documents retain file order, source metadata, and all extracted content', () => {
+    const parsed = parseDocumentFiles([
+        { originalname: '소개.txt', buffer: Buffer.from('따뜻한 공감 상담', 'utf8') },
+        { originalname: '전문분야.csv', buffer: Buffer.from('분야,강점\n관계,현실적인 방향', 'utf8') },
+        { originalname: '메모.md', buffer: Buffer.from('차분한 설명과 신뢰감', 'utf8') }
+    ]);
+    assert.equal(parsed.fileType, 'multiple');
+    assert.equal(parsed.sourceLabel, '참고 문서 3개');
+    assert.equal(parsed.fileCount, 3);
+    assert.deepEqual(parsed.documents.map((document) => document.fileName), ['소개.txt', '전문분야.csv', '메모.md']);
+    assert.match(parsed.combinedText, /참고 파일 1: 소개\.txt[\s\S]*따뜻한 공감 상담/);
+    assert.match(parsed.combinedText, /참고 파일 2: 전문분야\.csv[\s\S]*관계 \| 현실적인 방향/);
+    assert.match(parsed.combinedText, /참고 파일 3: 메모\.md[\s\S]*차분한 설명과 신뢰감/);
+});
+
+test('single-file aggregation preserves the legacy document metadata and text', () => {
+    const buffer = Buffer.from('한 파일 참고 내용', 'utf8');
+    const legacy = parseDocumentBuffer(buffer, 'single.txt');
+    const aggregated = parseDocumentFiles([{ originalname: 'single.txt', buffer }]);
+    assert.equal(aggregated.fileType, legacy.fileType);
+    assert.equal(aggregated.sourceLabel, legacy.sourceLabel);
+    assert.equal(aggregated.combinedText, legacy.combinedText);
+    assert.equal(aggregated.fileCount, 1);
+});
+
+test('limited multi-document text gives every file a fair share of the prompt budget', () => {
+    const parsed = parseDocumentFiles([
+        { originalname: 'first.txt', buffer: Buffer.from(`첫번째고유내용 ${'가'.repeat(2000)}`, 'utf8') },
+        { originalname: 'second.txt', buffer: Buffer.from(`두번째고유내용 ${'나'.repeat(2000)}`, 'utf8') },
+        { originalname: 'third.txt', buffer: Buffer.from(`세번째고유내용 ${'다'.repeat(2000)}`, 'utf8') }
+    ]);
+    const limited = buildLimitedDocumentText(parsed, 900);
+    assert.ok(limited.length <= 900);
+    assert.match(limited, /참고 파일 1: first\.txt[\s\S]*첫번째고유내용/);
+    assert.match(limited, /참고 파일 2: second\.txt[\s\S]*두번째고유내용/);
+    assert.match(limited, /참고 파일 3: third\.txt[\s\S]*세번째고유내용/);
+    assert.match(limited, /각 파일의 내용을 균등하게 나누어 반영/);
+});
+
+test('multiple document parse errors identify the failing file', () => {
+    assert.throws(
+        () => parseDocumentFiles([
+            { originalname: 'valid.txt', buffer: Buffer.from('정상 자료', 'utf8') },
+            { originalname: 'broken.docx', buffer: Buffer.from('not-a-zip') }
+        ]),
+        /broken\.docx: Word 파일 구조/
     );
 });

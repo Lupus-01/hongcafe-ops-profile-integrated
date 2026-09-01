@@ -8,7 +8,11 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import { GoogleGenAI } from '@google/genai';
-import { parseDocumentBuffer, SUPPORTED_DOCUMENT_EXTENSIONS } from './profile-document-parser.mjs';
+import {
+    buildLimitedDocumentText,
+    parseDocumentFiles,
+    SUPPORTED_DOCUMENT_EXTENSIONS
+} from './profile-document-parser.mjs';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
 import {
     canReuseLegacyProfileImages,
@@ -53,6 +57,8 @@ const DAILY_IMAGE_ATTEMPT_LIMIT = getPositiveIntegerEnv('DAILY_IMAGE_ATTEMPT_LIM
 const DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT = getPositiveIntegerEnv('DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT', 6);
 const PROFILE_USER_DAILY_LIMIT = getPositiveIntegerEnv('PROFILE_USER_DAILY_LIMIT', 10);
 const MAX_DOCUMENT_TEXT_CHARS = Number(process.env.MAX_DOCUMENT_TEXT_CHARS || 5000);
+const MAX_DOCUMENT_FILE_COUNT = getPositiveIntegerEnv('MAX_DOCUMENT_FILE_COUNT', 5);
+const MAX_DOCUMENT_TOTAL_BYTES = getPositiveIntegerEnv('MAX_DOCUMENT_TOTAL_BYTES', 25 * 1024 * 1024);
 const MAX_IMAGE_CONTEXT_CHARS = Number(process.env.MAX_IMAGE_CONTEXT_CHARS || 500);
 const MAX_REFERENCE_IMAGE_COUNT = getPositiveIntegerEnv('MAX_REFERENCE_IMAGE_COUNT', 3);
 const MAX_REFERENCE_IMAGE_BYTES = getPositiveIntegerEnv('MAX_REFERENCE_IMAGE_BYTES', 5 * 1024 * 1024);
@@ -98,7 +104,7 @@ const parseProfileUploads = createUploadMiddleware([
     { name: 'referenceImages', maxCount: MAX_REFERENCE_IMAGE_COUNT }
 ]);
 const parseDocumentUploads = createUploadMiddleware([
-    { name: 'pptFile', maxCount: 1 },
+    { name: 'pptFile', maxCount: MAX_DOCUMENT_FILE_COUNT },
     { name: 'referenceImages', maxCount: MAX_REFERENCE_IMAGE_COUNT }
 ]);
 
@@ -1256,10 +1262,14 @@ function ensureImageGenerationAllowed() {
     return { used: count, limit: DAILY_IMAGE_LIMIT };
 }
 
-function getLimitedDocumentText(value) {
-    const text = String(value || '');
-    if (text.length <= MAX_DOCUMENT_TEXT_CHARS) return text;
-    return `${text.slice(0, MAX_DOCUMENT_TEXT_CHARS)}\n\n[문서가 길어 비용 보호를 위해 앞부분 ${MAX_DOCUMENT_TEXT_CHARS}자까지만 반영되었습니다.]`;
+function getLimitedDocumentText(value, maxChars = MAX_DOCUMENT_TEXT_CHARS) {
+    return buildLimitedDocumentText(value, maxChars);
+}
+
+function getDocumentImageContextText(documentInfo) {
+    return Number(documentInfo?.fileCount || 1) > 1
+        ? getLimitedDocumentText(documentInfo, 1500)
+        : String(documentInfo?.combinedText || '').slice(0, 1500);
 }
 
 function getTemplateGuide(templateType) {
@@ -1467,7 +1477,7 @@ async function generateProfileTextFromPpt(payload, documentInfo) {
     const guide = getTemplateGuide(payload.templateType);
     const copyDirection = buildProfileCopyDirection(payload.copyVariant);
     const itemCount = Number(documentInfo?.itemCount || 0);
-    const limitedDocumentText = getLimitedDocumentText(documentInfo.combinedText);
+    const limitedDocumentText = getLimitedDocumentText(documentInfo);
     const prompt = `
 너는 한국어 상담사 소개 페이지를 구성하는 카피라이터다.
 사용자가 업로드한 문서의 내용에서 핵심 메시지를 추출해서, 상담사 소개 랜딩페이지용 문구로 다시 구성한다.
@@ -1475,6 +1485,7 @@ async function generateProfileTextFromPpt(payload, documentInfo) {
 응답은 JSON만 반환하고 코드블록은 절대 사용하지 않는다.
 
 분야: ${guide.labelKo}
+참고 파일 수: ${Number(documentInfo?.fileCount || 1)}
 문서 구분 수: ${itemCount}
 
 분야별 전문 구성 방향:
@@ -1493,6 +1504,8 @@ ${payload.referenceText || '없음'}
 - closingTitle/closingBody는 연락 유도 없이 상담사의 분위기와 신뢰감을 정리하는 마무리로 작성한다.
 - 업로드 문서 원문이 짧더라도 결과가 빈약해 보이지 않도록 상담사의 전문성, 해석 관점, 상담 후 정리되는 지점을 자연스럽게 보강한다.
 - 원문을 과장하지 말고, 업로드 자료에서 읽히는 톤과 분야 정보를 바탕으로 소개 페이지에 어울리는 깊이를 더한다.
+- 여러 참고 파일의 공통된 전문성, 상담 방향, 분위기를 우선 종합한다.
+- 참고 파일끼리 사실이 충돌하면 어느 한쪽을 임의로 확정하지 말고 공통적으로 확인되는 내용만 사용한다.
 
 업로드 문서 원문:
 ${limitedDocumentText}
@@ -2042,6 +2055,12 @@ function getDocumentProfileFingerprintInput(payload, parsedDocument, referenceIm
         generateImageRequested,
         imageQuality: payload.imageQuality,
         documentText: parsedDocument.combinedText,
+        ...(Number(parsedDocument.fileCount || 1) > 1 && Array.isArray(parsedDocument.documents) ? {
+            documentSources: parsedDocument.documents.map((document) => ({
+                fileName: document.fileName,
+                fileType: document.fileType
+            }))
+        } : {}),
         referenceDigests: referenceImages.map((image) => image.digest)
     };
 }
@@ -2150,7 +2169,7 @@ async function executePersistedProfileJob(jobId) {
     const imageFailures = [];
     const directPortraitContext = `${payload.name || ''} / ${payload.specialty || ''} / ${payload.referenceText || ''}`;
     const directMoodContext = `${payload.specialty || ''} / ${payload.tone || ''} / ${payload.referenceText || ''}`;
-    const documentContext = `${String(parsedDocument?.combinedText || '').slice(0, 1500)} / ${payload.referenceText || ''}`;
+    const documentContext = `${getDocumentImageContextText(parsedDocument)} / ${payload.referenceText || ''}`;
     const portraitContext = initialJob.kind === 'document' ? documentContext : directPortraitContext;
     const moodContext = initialJob.kind === 'document' ? documentContext : directMoodContext;
 
@@ -2301,6 +2320,8 @@ app.get('/api/health', (req, res) => {
         profileUserDailyLimit: PROFILE_USER_DAILY_LIMIT,
         imageGenerationEnabled: ENABLE_AI_IMAGES,
         maxDocumentTextChars: MAX_DOCUMENT_TEXT_CHARS,
+        maxDocumentFileCount: MAX_DOCUMENT_FILE_COUNT,
+        maxDocumentTotalBytes: MAX_DOCUMENT_TOTAL_BYTES,
         maxImageContextChars: MAX_IMAGE_CONTEXT_CHARS,
         maxReferenceImageCount: MAX_REFERENCE_IMAGE_COUNT,
         maxReferenceImageBytes: MAX_REFERENCE_IMAGE_BYTES,
@@ -2495,18 +2516,51 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
     }
 });
 
+function buildDocumentSourceMeta(parsedDocument) {
+    const documents = Array.isArray(parsedDocument?.documents) ? parsedDocument.documents : [];
+    const meta = {
+        fileType: parsedDocument.fileType,
+        sourceLabel: parsedDocument.sourceLabel,
+        fileCount: Number(parsedDocument.fileCount || documents.length || 1),
+        itemCount: Number(parsedDocument.itemCount || 0),
+        slidesCount: parsedDocument.slides.length,
+        sheetsCount: parsedDocument.sheets.length
+    };
+    if (meta.fileCount > 1) {
+        meta.documents = documents.map((document) => ({
+            fileName: document.fileName,
+            fileType: document.fileType,
+            sourceLabel: document.sourceLabel,
+            itemCount: document.itemCount,
+            slidesCount: document.slidesCount,
+            sheetsCount: document.sheetsCount
+        }));
+    }
+    return meta;
+}
+
 app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploads, async (req, res) => {
     const payload = req.body || {};
-    const file = getUploadedFiles(req, 'pptFile')[0];
+    const files = getUploadedFiles(req, 'pptFile');
 
-    if (!file) {
+    if (!files.length) {
         return res.status(400).json({ error: '문서 파일이 업로드되지 않았습니다.' });
     }
-
-    const fileExtension = path.extname(file.originalname || '').toLowerCase();
-    if (!SUPPORTED_DOCUMENT_EXTENSIONS.includes(fileExtension)) {
+    if (files.length > MAX_DOCUMENT_FILE_COUNT) {
+        return res.status(400).json({ error: `참고 문서는 최대 ${MAX_DOCUMENT_FILE_COUNT}개까지 업로드할 수 있습니다.` });
+    }
+    const unsupportedFile = files.find((file) => (
+        !SUPPORTED_DOCUMENT_EXTENSIONS.includes(path.extname(file.originalname || '').toLowerCase())
+    ));
+    if (unsupportedFile) {
         return res.status(400).json({
-            error: `지원하지 않는 문서 형식입니다. 지원 형식: ${SUPPORTED_DOCUMENT_EXTENSIONS.join(', ')}`
+            error: `${path.basename(unsupportedFile.originalname || '문서')}: 지원하지 않는 문서 형식입니다. 지원 형식: ${SUPPORTED_DOCUMENT_EXTENSIONS.join(', ')}`
+        });
+    }
+    const totalDocumentBytes = files.reduce((total, file) => total + Number(file.size || 0), 0);
+    if (!totalDocumentBytes || totalDocumentBytes > MAX_DOCUMENT_TOTAL_BYTES) {
+        return res.status(400).json({
+            error: `참고 문서 전체 크기는 ${Math.floor(MAX_DOCUMENT_TOTAL_BYTES / 1024 / 1024)}MB 이하여야 합니다.`
         });
     }
 
@@ -2532,19 +2586,13 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
     }
 
     try {
-        const parsedDocument = parseDocumentBuffer(file.buffer, file.originalname);
-        const itemCount = parsedDocument.itemCount;
-
-        if (!itemCount) {
-            return res.status(400).json({
-                error: `${parsedDocument.sourceLabel}에서 읽을 수 있는 텍스트를 찾지 못했습니다.`
-            });
-        }
+        const parsedDocument = parseDocumentFiles(files);
+        const documentMeta = buildDocumentSourceMeta(parsedDocument);
 
         assignVisualIdentity(payload, [
             payload.templateType,
             payload.tarotCardType,
-            file.originalname,
+            ...parsedDocument.documents.map((document) => document.fileName),
             parsedDocument.combinedText,
             getReferenceFingerprint(referenceImages)
         ]);
@@ -2565,13 +2613,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
                     referenceImages,
                     parsedDocument,
                     generateImageRequested,
-                    sourceMeta: {
-                        fileType: parsedDocument.fileType,
-                        sourceLabel: parsedDocument.sourceLabel,
-                        itemCount,
-                        slidesCount: parsedDocument.slides.length,
-                        sheetsCount: parsedDocument.sheets.length
-                    }
+                    sourceMeta: documentMeta
                 }
             });
             return;
@@ -2581,7 +2623,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         let profileImage = '';
         let moodImage = '';
         const imageFailures = [];
-        const imageContext = `${parsedDocument.combinedText.slice(0, 1500)} / ${payload.referenceText || ''}`;
+        const imageContext = `${getDocumentImageContextText(parsedDocument)} / ${payload.referenceText || ''}`;
 
         if (String(payload.generateImage) === 'true') {
             try {
@@ -2609,13 +2651,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             imageGuide: buildProfileImageGuide(payload, imageContext, imageContext),
             imageMeta: buildImageMeta(String(payload.generateImage) === 'true', profileImage, moodImage, imageFailures),
             usage,
-            meta: {
-                fileType: parsedDocument.fileType,
-                sourceLabel: parsedDocument.sourceLabel,
-                itemCount,
-                slidesCount: parsedDocument.slides.length,
-                sheetsCount: parsedDocument.sheets.length
-            }
+            meta: documentMeta
         });
     } catch (error) {
         console.error(error);
