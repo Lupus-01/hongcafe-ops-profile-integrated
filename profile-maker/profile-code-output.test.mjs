@@ -79,3 +79,14 @@ test('site code can be downloaded as the same UTF-8 text generated for the modal
     assert.match(script, /-site-code\.txt/);
     assert.match(script, /URL\.revokeObjectURL\(objectUrl\)/);
 });
+
+test('both generated profile images can be saved together below the site code download', () => {
+    assert.match(
+        html,
+        /id="pb-code-download-btn"[^>]*>사이트 코드 파일 저장 \(\.txt\)<\/button>\s*<button id="pb-download-all-images-btn"[^>]*disabled>이미지 모두 저장<\/button>/
+    );
+    assert.match(script, /downloadAllImagesButton\.disabled = !\(hasPortrait && hasMood\)/);
+    assert.match(script, /function downloadAllProfileAssets\(\)[\s\S]*?downloadProfileAsset\('portrait'\);[\s\S]*?downloadProfileAsset\('mood'\);/);
+    assert.match(script, /downloadAllImagesButton\?\.addEventListener\('click', downloadAllProfileAssets\)/);
+    assert.match(script, /if \(downloadAllImagesButton\) downloadAllImagesButton\.hidden = true;/);
+});

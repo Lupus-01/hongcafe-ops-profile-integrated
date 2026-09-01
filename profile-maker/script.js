@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyButton = document.getElementById('pb-copy-btn');
     const codeGenerateButton = document.getElementById('pb-code-generate-btn');
     const codeDownloadButton = document.getElementById('pb-code-download-btn');
+    const downloadAllImagesButton = document.getElementById('pb-download-all-images-btn');
     const exportButton = document.getElementById('pb-export-btn');
     const downloadPortraitButton = document.getElementById('pb-download-portrait-btn');
     const downloadMoodButton = document.getElementById('pb-download-mood-btn');
@@ -407,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (downloadPortraitButton) downloadPortraitButton.disabled = !hasPortrait;
         if (downloadMoodButton) downloadMoodButton.disabled = !hasMood;
+        if (downloadAllImagesButton) downloadAllImagesButton.disabled = !(hasPortrait && hasMood);
 
         if (portraitAssetState) {
             portraitAssetState.textContent = hasPortrait ? '다운로드 가능' : '이미지 없음';
@@ -486,6 +488,19 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         link.remove();
         setStatus(imageAssetsStatus, `${kind === 'portrait' ? '대표' : '무드'} 이미지 다운로드를 시작했습니다. 이 작업은 AI 사용량을 증가시키지 않습니다.`, 'success');
+    }
+
+    function downloadAllProfileAssets() {
+        const portraitImage = getProfileAssetImage('portrait');
+        const moodImage = getProfileAssetImage('mood');
+        if (!hasImageSource(portraitImage) || !hasImageSource(moodImage)) {
+            setStatus(imageAssetsStatus, '대표 이미지와 무드 이미지가 모두 준비된 뒤 저장해주세요.', 'error');
+            return;
+        }
+
+        downloadProfileAsset('portrait');
+        downloadProfileAsset('mood');
+        setStatus(imageAssetsStatus, '대표·무드 이미지 2개 저장을 시작했습니다. 이 작업은 AI 사용량을 증가시키지 않습니다.', 'success');
     }
 
     function normalizeSiteImageUrl(value, label) {
@@ -848,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (exportButton) exportButton.textContent = '이미지 파일 저장';
             if (codeGenerateButton) codeGenerateButton.hidden = true;
             if (codeDownloadButton) codeDownloadButton.hidden = true;
+            if (downloadAllImagesButton) downloadAllImagesButton.hidden = true;
             if (!canvas.children.length || canvas.querySelector('.pb-empty-state')) {
                 canvas.innerHTML = createBrandEmptyState();
             }
@@ -856,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (exportButton) exportButton.textContent = '프로필 이미지 저장';
             if (codeGenerateButton) codeGenerateButton.hidden = false;
             if (codeDownloadButton) codeDownloadButton.hidden = false;
+            if (downloadAllImagesButton) downloadAllImagesButton.hidden = false;
             if (!canvas.children.length || canvas.querySelector('.pb-brand-empty-state')) {
                 canvas.innerHTML = `
                     <div class="pb-empty-state">
@@ -2460,6 +2477,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     downloadPortraitButton?.addEventListener('click', () => downloadProfileAsset('portrait'));
     downloadMoodButton?.addEventListener('click', () => downloadProfileAsset('mood'));
+    downloadAllImagesButton?.addEventListener('click', downloadAllProfileAssets);
 
     promptCopyButtons.forEach((button) => {
         button.addEventListener('click', async () => {
