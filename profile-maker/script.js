@@ -1,14 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const appContainer = document.getElementById('pb-app');
-    const sidebar = document.querySelector('.pb-sidebar');
-    const sidebarHeader = document.querySelector('.pb-sidebar-header');
     const canvas = document.getElementById('pb-canvas');
     const tools = document.querySelectorAll('.pb-tool');
     const themeButtons = document.querySelectorAll('.pb-theme-btn');
     const imageUploader = document.getElementById('pb-image-uploader');
-    const themeSection = document.querySelector('.pb-section');
-    const paletteContainer = document.querySelector('.pb-palette-container');
-
     const pptTemplate = document.getElementById('pb-ppt-template');
     const pptTarotCardTypeField = document.getElementById('pb-ppt-tarot-card-type-field');
     const pptTarotCardType = document.getElementById('pb-ppt-tarot-card-type');
@@ -76,30 +71,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const moodPromptGuide = document.getElementById('pb-mood-prompt-guide');
     const imageAssetsStatus = document.getElementById('pb-image-assets-status');
     const promptCopyButtons = Array.from(document.querySelectorAll('.pb-copy-prompt-btn'));
-    let brandNameInput;
-    let brandIndustryInput;
-    let brandProductsInput;
-    let brandFeaturesInput;
-    let brandTargetInput;
-    let brandGoalInput;
-    let brandToneInput;
-    let brandLogoMoodInput;
-    let brandReferenceInput;
-    let brandAccentInput;
-    let brandLogoFileInput;
-    let brandImageStyleInput;
-    let brandGenerateImageInput;
-    let brandGenerateButton;
-    let brandStatus;
-    let brandImageIssue;
-
     let currentUploadTargetImg = null;
     let currentUploadPlaceholder = null;
     let currentBrandColor = '#C21129';
     let currentBrandBg = '#f8f7f5';
     let currentBrandLight = '#fbe6e8';
-    let currentMode = 'profile';
-    let currentBrandLogoDataUrl = '';
     let lastProfileDownloadName = 'profile-builder';
     let activeProfileCopyMeta = null;
     let activeProfileReferenceText = '';
@@ -175,25 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
             portraitPlaceholder: '신점 상담사 프로필 이미지',
             moodPlaceholder: '신점 무드 이미지'
         }
-    };
-
-    const brandPosterTemplate = {
-        badge: '브랜드 맞춤 홍보 이미지',
-        headline: '업체 특징이 한눈에 보이는 홍보 이미지를 만듭니다',
-        subheadline: '로고와 핵심 메시지를 반영해 밴드용 세로 포스터 톤으로 정리합니다.',
-        summary: '파트너사 소개, 제품 특징, 타깃 고객을 바탕으로 한 장의 정돈된 홍보 이미지 구조를 만듭니다.',
-        highlight: '브랜드 핵심 메시지를 깔끔하게 보여주는 밴드형 포스터',
-        bulletPoints: ['업체 성격에 맞는 문구 구성', '로고 분위기에 맞춘 포인트 컬러', '밴드에 바로 올리기 쉬운 세로 레이아웃'],
-        infoBlocks: [
-            { label: '업종', title: '브랜드 성격', description: '업종과 톤을 반영한 메시지' },
-            { label: '대상', title: '타깃 고객', description: '읽는 사람이 바로 이해하는 문구' },
-            { label: '강점', title: '핵심 특징', description: '제품과 서비스의 차별점 정리' },
-            { label: '활용', title: '홍보 목적', description: '밴드 공지/이벤트/안내형 포스터' }
-        ],
-        closing: '업체 성격과 브랜드 무드를 반영한 결과물을 바로 수정하고 내보낼 수 있습니다.',
-        cta: '로고와 자료를 바탕으로 업체용 홍보 이미지를 생성해보세요.',
-        logoPlaceholder: '업체 로고',
-        visualPlaceholder: '홍보 메인 비주얼'
     };
 
     function setStatus(target, message, type = 'idle') {
@@ -350,12 +307,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return canvas.querySelector('.pb-presentation');
     }
 
+    function assertStandardProfileExport() {
+        const presentation = getCurrentPresentationElement();
+        const profileWrapper = presentation?.closest('.pb-element');
+        const canvasElements = Array.from(canvas.children).filter((node) => node.classList.contains('pb-element'));
+        if (!profileWrapper || canvasElements.length !== 1 || canvasElements[0] !== profileWrapper) {
+            throw new Error('담당자별 동일한 폰트와 비율을 유지하려면 자동 생성 프로필만 남긴 뒤 저장해주세요. 수동 추가 블록은 함께 내보낼 수 없습니다.');
+        }
+    }
+
     function isCurrentProfileTextOnlyChoice() {
         return Boolean(getCurrentPresentationElement()?.classList.contains('is-text-only-choice'));
     }
 
     function updateSlotRegenerateState() {
-        const hasPresentation = currentMode === 'profile' && Boolean(getCurrentPresentationElement());
+        const hasPresentation = Boolean(getCurrentPresentationElement());
         slotRegenerateButtons.forEach((button) => {
             button.disabled = !hasPresentation;
         });
@@ -730,188 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    function buildBrandPanelMarkup() {
-        return `
-            <section class="pb-section pb-ai-panel pb-mode-panel" id="pb-brand-panel" data-mode-section="brand" hidden>
-                <div class="pb-ai-header">
-                    <h3>업체 이미지 생성</h3>
-                    <span class="pb-ai-badge">브랜드 포스터</span>
-                </div>
-                <div class="pb-ai-form">
-                    <label class="pb-ai-field">
-                        <span>업체명</span>
-                        <input id="pb-brand-name" type="text" placeholder="예: 청담도사, 2099 비즈중학교">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>업종</span>
-                        <input id="pb-brand-industry" type="text" placeholder="예: 교육, 뷰티, 식품, 금융, 상담">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>핵심 제품/서비스</span>
-                        <input id="pb-brand-products" type="text" placeholder="예: 학부모 설명회, 프리미엄 스킨케어, 건강식품">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>업체 특징</span>
-                        <textarea id="pb-brand-features" rows="3" placeholder="예: 신뢰감 있는 운영, 프리미엄 이미지, 전문성, 친근한 분위기"></textarea>
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>타깃 고객</span>
-                        <input id="pb-brand-target" type="text" placeholder="예: 학부모, 30대 직장인, 자영업자">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>홍보 목적</span>
-                        <input id="pb-brand-goal" type="text" placeholder="예: 밴드 공지, 이벤트 홍보, 신규 고객 유입">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>브랜드 톤</span>
-                        <input id="pb-brand-tone" type="text" placeholder="예: 신뢰감 있는, 따뜻한, 프리미엄, 경쾌한">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>로고 분위기</span>
-                        <input id="pb-brand-logo-mood" type="text" placeholder="예: 미니멀한, 밝은 교육 느낌, 고급스러운, 친근한">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>참고 자료 요약</span>
-                        <textarea id="pb-brand-reference" rows="4" placeholder="파트너사 자료에서 중요한 특징, 제품 설명, 캠페인 내용을 붙여넣어 주세요."></textarea>
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>대표 포인트 컬러</span>
-                        <input id="pb-brand-accent" type="color" value="#4F7DFF">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>로고 업로드</span>
-                        <input id="pb-brand-logo-file" type="file" accept="image/*">
-                    </label>
-                    <label class="pb-ai-field">
-                        <span>비주얼 스타일</span>
-                        <input id="pb-brand-image-style" type="text" placeholder="예: 깨끗한 3D 일러스트, 브랜드 포스터, 정돈된 상업 비주얼">
-                    </label>
-                    <label class="pb-ai-inline">
-                        <input id="pb-brand-generate-image" type="checkbox" checked>
-                        <span>메인 홍보 이미지 자동 생성</span>
-                    </label>
-                    <button id="pb-brand-generate-btn" class="pb-action-btn primary" type="button">업체 이미지 생성</button>
-                    <p id="pb-brand-status" class="pb-ai-status">로고와 업체 특징을 바탕으로 밴드용 세로 홍보 이미지를 구성합니다.</p>
-                    <div id="pb-brand-image-issue" class="pb-issue-panel" hidden></div>
-                </div>
-            </section>`;
-    }
-
-    function insertModeTabs() {
-        if (!sidebarHeader || sidebarHeader.querySelector('.pb-mode-tabs')) return;
-
-        const modeTabs = document.createElement('div');
-        modeTabs.className = 'pb-mode-tabs';
-        modeTabs.innerHTML = `
-            <button class="pb-mode-tab active" type="button" data-mode="profile">프로필 이미지 생성</button>
-            <button class="pb-mode-tab" type="button" data-mode="brand">업체 이미지 생성</button>
-        `;
-        sidebarHeader.appendChild(modeTabs);
-    }
-
-    function insertBrandPanel() {
-        if (!sidebar || document.getElementById('pb-brand-panel')) return;
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = buildBrandPanelMarkup().trim();
-        const panel = wrapper.firstElementChild;
-        sidebar.insertBefore(panel, paletteContainer);
-    }
-
-    function markModeSections() {
-        themeSection?.setAttribute('data-mode-section', 'profile');
-        document.querySelectorAll('.pb-ai-panel:not(#pb-brand-panel)').forEach((panel) => {
-            panel.setAttribute('data-mode-section', 'profile');
-        });
-        paletteContainer?.setAttribute('data-mode-section', 'profile');
-    }
-
-    function createBrandEmptyState() {
-        return `
-            <div class="pb-empty-state pb-brand-empty-state">
-                <div class="pb-empty-icon">BRAND</div>
-                <p>업체 이미지 생성 탭에서 업체 정보와 로고를 입력하면 밴드용 홍보 포스터 템플릿이 생성됩니다.</p>
-            </div>`;
-    }
-
-    function updateModeVisibility(mode) {
-        currentMode = mode;
-        document.querySelectorAll('[data-mode-section]').forEach((section) => {
-            const visible = section.getAttribute('data-mode-section') === mode;
-            section.hidden = !visible;
-        });
-
-        document.querySelectorAll('.pb-mode-tab').forEach((button) => {
-            button.classList.toggle('active', button.dataset.mode === mode);
-        });
-
-        if (mode === 'brand') {
-            appContainer.classList.add('pb-mode-brand');
-            if (exportButton) exportButton.textContent = '이미지 파일 저장';
-            if (codeGenerateButton) codeGenerateButton.hidden = true;
-            if (codeDownloadButton) codeDownloadButton.hidden = true;
-            if (downloadAllImagesButton) downloadAllImagesButton.hidden = true;
-            if (!canvas.children.length || canvas.querySelector('.pb-empty-state')) {
-                canvas.innerHTML = createBrandEmptyState();
-            }
-        } else {
-            appContainer.classList.remove('pb-mode-brand');
-            if (exportButton) exportButton.textContent = '프로필 이미지 저장';
-            if (codeGenerateButton) codeGenerateButton.hidden = false;
-            if (codeDownloadButton) codeDownloadButton.hidden = false;
-            if (downloadAllImagesButton) downloadAllImagesButton.hidden = false;
-            if (!canvas.children.length || canvas.querySelector('.pb-brand-empty-state')) {
-                canvas.innerHTML = `
-                    <div class="pb-empty-state">
-                        <div class="pb-empty-icon">DOC</div>
-                        <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
-                    </div>`;
-            }
-        }
-
-        updateSlotRegenerateState();
-    }
-
-    function bindModeTabs() {
-        document.querySelectorAll('.pb-mode-tab').forEach((button) => {
-            button.addEventListener('click', () => updateModeVisibility(button.dataset.mode));
-        });
-    }
-
-    function buildBrandPosterMarkup() {
-        return `
-            <section class="pb-brand-poster" data-template-type="brand-poster">
-                <div class="pb-brand-poster-inner">
-                    <div class="pb-brand-poster-topline" data-brand-slot="badge">${brandPosterTemplate.badge}</div>
-                    <div class="pb-brand-poster-logo pb-image-uploadable">
-                        <div class="pb-upload-placeholder">${brandPosterTemplate.logoPlaceholder}</div>
-                        <img class="pb-uploaded-img" src="" alt="${brandPosterTemplate.logoPlaceholder}">
-                    </div>
-                    <h2 class="pb-brand-poster-headline" contenteditable="true" data-brand-slot="headline">${brandPosterTemplate.headline}</h2>
-                    <p class="pb-brand-poster-subheadline" contenteditable="true" data-brand-slot="subheadline">${brandPosterTemplate.subheadline}</p>
-                    <div class="pb-brand-poster-visual pb-image-uploadable">
-                        <div class="pb-upload-placeholder">${brandPosterTemplate.visualPlaceholder}</div>
-                        <img class="pb-uploaded-img" src="" alt="${brandPosterTemplate.visualPlaceholder}">
-                    </div>
-                    <div class="pb-brand-poster-summary" contenteditable="true" data-brand-slot="summary">${brandPosterTemplate.summary}</div>
-                    <div class="pb-brand-poster-highlight" contenteditable="true" data-brand-slot="highlight">${brandPosterTemplate.highlight}</div>
-                    <ul class="pb-brand-poster-points" data-brand-slot="bulletPoints">
-                        ${brandPosterTemplate.bulletPoints.map((point) => `<li contenteditable="true">${point}</li>`).join('')}
-                    </ul>
-                    <div class="pb-brand-poster-info" data-brand-slot="infoBlocks">
-                        ${brandPosterTemplate.infoBlocks.map((block) => `
-                            <div class="pb-brand-poster-info-card">
-                                <span class="pb-brand-poster-info-label">${block.label}</span>
-                                <strong>${block.title}</strong>
-                                <p>${block.description}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="pb-brand-poster-closing" contenteditable="true" data-brand-slot="closing">${brandPosterTemplate.closing}</div>
-                    <div class="pb-brand-poster-cta" contenteditable="true" data-brand-slot="cta">${brandPosterTemplate.cta}</div>
-                </div>
-            </section>`;
-    }
-
     function buildPresentationMarkup(type) {
         const template = templates[type];
         if (!template) return '';
@@ -984,8 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'saju-ppt':
             case 'sinjeom-ppt':
                 return buildPresentationMarkup(type);
-            case 'brand-poster':
-                return buildBrandPosterMarkup();
             default:
                 return '';
         }
@@ -1233,12 +1015,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setProtectedInlineStyles(element, styles) {
+        if (!element) return;
+        const protectedProperties = new Set([
+            'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing',
+            'width', 'max-width', 'min-width', 'height', 'min-height', 'aspect-ratio',
+            'object-fit', 'object-position'
+        ]);
+        Object.entries(styles).forEach(([property, value]) => {
+            element.style.setProperty(property, value, protectedProperties.has(property) ? 'important' : '');
+        });
+    }
+
     function normalizeExportRichText(root) {
-        root.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3, .pb-presentation-intro, .pb-presentation-body, .pb-presentation-chip, .pb-presentation-card-body, .pb-presentation-closing p, .pb-brand-poster-headline, .pb-brand-poster-subheadline, .pb-brand-poster-summary, .pb-brand-poster-highlight, .pb-brand-poster-closing, .pb-brand-poster-cta, .pb-brand-poster-info-card p, .pb-brand-poster-info-card strong').forEach((node) => {
+        root.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3, .pb-presentation-intro, .pb-presentation-body, .pb-presentation-chip, .pb-presentation-card-body, .pb-presentation-closing p, .pb-presentation-points li').forEach((node) => {
             node.innerHTML = node.innerHTML
-                .replace(/<(\/?)(div|p)[^>]*>/gi, (_, closing) => (closing ? '<br>' : ''))
+                .replace(/<(div|p)[^>]*>/gi, '<br>')
+                .replace(/<\/(div|p)>/gi, '')
                 .replace(/(<br>\s*){2,}/gi, '<br>')
                 .replace(/^(<br>\s*)+|(<br>\s*)+$/gi, '');
+            Array.from(node.querySelectorAll('*')).reverse().forEach((child) => {
+                if (child.tagName === 'BR') return;
+                child.replaceWith(...child.childNodes);
+            });
         });
     }
 
@@ -1314,6 +1113,23 @@ document.addEventListener('DOMContentLoaded', () => {
         root.prepend(style);
     }
 
+    function appendProfileSiteProtectionStyles(root) {
+        if (root.querySelector('[data-pb-site-protection-style]')) return;
+
+        const style = document.createElement('style');
+        style.setAttribute('data-pb-site-protection-style', 'true');
+        style.textContent = `
+            @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+            .pb-site-profile-output,
+            .pb-site-profile-output * {
+                box-sizing: border-box !important;
+                font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
+            }
+        `;
+        root.prepend(style);
+    }
+
     function waitForExportImages(root) {
         const images = Array.from(root.querySelectorAll('img')).filter((image) => image.getAttribute('src'));
         return Promise.all(images.map((image) => {
@@ -1329,11 +1145,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
 
+    async function waitForExportFonts() {
+        if (!document.fonts?.ready) return;
+        await document.fonts.ready;
+    }
+
     function applyEditorFriendlyExportStyles(clone, { outputMode = 'capture' } = {}) {
         const isSiteCode = outputMode === 'site';
         clone.classList.add('pb-export-capture');
         if (isSiteCode) {
             clone.querySelectorAll('[data-pb-export-capture-style]').forEach((style) => style.remove());
+            clone.classList.add('pb-site-profile-output');
+            appendProfileSiteProtectionStyles(clone);
         } else {
             appendProfileExportCaptureStyles(clone);
         }
@@ -1349,6 +1172,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ? siteTypography.chipSize
             : `${defaultTypography.bodySize + 3}px`;
         const profileEyebrowSize = isSiteCode ? siteTypography.eyebrowSize : '12px';
+        const setTypographyStyles = (element, styles) => {
+            const resolvedStyles = isSiteCode ? { 'font-family': fontFamily, ...styles } : styles;
+            const setter = isSiteCode ? setProtectedInlineStyles : setInlineStyles;
+            setter(element, resolvedStyles);
+        };
+        const setMediaStyles = isSiteCode ? setProtectedInlineStyles : setInlineStyles;
 
         setInlineStyles(clone, {
             width: isSiteCode ? '100%' : '720px',
@@ -1412,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'box-shadow': 'none'
         }));
 
-        clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-eyebrow').forEach((node) => setTypographyStyles(node, {
             display: 'inline-block',
             padding: '7px 11px',
             'border-radius': '999px',
@@ -1429,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => {
             const resolvedTitleSize = isSiteCode ? siteTypography.titleSize : titleSize;
             const isMainTitle = node.classList.contains('pb-presentation-title');
-            setInlineStyles(node, {
+            setTypographyStyles(node, {
                 margin: '0',
                 'font-size': resolvedTitleSize,
                 'line-height': isSiteCode ? '1.25' : (isMainTitle ? '1.08' : '1.18'),
@@ -1442,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p').forEach((node) => setTypographyStyles(node, {
             margin: '0',
             'font-size': profileBodySize,
             'line-height': lineHeight,
@@ -1451,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'overflow-wrap': 'anywhere'
         }));
 
-        clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-hero .pb-presentation-intro').forEach((node) => setTypographyStyles(node, {
             'font-size': profileBodySize,
             'line-height': lineHeight
         }));
@@ -1468,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             overflow: 'hidden'
         }));
 
-        clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setTypographyStyles(node, {
             display: 'inline-block',
             'margin-bottom': '12px',
             padding: '8px 12px',
@@ -1506,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             overflow: 'hidden'
         }));
 
-        clone.querySelectorAll('.pb-presentation-points').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-points').forEach((node) => setTypographyStyles(node, {
             margin: '0',
             padding: '0',
             display: 'flex',
@@ -1523,12 +1352,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'list-style': 'none'
         }));
 
-        clone.querySelectorAll('.pb-presentation-points li').forEach((node) => setInlineStyles(node, {
+        clone.querySelectorAll('.pb-presentation-points li').forEach((node) => setTypographyStyles(node, {
             position: 'relative',
             'padding-left': '0',
             display: 'flex',
             'align-items': 'flex-start',
-            gap: '12px'
+            gap: '12px',
+            'font-size': profilePointSize,
+            'line-height': '1.55'
         }));
 
         stabilizeExportListMarkers(clone);
@@ -1587,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasImage = Boolean(image?.getAttribute('src'));
             const isPortrait = node.classList.contains('pb-presentation-portrait');
 
-            setInlineStyles(node, {
+            setMediaStyles(node, {
                 display: 'block',
                 width: '100%',
                 'max-width': '100%',
@@ -1615,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-portrait .pb-uploaded-img, .pb-presentation-photo .pb-uploaded-img').forEach((node) => {
             const isPortraitImage = Boolean(node.closest('.pb-presentation-portrait'));
-            setInlineStyles(node, {
+            setMediaStyles(node, {
             width: '100%',
             height: '100%',
             display: 'block',
@@ -1629,155 +1460,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'transparent'
             });
         });
-
-        clone.querySelectorAll('.pb-brand-poster').forEach((node) => setInlineStyles(node, {
-            width: '100%',
-            'border-radius': '30px',
-            padding: '18px',
-            background: `linear-gradient(180deg, ${hexToRgba(currentBrandColor, 0.12)}, ${hexToRgba(currentBrandColor, 0.05)})`,
-            'box-shadow': `0 24px 40px ${hexToRgba(currentBrandColor, 0.12)}`,
-            'box-sizing': 'border-box'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-inner').forEach((node) => setInlineStyles(node, {
-            background: '#ffffff',
-            'border-radius': '26px',
-            padding: '24px',
-            border: `1px solid ${hexToRgba(currentBrandColor, 0.16)}`
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-topline').forEach((node) => setInlineStyles(node, {
-            display: 'inline-flex',
-            padding: '8px 14px',
-            'border-radius': '999px',
-            background: hexToRgba(currentBrandColor, 0.12),
-            color: currentBrandColor,
-            'font-size': '12px',
-            'font-weight': '800',
-            'margin-bottom': '16px'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-logo, .pb-brand-poster-visual').forEach((node) => {
-            const isLogo = node.classList.contains('pb-brand-poster-logo');
-            const hasImage = Boolean(node.querySelector('.pb-uploaded-img'));
-            setInlineStyles(node, {
-                width: '100%',
-                'margin-bottom': isLogo ? '18px' : '20px',
-                padding: hasImage ? '0' : (isLogo ? '20px' : '48px 24px'),
-                background: hasImage ? '#fff' : `linear-gradient(180deg, ${hexToRgba(currentBrandColor, 0.08)}, rgba(255,255,255,0.9))`,
-                'border-radius': isLogo ? '18px' : '24px',
-                'box-shadow': `inset 0 0 0 1px ${hexToRgba(currentBrandColor, 0.14)}`,
-                'box-sizing': 'border-box',
-                'text-align': 'center'
-            });
-
-            if (!hasImage) {
-                node.innerHTML = `<div style="font-size:${bodySize}; line-height:${lineHeight}; color:#7d6f6a; font-weight:600;">${isLogo ? '로고 등록 영역' : '메인 비주얼 영역'}</div>`;
-            }
-        });
-
-        clone.querySelectorAll('.pb-brand-poster-logo .pb-uploaded-img').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            width: '100%',
-            'max-width': '180px',
-            height: 'auto',
-            margin: '0 auto'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-visual .pb-uploaded-img').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            width: '100%',
-            'max-width': '100%',
-            height: 'auto',
-            'border-radius': '24px',
-            'object-fit': 'contain'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-headline').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 12px',
-            'font-size': titleSize,
-            'line-height': '1.1',
-            'font-weight': '800',
-            'letter-spacing': '-0.04em',
-            color: '#222',
-            'word-break': 'keep-all'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-subheadline, .pb-brand-poster-summary, .pb-brand-poster-closing').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 16px',
-            'font-size': bodySize,
-            'line-height': lineHeight,
-            color: '#555',
-            'word-break': 'keep-all'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-highlight').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 18px',
-            padding: '14px 16px',
-            'border-radius': '16px',
-            background: hexToRgba(currentBrandColor, 0.1),
-            color: '#222',
-            'font-size': chipSize,
-            'font-weight': '800'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-points').forEach((node) => setInlineStyles(node, {
-            margin: '0 0 18px',
-            padding: '0 0 0 20px',
-            display: 'flex',
-            'flex-direction': 'column',
-            gap: '10px',
-            'font-size': pointSize,
-            'line-height': '1.55',
-            color: '#333',
-            'font-weight': '700'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-info').forEach((node) => setInlineStyles(node, {
-            display: 'grid',
-            'grid-template-columns': '1fr 1fr',
-            gap: '12px',
-            'margin-bottom': '18px'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-info-card').forEach((node) => setInlineStyles(node, {
-            padding: '16px',
-            'border-radius': '18px',
-            background: '#fff',
-            'box-shadow': `inset 0 0 0 1px ${hexToRgba(currentBrandColor, 0.12)}`
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-info-label').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            'margin-bottom': '8px',
-            color: currentBrandColor,
-            'font-size': '11px',
-            'font-weight': '800'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-info-card strong').forEach((node) => setInlineStyles(node, {
-            display: 'block',
-            'margin-bottom': '6px',
-            'font-size': chipSize,
-            'line-height': '1.35',
-            color: '#222'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-info-card p, .pb-brand-poster-cta').forEach((node) => setInlineStyles(node, {
-            margin: '0',
-            'font-size': bodySize,
-            'line-height': lineHeight,
-            color: '#555'
-        }));
-
-        clone.querySelectorAll('.pb-brand-poster-cta').forEach((node) => setInlineStyles(node, {
-            padding: '14px 18px',
-            'border-radius': '16px',
-            background: currentBrandColor,
-            color: '#fff',
-            'font-weight': '700',
-            'text-align': 'center'
-        }));
 
         normalizeExportRichText(clone);
     }
@@ -2204,86 +1886,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function cacheBrandControls() {
-        brandNameInput = document.getElementById('pb-brand-name');
-        brandIndustryInput = document.getElementById('pb-brand-industry');
-        brandProductsInput = document.getElementById('pb-brand-products');
-        brandFeaturesInput = document.getElementById('pb-brand-features');
-        brandTargetInput = document.getElementById('pb-brand-target');
-        brandGoalInput = document.getElementById('pb-brand-goal');
-        brandToneInput = document.getElementById('pb-brand-tone');
-        brandLogoMoodInput = document.getElementById('pb-brand-logo-mood');
-        brandReferenceInput = document.getElementById('pb-brand-reference');
-        brandAccentInput = document.getElementById('pb-brand-accent');
-        brandLogoFileInput = document.getElementById('pb-brand-logo-file');
-        brandImageStyleInput = document.getElementById('pb-brand-image-style');
-        brandGenerateImageInput = document.getElementById('pb-brand-generate-image');
-        brandGenerateButton = document.getElementById('pb-brand-generate-btn');
-        brandStatus = document.getElementById('pb-brand-status');
-        brandImageIssue = document.getElementById('pb-brand-image-issue');
-    }
-
-    async function requestBrandPosterGeneration() {
-        const brandName = brandNameInput?.value.trim();
-        const industry = brandIndustryInput?.value.trim();
-        const products = brandProductsInput?.value.trim();
-        const features = brandFeaturesInput?.value.trim();
-        const targetAudience = brandTargetInput?.value.trim();
-        const promoGoal = brandGoalInput?.value.trim();
-        const brandTone = brandToneInput?.value.trim();
-        const logoMood = brandLogoMoodInput?.value.trim();
-        const referenceText = brandReferenceInput?.value.trim();
-        const imageStyle = brandImageStyleInput?.value.trim();
-        const accentColor = brandAccentInput?.value || '#4F7DFF';
-
-        if (!brandName || !industry || !products || !features || !targetAudience || !promoGoal) {
-            setStatus(brandStatus, '업체명, 업종, 제품/서비스, 업체 특징, 타깃 고객, 홍보 목적을 먼저 입력해주세요.', 'error');
-            return;
-        }
-
-        brandGenerateButton.disabled = true;
-        setStatus(brandStatus, '업체 자료를 바탕으로 밴드용 홍보 이미지를 구성하는 중입니다...', 'loading');
-
-        try {
-            currentBrandLogoDataUrl = await readFileAsDataUrl(brandLogoFileInput?.files?.[0]);
-
-            const response = await fetch('/api/generate-brand-poster', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    brandName,
-                    industry,
-                    products,
-                    features,
-                    targetAudience,
-                    promoGoal,
-                    brandTone,
-                    logoMood,
-                    referenceText,
-                    imageStyle,
-                    generateImage: Boolean(brandGenerateImageInput?.checked)
-                })
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || '업체 이미지 생성 요청이 실패했습니다.');
-            }
-
-            applyBrandPosterTheme(accentColor);
-            const element = replaceCanvasWithElement('brand-poster');
-            fillBrandPoster(element, data.poster, currentBrandLogoDataUrl);
-
-            setStatus(brandStatus, buildGenerationStatus('업체 이미지 생성이 완료되었습니다.', data.usage, data.imageMeta), 'success');
-            renderImageIssue(brandImageIssue, data.imageMeta);
-        } catch (error) {
-            setStatus(brandStatus, error.message || '업체 이미지 생성 중 오류가 발생했습니다.', 'error');
-            renderImageIssue(brandImageIssue, null);
-        } finally {
-            brandGenerateButton.disabled = false;
-        }
-    }
-
     themeButtons.forEach((button) => {
         button.addEventListener('click', (event) => {
             applyTheme(event.currentTarget.dataset.theme);
@@ -2340,11 +1942,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('pb-clear-btn')?.addEventListener('click', () => {
         if (!window.confirm('캔버스의 모든 블록을 지울까요?')) return;
-        if (currentMode === 'brand') {
-            canvas.innerHTML = createBrandEmptyState();
-            updateSlotRegenerateState();
-            return;
-        }
         canvas.innerHTML = `
             <div class="pb-empty-state">
                 <div class="pb-empty-icon">DOC</div>
@@ -2356,20 +1953,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlotRegenerateState();
     });
 
-    exportButton?.addEventListener('click', async () => {
-        if (currentMode === 'brand') {
-            await downloadBrandPosterImage();
-            return;
-        }
-
-        await downloadProfileImage();
-    });
+    exportButton?.addEventListener('click', downloadProfileImage);
 
     function createSiteRegistrationCode() {
         const presentation = getCurrentPresentationElement();
         if (!presentation) {
             throw new Error('먼저 프로필 결과를 생성해주세요.');
         }
+        assertStandardProfileExport();
 
         const clone = getCleanCanvasClone();
         if (!embedImagesInCodeInput?.checked) replaceExportImageSources(clone);
@@ -2392,15 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(objectUrl);
     }
 
-    function ensureProfileCodeMode() {
-        if (currentMode !== 'brand') return true;
-        window.alert('업체 이미지 생성 모드에서는 코드보다 이미지 파일 저장을 사용해주세요.');
-        return false;
-    }
-
     codeGenerateButton?.addEventListener('click', () => {
-        if (!ensureProfileCodeMode()) return;
-
         try {
             codeOutput.value = createSiteRegistrationCode();
             codeModal.classList.add('active');
@@ -2418,8 +2001,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     codeDownloadButton?.addEventListener('click', () => {
-        if (!ensureProfileCodeMode()) return;
-
         try {
             const code = createSiteRegistrationCode();
             downloadSiteRegistrationCode(code);
@@ -2476,97 +2057,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
         }
-    }
-
-    function applyBrandPosterTheme(accentColor) {
-        const accent = accentColor || '#4F7DFF';
-        canvas.style.setProperty('--pb-brand-accent', accent);
-        canvas.style.setProperty('--pb-brand-accent-soft', hexToRgba(accent, 0.14));
-        currentBrandColor = accent;
-        currentBrandBg = hexToRgba(accent, 0.08);
-    }
-
-    function fillBrandPoster(element, payload, logoDataUrl) {
-        if (!element || !payload) return;
-
-        const slotMap = {
-            badge: payload.badge,
-            headline: payload.headline,
-            subheadline: payload.subheadline,
-            summary: payload.summary,
-            highlight: payload.highlight,
-            closing: payload.closing,
-            cta: payload.cta
-        };
-
-        Object.entries(slotMap).forEach(([slot, value]) => {
-            if (!value) return;
-            const node = element.querySelector(`[data-brand-slot="${slot}"]`);
-            if (node) node.innerHTML = String(value).replace(/\n/g, '<br>');
-        });
-
-        if (Array.isArray(payload.bulletPoints)) {
-            const list = element.querySelector('[data-brand-slot="bulletPoints"]');
-            if (list) {
-                list.innerHTML = payload.bulletPoints.map((item) => `<li contenteditable="true">${item}</li>`).join('');
-            }
-        }
-
-        if (Array.isArray(payload.infoBlocks)) {
-            const infoContainer = element.querySelector('[data-brand-slot="infoBlocks"]');
-            if (infoContainer) {
-                infoContainer.innerHTML = payload.infoBlocks.slice(0, 4).map((block) => `
-                    <div class="pb-brand-poster-info-card">
-                        <span class="pb-brand-poster-info-label">${block.label || '안내'}</span>
-                        <strong>${block.title || ''}</strong>
-                        <p>${block.description || ''}</p>
-                    </div>
-                `).join('');
-            }
-        }
-
-        const logoArea = element.querySelector('.pb-brand-poster-logo');
-        const logoImg = logoArea?.querySelector('.pb-uploaded-img');
-        const logoPlaceholder = logoArea?.querySelector('.pb-upload-placeholder');
-        if (logoDataUrl && logoImg && logoPlaceholder) {
-            logoImg.src = logoDataUrl;
-            logoImg.style.display = 'block';
-            logoPlaceholder.style.display = 'none';
-        }
-
-        if (payload.promoImage) {
-            const visual = element.querySelector('.pb-brand-poster-visual');
-            const img = visual?.querySelector('.pb-uploaded-img');
-            const placeholder = visual?.querySelector('.pb-upload-placeholder');
-            if (img && placeholder) {
-                img.src = payload.promoImage;
-                img.style.display = 'block';
-                placeholder.style.display = 'none';
-            }
-        }
-    }
-
-    function readFileAsDataUrl(file) {
-        return new Promise((resolve, reject) => {
-            if (!file) {
-                resolve('');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target?.result || '');
-            reader.onerror = () => reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function getVisualCanvasClone() {
-        const clone = canvas.cloneNode(true);
-        clone.querySelectorAll('.pb-delete-btn').forEach((button) => button.remove());
-        clone.querySelectorAll('[contenteditable]').forEach((node) => node.removeAttribute('contenteditable'));
-        const empty = clone.querySelector('.pb-empty-state');
-        if (empty) empty.remove();
-        return clone;
     }
 
     function getActiveTemplateType() {
@@ -2635,77 +2125,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function downloadBrandPosterImage() {
-        const poster = canvas.querySelector('.pb-brand-poster');
-        if (!poster) {
-            window.alert('먼저 업체 이미지 결과를 생성해주세요.');
-            return;
-        }
-
-        if (typeof window.html2canvas !== 'function') {
-            window.alert('이미지 저장 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
-            return;
-        }
-
-        const stage = document.createElement('div');
-        const clone = getVisualCanvasClone();
-        const posterClone = clone.querySelector('.pb-brand-poster');
-        if (posterClone) {
-            posterClone.style.width = '540px';
-            posterClone.style.maxWidth = '540px';
-            posterClone.style.margin = '0 auto';
-        }
-
-        const logoClone = clone.querySelector('.pb-brand-poster-logo .pb-uploaded-img');
-        if (logoClone) {
-            logoClone.style.maxWidth = '100%';
-            logoClone.style.maxHeight = '96px';
-            logoClone.style.width = 'auto';
-            logoClone.style.height = 'auto';
-        }
-
-        const visualClone = clone.querySelector('.pb-brand-poster-visual .pb-uploaded-img');
-        if (visualClone) {
-            visualClone.style.maxHeight = '320px';
-            visualClone.style.width = '100%';
-            visualClone.style.height = 'auto';
-        }
-
-        stage.style.position = 'fixed';
-        stage.style.left = '-10000px';
-        stage.style.top = '0';
-        stage.style.padding = '24px';
-        stage.style.background = currentBrandBg || '#f3f6ff';
-        stage.style.zIndex = '-1';
-        stage.style.pointerEvents = 'none';
-        stage.appendChild(clone);
-        document.body.appendChild(stage);
-
-        try {
-            const rendered = await window.html2canvas(clone, {
-                backgroundColor: null,
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
-
-            const link = document.createElement('a');
-            const brandName = (brandNameInput?.value || 'brand-poster').trim().replace(/[\\/:*?"<>|]+/g, '-');
-            link.href = rendered.toDataURL('image/png');
-            link.download = `${brandName || 'brand-poster'}.png`;
-            link.click();
-        } catch (error) {
-            console.error(error);
-            window.alert('이미지 파일 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
-        } finally {
-            stage.remove();
-        }
-    }
-
     async function downloadProfileImage() {
         const presentation = canvas.querySelector('.pb-presentation');
         if (!presentation) {
             window.alert('먼저 프로필 결과를 생성해주세요.');
+            return;
+        }
+
+        try {
+            assertStandardProfileExport();
+        } catch (error) {
+            window.alert(error.message);
             return;
         }
 
@@ -2729,6 +2159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(stage);
 
         try {
+            await waitForExportFonts();
             await waitForExportImages(clone);
 
             const rendered = await window.html2canvas(clone, {
@@ -2778,11 +2209,6 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => requestSlotRegeneration(button.dataset.slotKey));
     });
 
-    insertModeTabs();
-    insertBrandPanel();
-    cacheBrandControls();
-    markModeSections();
-    bindModeTabs();
     initializeCollapsibles();
     bindUploadables(document.body);
     bindTypographyControls();
@@ -2793,12 +2219,6 @@ document.addEventListener('DOMContentLoaded', () => {
     pptImageQuality?.addEventListener('change', updateImageGenerationControls);
     aiTemplate?.addEventListener('change', updateTarotCardTypeControls);
     pptTemplate?.addEventListener('change', updateTarotCardTypeControls);
-    brandGenerateButton?.addEventListener('click', requestBrandPosterGeneration);
-    brandAccentInput?.addEventListener('input', (event) => {
-        if (currentMode === 'brand') {
-            applyBrandPosterTheme(event.target.value);
-        }
-    });
     applyTheme('pb-theme-sinjeom');
     applyTypographySettings();
     updateImageGenerationControls();
@@ -2806,6 +2226,5 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProfileImageAssets();
     renderProfileHistory();
     updateSlotRegenerateState();
-    updateModeVisibility('profile');
     resumePendingProfileJob();
 });

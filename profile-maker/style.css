@@ -38,10 +38,6 @@ body {
 .pb-sidebar-header h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
 .pb-sidebar-header h2 span { color: #007aff; font-size: 14px; vertical-align: super; }
 .pb-sidebar-header p { margin: 6px 0 0; font-size: 13px; color: var(--pb-text-sub); }
-.pb-mode-tabs { display: flex; gap: 8px; margin-top: 16px; }
-.pb-mode-tab { flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--pb-border); background: #fff; font-size: 13px; font-weight: 700; color: #666; cursor: pointer; transition: 0.2s; }
-.pb-mode-tab.active { background: #1a1a1a; border-color: #1a1a1a; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
-.pb-mode-brand .pb-sidebar-header p { margin-bottom: 0; }
 .pb-section { padding: 0 24px; margin-bottom: 20px; flex-shrink: 0; }
 .pb-palette-container { padding: 0 24px 20px; flex: 1; min-height: auto; overflow: visible; display: flex; flex-direction: column; gap: 24px; }
 .pb-palette-group { background: #f8f9fa; padding: 16px; border-radius: 12px; border: 1px solid var(--pb-border); }
@@ -350,163 +346,6 @@ body {
 
 .pb-issue-links a:hover {
     text-decoration: underline;
-}
-
-.pb-brand-empty-state .pb-empty-icon { letter-spacing: 0.12em; }
-
-.pb-brand-poster {
-    width: 100%;
-    max-width: 540px;
-    background: linear-gradient(180deg, var(--pb-brand-accent-soft, rgba(79,125,255,0.14)), rgba(255,255,255,0.9));
-    border-radius: 30px;
-    padding: 18px;
-    box-sizing: border-box;
-    box-shadow: 0 24px 40px rgba(36, 50, 88, 0.08);
-}
-
-.pb-brand-poster-inner {
-    background: #fff;
-    border-radius: 26px;
-    padding: 24px;
-    border: 1px solid rgba(79,125,255,0.14);
-}
-
-.pb-brand-poster-topline {
-    display: inline-flex;
-    margin-bottom: 16px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: var(--pb-brand-accent-soft, rgba(79,125,255,0.14));
-    color: var(--pb-brand-accent, #4F7DFF);
-    font-size: 12px;
-    font-weight: 800;
-}
-
-.pb-brand-poster-logo,
-.pb-brand-poster-visual {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 20px;
-    background: rgba(255,255,255,0.7);
-    border-radius: 24px;
-    overflow: hidden;
-    box-shadow: inset 0 0 0 1px rgba(79,125,255,0.12);
-}
-
-.pb-brand-poster-logo {
-    padding: 20px;
-    border-radius: 18px;
-    min-height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.pb-brand-poster-logo .pb-uploaded-img {
-    width: auto;
-    max-width: 100%;
-    max-height: 96px;
-    height: auto;
-    object-fit: contain;
-    display: none;
-    margin: 0 auto;
-}
-
-.pb-brand-poster-visual .pb-upload-placeholder {
-    min-height: 260px;
-}
-
-.pb-brand-poster-visual .pb-uploaded-img {
-    width: 100%;
-    max-height: 320px;
-    height: auto;
-    display: none;
-    object-fit: contain;
-}
-
-.pb-brand-poster-headline {
-    margin: 0 0 12px;
-    font-size: var(--pb-title-size);
-    line-height: 1.08;
-    letter-spacing: -0.04em;
-    font-weight: 800;
-    color: #222;
-    word-break: keep-all;
-}
-
-.pb-brand-poster-subheadline,
-.pb-brand-poster-summary,
-.pb-brand-poster-closing,
-.pb-brand-poster-info-card p {
-    margin: 0 0 16px;
-    font-size: var(--pb-body-size);
-    line-height: var(--pb-body-line-height);
-    color: #565656;
-    word-break: keep-all;
-}
-
-.pb-brand-poster-highlight {
-    margin-bottom: 18px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    background: var(--pb-brand-accent-soft, rgba(79,125,255,0.14));
-    color: #222;
-    font-size: var(--pb-chip-size);
-    font-weight: 800;
-}
-
-.pb-brand-poster-points {
-    margin: 0 0 18px;
-    padding-left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-size: var(--pb-point-size);
-    line-height: 1.55;
-    color: #333;
-    font-weight: 700;
-}
-
-.pb-brand-poster-info {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 18px;
-}
-
-.pb-brand-poster-info-card {
-    background: #fff;
-    border-radius: 18px;
-    padding: 16px;
-    box-shadow: inset 0 0 0 1px rgba(79,125,255,0.12);
-}
-
-.pb-brand-poster-info-label {
-    display: block;
-    margin-bottom: 8px;
-    color: var(--pb-brand-accent, #4F7DFF);
-    font-size: 11px;
-    font-weight: 800;
-}
-
-.pb-brand-poster-info-card strong {
-    display: block;
-    margin-bottom: 6px;
-    font-size: var(--pb-chip-size);
-    line-height: 1.35;
-    color: #222;
-}
-
-.pb-brand-poster-cta {
-    margin: 0;
-    padding: 14px 18px;
-    border-radius: 16px;
-    background: var(--pb-brand-accent, #4F7DFF);
-    color: #fff;
-    text-align: center;
-    font-size: var(--pb-body-size);
-    font-weight: 700;
-    line-height: 1.5;
 }
 
 .pb-tarot-magazine-card {
@@ -939,21 +778,6 @@ body {
         margin-bottom: 0;
     }
 
-    .pb-brand-poster {
-        padding: 14px;
-    }
-
-    .pb-brand-poster-inner {
-        padding: 20px;
-    }
-
-    .pb-brand-poster-headline {
-        font-size: min(var(--pb-title-size), 42px);
-    }
-
-    .pb-brand-poster-info {
-        grid-template-columns: 1fr;
-    }
 }
 
 .pb-action-btn:disabled { opacity: 0.6; cursor: wait; }

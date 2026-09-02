@@ -1761,50 +1761,6 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
     };
 }
 
-async function generateBrandPosterText(payload) {
-    const prompt = `
-너는 한국어 밴드 홍보 포스터를 만드는 브랜드 마케터이자 카피라이터다.
-입력된 업체 정보와 참고 내용을 바탕으로 세로형 홍보 포스터 문구를 구성한다.
-과장된 표현은 줄이고, 업종과 제품 특징이 분명히 드러나게 작성한다.
-응답은 JSON만 반환하고 코드블록은 절대 사용하지 않는다.
-
-업체명: ${payload.brandName}
-업종: ${payload.industry}
-핵심 제품/서비스: ${payload.products}
-업체 특징: ${payload.features}
-타깃 고객: ${payload.targetAudience}
-홍보 목적: ${payload.promoGoal}
-브랜드 톤: ${payload.brandTone || '신뢰감 있고 정돈된 홍보 톤'}
-참고 자료 요약: ${payload.referenceText || '없음'}
-
-반환 스키마:
-{
-  "badge": "상단 짧은 배지 문구",
-  "headline": "굵고 강한 메인 제목",
-  "subheadline": "메인 제목을 보완하는 짧은 문장",
-  "summary": "중간 설명 2~3문장",
-  "highlight": "강조 박스 한 줄 문구",
-  "bulletPoints": ["포인트 1", "포인트 2", "포인트 3"],
-  "infoBlocks": [
-    { "label": "항목명", "title": "짧은 제목", "description": "설명" },
-    { "label": "항목명", "title": "짧은 제목", "description": "설명" },
-    { "label": "항목명", "title": "짧은 제목", "description": "설명" },
-    { "label": "항목명", "title": "짧은 제목", "description": "설명" }
-  ],
-  "closing": "하단 안내 문구",
-  "cta": "문의/참여 유도 문구"
-}
-
-추가 지침:
-- headline은 최대 2줄 정도 분량으로 간결하게 작성한다.
-- bulletPoints는 밴드 홍보글에서 바로 읽히게 짧고 명확하게 쓴다.
-- infoBlocks는 일정, 대상, 장소, 혜택 같은 실무형 정보 톤으로 작성한다.
-- 업체 특성이 예시마다 분명히 달라 보이도록 업종 키워드를 자연스럽게 포함한다.
-`.trim();
-
-    return generateJsonContent(prompt);
-}
-
 async function regenerateProfileSlot(payload) {
     const guide = getTemplateGuide(payload.templateType);
     const copyDirection = buildProfileCopyDirection(payload.copyVariant);
@@ -1858,39 +1814,6 @@ ${config.instructions}
 `.trim();
 
     return cleanGeneratedProfile(await generateJsonContent(prompt), payload.templateType);
-}
-
-async function generateBrandPosterImage(payload) {
-    const posterPrompt = `
-Create one premium promotional image for a Korean band marketing poster.
-Brand name: ${payload.brandName}
-Industry: ${payload.industry}
-Products or service: ${payload.products}
-Brand features: ${payload.features}
-Target audience: ${payload.targetAudience}
-Promotion goal: ${payload.promoGoal}
-Brand tone: ${payload.brandTone || 'clean, trustworthy, modern'}
-Logo mood hint: ${payload.logoMood || payload.brandTone || 'refined and brand-aligned'}
-Reference style: ${payload.imageStyle || 'clean marketing poster illustration, polished brand visual'}
-
-Requirements:
-- no text
-- no watermark
-- suitable as the main visual for a vertical promotional poster
-- polished, commercial, clean composition
-- reflect the business category clearly
-- keep the mood aligned with the supplied brand tone
-- the image should immediately communicate the partner company's industry and main offer
-- make the visual direction distinct for this business instead of generic stock imagery
-- if the business is education, show a bright academic, classroom, study, or parent-information atmosphere
-- if the business is beauty, show a premium skincare, clinic, cosmetic, or clean lifestyle atmosphere
-- if the business is food, show ingredients, plated products, packaging, or warm dining mood
-- if the business is finance, consulting, or professional service, show trust, order, premium desk, or modern office mood
-- prioritize product or service relevance over abstract decoration
-- leave enough clean space in the composition so the poster layout can sit on top
-`.trim();
-
-    return generateImage(posterPrompt, 'brand');
 }
 
 function reserveProfileUsage(req, res, { campaignJob = false } = {}) {
@@ -2688,47 +2611,6 @@ app.post('/api/regenerate-profile-slot', ...protectedApiMiddleware, async (req, 
     } catch (error) {
         console.error(error);
         sendGenerationError(res, error, '부분 재생성 중 오류가 발생했습니다.');
-    }
-});
-
-app.post('/api/generate-brand-poster', ...protectedApiMiddleware, async (req, res) => {
-    const payload = req.body || {};
-    const requiredFields = ['brandName', 'industry', 'products', 'features', 'targetAudience', 'promoGoal'];
-    const missingField = requiredFields.find((field) => !payload[field] || !String(payload[field]).trim());
-
-    if (missingField) {
-        return res.status(400).json({ error: `${missingField} 값이 비어 있습니다.` });
-    }
-
-    if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(req, res);
-    if (!usage) return;
-
-    try {
-        const poster = await generateBrandPosterText(payload);
-        let promoImage = '';
-        const imageFailures = [];
-
-        if (payload.generateImage) {
-            try {
-                promoImage = await generateBrandPosterImage(payload);
-            } catch (imageError) {
-                console.error('Brand poster image generation failed:', imageError);
-                imageFailures.push(getReadableImageError(imageError));
-            }
-        }
-
-        res.json({
-            poster: {
-                ...poster,
-                promoImage
-            },
-            imageMeta: buildImageMeta(payload.generateImage, promoImage, '', imageFailures, 1),
-            usage
-        });
-    } catch (error) {
-        console.error(error);
-        sendGenerationError(res, error, '업체 이미지 생성 중 오류가 발생했습니다. 입력 정보와 API 설정을 확인해주세요.');
     }
 });
 

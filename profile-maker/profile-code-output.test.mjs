@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 const profileMakerDirectory = path.dirname(fileURLToPath(import.meta.url));
 const script = fs.readFileSync(path.join(profileMakerDirectory, 'script.js'), 'utf8');
 const html = fs.readFileSync(path.join(profileMakerDirectory, 'index.html'), 'utf8');
+const style = fs.readFileSync(path.join(profileMakerDirectory, 'style.css'), 'utf8');
+const api = fs.readFileSync(path.join(profileMakerDirectory, '..', 'profile-maker-api', 'server.mjs'), 'utf8');
 
 function getFunctionSource(source, functionName) {
     const start = source.indexOf(`function ${functionName}(`);
@@ -88,5 +90,64 @@ test('both generated profile images can be saved together below the site code do
     assert.match(script, /downloadAllImagesButton\.disabled = !\(hasPortrait && hasMood\)/);
     assert.match(script, /function downloadAllProfileAssets\(\)[\s\S]*?downloadProfileAsset\('portrait'\);[\s\S]*?downloadProfileAsset\('mood'\);/);
     assert.match(script, /downloadAllImagesButton\?\.addEventListener\('click', downloadAllProfileAssets\)/);
-    assert.match(script, /if \(downloadAllImagesButton\) downloadAllImagesButton\.hidden = true;/);
+    assert.doesNotMatch(script, /downloadAllImagesButton\.hidden = true/);
+});
+
+test('brand poster UI, export, styles, and API are removed', () => {
+    assert.doesNotMatch(script, /pb-brand-poster|generate-brand-poster|downloadBrandPosterImage|requestBrandPosterGeneration/);
+    assert.doesNotMatch(style, /pb-brand-poster|pb-mode-brand|pb-mode-tab/);
+    assert.doesNotMatch(api, /generateBrandPoster|generate-brand-poster/);
+});
+
+test('protected site properties receive important priority at runtime', () => {
+    const functionSource = getFunctionSource(script, 'setProtectedInlineStyles');
+    const protect = vm.runInNewContext(`(${functionSource})`);
+    const calls = [];
+    const element = {
+        style: {
+            setProperty(property, value, priority) {
+                calls.push({ property, value, priority });
+            }
+        }
+    };
+
+    protect(element, {
+        'font-size': '20px',
+        'line-height': '1.65',
+        'aspect-ratio': '16 / 8.6',
+        color: '#222'
+    });
+
+    assert.equal(calls.find((call) => call.property === 'font-size').priority, 'important');
+    assert.equal(calls.find((call) => call.property === 'line-height').priority, 'important');
+    assert.equal(calls.find((call) => call.property === 'aspect-ratio').priority, 'important');
+    assert.equal(calls.find((call) => call.property === 'color').priority, '');
+});
+
+test('site exports reject mixed manual blocks and remove pasted nested formatting', () => {
+    assert.match(script, /function assertStandardProfileExport\([\s\S]*?canvasElements\.length !== 1/);
+    assert.match(script, /assertStandardProfileExport\(\);[\s\S]*?getCleanCanvasClone\(\)/);
+    assert.match(script, /Array\.from\(node\.querySelectorAll\('\*'\)\)\.reverse\(\)[\s\S]*?child\.replaceWith\(\.\.\.child\.childNodes\)/);
+});
+
+test('rich text normalization unwraps pasted font markup at runtime', () => {
+    const functionSource = getFunctionSource(script, 'normalizeExportRichText');
+    const normalize = vm.runInNewContext(`(${functionSource})`);
+    const node = {
+        innerHTML: '<span style="font-size:48px">표준 문구</span><div>다음 줄</div>',
+        querySelectorAll() {
+            return [{
+                tagName: 'SPAN',
+                childNodes: ['표준 문구'],
+                replaceWith() {
+                    node.innerHTML = node.innerHTML.replace('<span style="font-size:48px">표준 문구</span>', '표준 문구');
+                }
+            }];
+        }
+    };
+    const root = { querySelectorAll() { return [node]; } };
+
+    normalize(root);
+
+    assert.equal(node.innerHTML, '표준 문구<br>다음 줄');
 });

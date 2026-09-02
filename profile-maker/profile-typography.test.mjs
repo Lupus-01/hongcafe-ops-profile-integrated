@@ -19,14 +19,13 @@ test('profile site body text and points stay aligned at 20px', () => {
     assert.match(script, /\.pb-presentation-points'[\s\S]*?'font-size': profilePointSize,/);
 });
 
-test('profile site labels use 20px without changing brand poster sizing', () => {
+test('profile site labels and list items keep the fixed 20px standard', () => {
     assert.match(style, /\.pb-presentation\s*\{[\s\S]*?container-type:\s*inline-size;/);
     assert.match(script, /chipSize:\s*'20px'/);
     assert.match(script, /eyebrowSize:\s*'12px'/);
     assert.match(script, /const profileChipSize = isSiteCode\s*\? siteTypography\.chipSize/);
     assert.match(script, /const profileEyebrowSize = isSiteCode \? siteTypography\.eyebrowSize : '12px';/);
-    assert.match(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': pointSize,/);
-    assert.doesNotMatch(script, /\.pb-brand-poster-points'[\s\S]*?'font-size': profilePointSize,/);
+    assert.match(script, /\.pb-presentation-points li'[\s\S]*?'font-size': profilePointSize,[\s\S]*?'line-height': '1\.55'/);
 });
 
 test('profile canvas and image export keep the configured title pixels without automatic shrinking', () => {
@@ -55,4 +54,13 @@ test('all generated profile outputs use fixed typography standards', () => {
     assert.doesNotMatch(script, /const computedCanvas = window\.getComputedStyle\(canvas\);/);
     assert.match(script, /'line-height': isSiteCode \? '1\.25' : \(isMainTitle \? '1\.08' : '1\.18'\)/);
     assert.match(style, /font-size:\s*min\(var\(--pb-title-size\), 39px\);/);
+});
+
+test('site code protects fonts, sizes, line heights, and image ratios from host styles', () => {
+    assert.match(script, /function setProtectedInlineStyles\([\s\S]*?'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing'/);
+    assert.match(script, /element\.style\.setProperty\(property, value, protectedProperties\.has\(property\) \? 'important' : ''\)/);
+    assert.match(script, /classList\.add\('pb-site-profile-output'\)/);
+    assert.match(script, /@import url\('https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard\/dist\/web\/static\/pretendard\.css'\)/);
+    assert.match(script, /'aspect-ratio': isPortrait \? '16 \/ 8\.6' : '16 \/ 8\.8'/);
+    assert.match(script, /const setMediaStyles = isSiteCode \? setProtectedInlineStyles : setInlineStyles;/);
 });
