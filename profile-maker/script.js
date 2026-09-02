@@ -110,13 +110,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_DOCUMENT_FILES = 5;
     const MAX_DOCUMENT_TOTAL_BYTES = 25 * 1024 * 1024;
     const referenceFiles = { ppt: [], ai: [] };
-    const headlineMeasureCanvas = document.createElement('canvas');
     const defaultTypography = {
         fontFamily: `'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif`,
         titleSize: 66,
         bodySize: 35,
         pointSize: 35,
         lineHeight: 1.7
+    };
+    const siteTypography = {
+        titleSize: '42px',
+        bodySize: '20px',
+        pointSize: '20px',
+        chipSize: '20px',
+        eyebrowSize: '12px',
+        lineHeight: '1.65'
     };
 
     const templates = {
@@ -597,31 +604,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lineHeightValue) lineHeightValue.textContent = typography.lineHeight.toFixed(1);
     }
 
-    function getHeadlineFitCqw(text, fontFamily, { containerFillPercent = 96, lineCapacity = 1 } = {}) {
-        const normalizedText = String(text || '').replace(/\s+/g, ' ').trim();
-        if (!normalizedText) return '100cqw';
-        const context = headlineMeasureCanvas.getContext('2d');
-        if (!context) return '100cqw';
-        context.font = `800 100px ${fontFamily || defaultTypography.fontFamily}`;
-        const measuredWidth = Math.max(context.measureText(normalizedText).width, 1);
-        const resolvedFillPercent = Math.min(Math.max(Number(containerFillPercent) || 96, 1), 100);
-        const resolvedLineCapacity = Math.max(Number(lineCapacity) || 1, 1);
-        return `${Math.max(0.1, (resolvedFillPercent * 100 * resolvedLineCapacity) / measuredWidth).toFixed(3)}cqw`;
-    }
-
     function getTypographySettings() {
-        const titleSize = Number(titleSizeInput?.value || defaultTypography.titleSize);
-        const bodySize = Number(bodySizeInput?.value || defaultTypography.bodySize);
-        const pointSize = Number(pointSizeInput?.value || defaultTypography.pointSize);
-        const lineHeight = Number(lineHeightInput?.value || defaultTypography.lineHeight);
-
         return {
-            fontFamily: fontFamilySelect?.value || defaultTypography.fontFamily,
-            titleSize,
-            bodySize,
-            pointSize,
-            lineHeight,
-            chipSize: Math.max(bodySize, 15)
+            ...defaultTypography,
+            chipSize: defaultTypography.bodySize
         };
     }
 
@@ -632,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { input: pointSizeInput, step: 1 },
             { input: lineHeightInput, step: 0.1 }
         ].forEach(({ input, step }) => {
-            if (!input || input.closest('.pb-range-control')) return;
+            if (!input || input.disabled || input.closest('.pb-range-control')) return;
 
             const control = document.createElement('div');
             control.className = 'pb-range-control';
@@ -670,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function bindTypographyControls() {
         enhanceTypographySteppers();
         [fontFamilySelect, titleSizeInput, bodySizeInput, pointSizeInput, lineHeightInput]
-            .filter(Boolean)
+            .filter((control) => control && !control.disabled)
             .forEach((control) => {
                 const eventName = control.tagName === 'SELECT' ? 'change' : 'input';
                 control.addEventListener(eventName, applyTypographySettings);
@@ -1352,31 +1338,17 @@ document.addEventListener('DOMContentLoaded', () => {
             appendProfileExportCaptureStyles(clone);
         }
 
-        const computedCanvas = window.getComputedStyle(canvas);
-        const fontFamily = computedCanvas.getPropertyValue('--pb-font-family').trim() || defaultTypography.fontFamily;
-        const titleSize = isSiteCode
-            ? 'clamp(30px, 6vw, 46px)'
-            : (computedCanvas.getPropertyValue('--pb-title-size').trim() || `${defaultTypography.titleSize}px`);
-        const bodySize = isSiteCode
-            ? 'clamp(16px, 2.5vw, 21px)'
-            : (computedCanvas.getPropertyValue('--pb-body-size').trim() || `${defaultTypography.bodySize}px`);
-        const pointSize = isSiteCode
-            ? 'clamp(16px, 2.6vw, 21px)'
-            : (computedCanvas.getPropertyValue('--pb-point-size').trim() || `${defaultTypography.pointSize}px`);
-        const profileBodySize = isSiteCode
-            ? '20px'
-            : bodySize;
-        const profilePointSize = isSiteCode ? profileBodySize : pointSize;
-        const lineHeight = isSiteCode
-            ? '1.65'
-            : (computedCanvas.getPropertyValue('--pb-body-line-height').trim() || String(defaultTypography.lineHeight));
-        const chipSize = isSiteCode
-            ? '14px'
-            : (computedCanvas.getPropertyValue('--pb-chip-size').trim() || '16px');
+        const fontFamily = defaultTypography.fontFamily;
+        const titleSize = `${defaultTypography.titleSize}px`;
+        const bodySize = `${defaultTypography.bodySize}px`;
+        const pointSize = `${defaultTypography.pointSize}px`;
+        const profileBodySize = isSiteCode ? siteTypography.bodySize : bodySize;
+        const profilePointSize = isSiteCode ? siteTypography.pointSize : pointSize;
+        const lineHeight = isSiteCode ? siteTypography.lineHeight : String(defaultTypography.lineHeight);
         const profileChipSize = isSiteCode
-            ? '20px'
-            : `${(Number.parseFloat(chipSize) || 16) + 3}px`;
-        const profileEyebrowSize = isSiteCode ? 'clamp(11px, 1.7cqw, 12px)' : '12px';
+            ? siteTypography.chipSize
+            : `${defaultTypography.bodySize + 3}px`;
+        const profileEyebrowSize = isSiteCode ? siteTypography.eyebrowSize : '12px';
 
         setInlineStyles(clone, {
             width: isSiteCode ? '100%' : '720px',
@@ -1455,22 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3').forEach((node) => {
-            const presentation = node.closest('.pb-presentation');
-            const headline = presentation?.querySelector('.pb-presentation-title');
-            const maxTitleSize = isSiteCode ? 42 : (Number.parseFloat(titleSize) || defaultTypography.titleSize);
-            const headlineText = headline?.textContent || node.textContent;
-            const oneLineTitleSize = isSiteCode
-                ? getHeadlineFitCqw(headlineText, fontFamily, { containerFillPercent: 98 })
-                : '';
-            const twoLineTitleSize = isSiteCode
-                ? getHeadlineFitCqw(headlineText, fontFamily, {
-                    containerFillPercent: 98,
-                    lineCapacity: 2
-                })
-                : '';
-            const resolvedTitleSize = isSiteCode
-                ? `min(${maxTitleSize}px, max(${oneLineTitleSize}, min(${twoLineTitleSize}, clamp(24px, 2.4vw, 42px))))`
-                : `${maxTitleSize}px`;
+            const resolvedTitleSize = isSiteCode ? siteTypography.titleSize : titleSize;
             const isMainTitle = node.classList.contains('pb-presentation-title');
             setInlineStyles(node, {
                 margin: '0',
