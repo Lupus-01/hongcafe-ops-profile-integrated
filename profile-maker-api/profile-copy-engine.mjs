@@ -152,9 +152,24 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
     const baseDigest = digestFor(`${topicDigest.toString('hex')}\0${normalizedGenerationSequence}`);
     const recentExact = new Set(recent.map((item) => item?.groupId).filter(Boolean));
     const recentSignatures = new Set(recent.slice(0, 10).map((item) => item?.signature).filter(Boolean));
-    const recentStyleIds = new Set(recent.map((item) => item?.styleId).filter(Boolean));
+    const recentStyleIds = new Set(recent.slice(0, 10).map((item) => item?.styleId).filter(Boolean));
+    const frequency = (key) => recent.reduce((counts, item) => {
+        const value = item?.[key];
+        if (value !== undefined && value !== null && value !== '') counts.set(value, (counts.get(value) || 0) + 1);
+        return counts;
+    }, new Map());
+    const frequencies = {
+        signature: frequency('signature'),
+        styleId: frequency('styleId'),
+        lensIndex: frequency('lensIndex'),
+        structureIndex: frequency('structureIndex'),
+        emphasisIndex: frequency('emphasisIndex'),
+        openingIndex: frequency('openingIndex'),
+        closingIndex: frequency('closingIndex')
+    };
+    let best = null;
 
-    for (let attempt = 0; attempt < 512; attempt += 1) {
+    for (let attempt = 0; attempt < 2048; attempt += 1) {
         const digest = digestFor(`${baseDigest.toString('hex')}\0${attempt}`);
         const lensIndex = digest.readUInt32BE(0) % LENSES[resolvedType].length;
         const structureIndex = digest.readUInt32BE(4) % STRUCTURES.length;
@@ -166,9 +181,39 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
         const signature = `${resolvedType}:${topicIndex}:${lensIndex}:${structureIndex}`;
         const styleId = `style-${styleIndex + 1}`;
         if (recentExact.has(groupId) || recentSignatures.has(signature) || recentStyleIds.has(styleId)) continue;
-        return { templateType: resolvedType, groupId, signature, styleId, topicIndex, topicMatchMode, generationSequence: normalizedGenerationSequence, lensIndex, structureIndex, emphasisIndex, openingIndex, closingIndex, styleIndex };
+        const reuseScore = (
+            (frequencies.signature.get(signature) || 0) * 1000
+            + (frequencies.styleId.get(styleId) || 0) * 80
+            + (frequencies.lensIndex.get(lensIndex) || 0) * 60
+            + (frequencies.structureIndex.get(structureIndex) || 0) * 50
+            + (frequencies.emphasisIndex.get(emphasisIndex) || 0) * 30
+            + (frequencies.openingIndex.get(openingIndex) || 0) * 40
+            + (frequencies.closingIndex.get(closingIndex) || 0) * 40
+        );
+        const candidate = {
+            templateType: resolvedType,
+            groupId,
+            signature,
+            styleId,
+            topicIndex,
+            topicMatchMode,
+            generationSequence: normalizedGenerationSequence,
+            lensIndex,
+            structureIndex,
+            emphasisIndex,
+            openingIndex,
+            closingIndex,
+            styleIndex,
+            novelty: {
+                priorAssignmentCount: recent.length,
+                reuseScore
+            }
+        };
+        if (!best || reuseScore < best.novelty.reuseScore) best = candidate;
+        if (reuseScore === 0) return candidate;
     }
-    throw new Error('[copy-config] A non-repeating profile copy variant could not be selected.');
+    if (best) return best;
+    throw new Error('[copy-config] A previously unused profile copy group could not be selected.');
 }
 
 export function buildProfileCopyDirection(copyVariant) {

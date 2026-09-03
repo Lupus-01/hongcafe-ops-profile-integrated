@@ -45,6 +45,17 @@ test('generation sequence spreads identical input beyond the recent-history wind
     assert.ok(new Set(selected).size > 990);
 });
 
+test('copy groups remain unused across the complete persisted assignment history', () => {
+    const input = { templateType: 'saju-ppt', sourceText: '오행과 진로', identity: 'cross-campaign-consultant' };
+    const history = [];
+    for (let generationSequence = 0; generationSequence < 40; generationSequence += 1) {
+        const variant = selectProfileCopyVariant({ ...input, recent: history, generationSequence });
+        assert.equal(history.some((item) => item.groupId === variant.groupId), false);
+        assert.equal(variant.novelty.priorAssignmentCount, history.length);
+        history.unshift(variant);
+    }
+});
+
 test('tarot, saju, and sinjeom directions retain separate category language', () => {
     const tarot = buildProfileCopyDirection(selectProfileCopyVariant({ templateType: 'tarot-ppt', sourceText: '관계', identity: 'a' }));
     const saju = buildProfileCopyDirection(selectProfileCopyVariant({ templateType: 'saju-ppt', sourceText: '오행', identity: 'b' }));

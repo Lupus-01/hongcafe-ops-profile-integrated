@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v8-distinct-location-groups';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v9-cross-campaign-history';
 
 function createOptions(prefix, prompts) {
     return prompts.map((prompt, index) => ({ id: `${prefix}-${index + 1}`, prompt }));
@@ -219,6 +219,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
     const environmentLocationOptions = ENVIRONMENT_LOCATION_GROUPS[environment];
     const placementOptions = CATEGORY_PLACEMENT_OPTIONS[templateType] || CATEGORY_PLACEMENT_OPTIONS['sinjeom-ppt'];
     const selected = {
+        templateType,
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
         placement: pickOption(placementOptions, digest, 4, excluded?.placement?.id),
@@ -250,6 +251,7 @@ export function getVisualRealizationPair({ templateType, stableIdentity, nonce, 
 
 export function buildVisualRealizationPrompt(realization) {
     return [
+        `Category identity: ${realization.templateType}. Keep every location and placement specific to this consultation category.`,
         `Distinct category location: ${realization.location.prompt}`,
         `Environment-compatible physical place: ${realization.environmentLocation.prompt}`,
         `Category-specific photographic placement: ${realization.placement.prompt}`,

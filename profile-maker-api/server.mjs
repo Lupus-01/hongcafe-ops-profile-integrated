@@ -14,6 +14,7 @@ import {
     SUPPORTED_DOCUMENT_EXTENSIONS
 } from './profile-document-parser.mjs';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
+import { FileProfileGenerationHistory } from './profile-generation-history.mjs';
 import {
     canReuseLegacyProfileImages,
     DurableProfileJobQueue,
@@ -77,6 +78,9 @@ const PROFILE_CAMPAIGN_ID = process.env.PROFILE_CAMPAIGN_ID || 'profile-default'
 const PROFILE_CAMPAIGN_SAFETY_CAP = getPositiveIntegerEnv('PROFILE_CAMPAIGN_SAFETY_CAP', 1500);
 const PROFILE_JOB_RETENTION_DAYS = getPositiveIntegerEnv('PROFILE_JOB_RETENTION_DAYS', 45);
 const PROFILE_JOB_STORE_DIR = process.env.PROFILE_JOB_STORE_DIR || path.join(__dirname, '.profile-jobs');
+const PROFILE_GENERATION_HISTORY_FILE = process.env.PROFILE_GENERATION_HISTORY_FILE
+    || path.join(PROFILE_JOB_STORE_DIR, '.generation-history.json');
+const PROFILE_COPY_SIMILARITY_THRESHOLD = getUnitIntervalEnv('PROFILE_COPY_SIMILARITY_THRESHOLD', 0.55);
 const PROFILE_AI_MOCK_MODE = process.env.NODE_ENV === 'test' && process.env.PROFILE_AI_MOCK_MODE === 'true';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-3.1-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
@@ -472,9 +476,9 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = PROFILE_VISUAL_VARIATION_VERSION;
-const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v5-generation-sequence';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v6-cross-campaign-history';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
-const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
+const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v5-generation-sequence', 'profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
@@ -728,7 +732,6 @@ function getVisualPair(payload) {
         payload.career
     ]);
     const nonce = payload.visualNonce || 'guide';
-    const stableDigest = Buffer.from(stableIdentity, 'hex');
     const pairDigest = crypto.createHash('sha256')
         .update(`${VISUAL_VARIATION_VERSION}\0${stableIdentity}\0${nonce}\0visual-pair`)
         .digest();
@@ -752,7 +755,7 @@ function getVisualPair(payload) {
     const paletteOptions = payload.templateType === 'tarot-ppt'
         ? TAROT_VISUAL_PALETTES
         : VISUAL_VARIATION_OPTIONS.palettes;
-    const portraitPaletteIndex = stableDigest[0] % paletteOptions.length;
+    const portraitPaletteIndex = pairDigest[7] % paletteOptions.length;
     const moodPaletteIndex = getDifferentOptionIndex(paletteOptions, portraitPaletteIndex, pairDigest, 4);
     const portraitSupportIndex = supportSubjects.length ? pairDigest[5] % supportSubjects.length : -1;
     const moodSupportIndex = supportSubjects.length
@@ -930,6 +933,16 @@ function getPositiveIntegerEnv(name, fallback) {
     const value = Number(rawValue);
     if (!Number.isSafeInteger(value) || value <= 0) {
         throw new Error(`[security] ${name} must be a positive integer.`);
+    }
+    return value;
+}
+
+function getUnitIntervalEnv(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') return fallback;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value <= 0 || value > 1) {
+        throw new Error(`${name} must be a number greater than 0 and no greater than 1.`);
     }
     return value;
 }
@@ -1721,6 +1734,7 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: portraitVariation.pairId,
             variationId: portraitVariation.id,
             visualGroupId: portraitVariation.visualGroupId,
+            paletteId: portraitVariation.paletteId,
             realizationId: portraitVariation.realization.id,
             locationId: portraitVariation.realization.location.id,
             physicalPlaceId: portraitVariation.realization.environmentLocation.id,
@@ -1743,6 +1757,7 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: moodVariation.pairId,
             variationId: moodVariation.id,
             visualGroupId: moodVariation.visualGroupId,
+            paletteId: moodVariation.paletteId,
             realizationId: moodVariation.realization.id,
             locationId: moodVariation.realization.location.id,
             physicalPlaceId: moodVariation.realization.environmentLocation.id,
@@ -1924,16 +1939,15 @@ const profileJobStore = new FileProfileJobStore({
     safetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
     retentionDays: PROFILE_JOB_RETENTION_DAYS
 });
-const recentNonCampaignCopyAssignments = new Map();
-const nonCampaignCopyGenerationSequences = new Map();
+const profileGenerationHistory = new FileProfileGenerationHistory({
+    filePath: PROFILE_GENERATION_HISTORY_FILE,
+    sourceJobDirectory: PROFILE_JOB_STORE_DIR,
+    similarityThreshold: PROFILE_COPY_SIMILARITY_THRESHOLD
+});
 
 function assignProfileCopyVariant(payload, sourceText) {
-    const recent = PROFILE_CAMPAIGN_MODE
-        ? profileJobStore.getRecentCopyAssignments(payload.templateType, 10)
-        : (recentNonCampaignCopyAssignments.get(payload.templateType) || []);
-    const generationSequence = PROFILE_CAMPAIGN_MODE
-        ? profileJobStore.getCopyAssignmentCount(payload.templateType)
-        : (nonCampaignCopyGenerationSequences.get(payload.templateType) || 0);
+    const recent = profileGenerationHistory.getCopyAssignments(payload.templateType);
+    const generationSequence = recent.length;
     payload.copyVariant = selectProfileCopyVariant({
         templateType: payload.templateType,
         sourceText,
@@ -1941,10 +1955,132 @@ function assignProfileCopyVariant(payload, sourceText) {
         recent,
         generationSequence
     });
-    if (!PROFILE_CAMPAIGN_MODE) {
-        recentNonCampaignCopyAssignments.set(payload.templateType, [payload.copyVariant, ...recent].slice(0, 10));
-        nonCampaignCopyGenerationSequences.set(payload.templateType, generationSequence + 1);
+}
+
+function toVisualHistoryEntry(kind, variation) {
+    return {
+        kind,
+        visualGroupId: variation.visualGroupId,
+        subjectId: variation.subject.id,
+        sceneFamily: variation.scene.family,
+        sceneId: variation.scene.id,
+        venueId: variation.scene.venueId,
+        paletteId: variation.paletteId,
+        realizationId: variation.realization.id,
+        locationId: variation.realization.location.id,
+        physicalPlaceId: variation.realization.environmentLocation.id,
+        placementId: variation.realization.placement.id,
+        lightingId: variation.realization.lighting.id,
+        focusId: variation.realization.focus.id,
+        depthId: variation.realization.depth.id
+    };
+}
+
+const VISUAL_HISTORY_WEIGHTS = {
+        visualGroupId: 1000000,
+        sceneId: 300,
+        venueId: 250,
+        realizationId: 220,
+        locationId: 180,
+        physicalPlaceId: 180,
+        placementId: 160,
+        sceneFamily: 80,
+        paletteId: 60,
+        lightingId: 50,
+        focusId: 40,
+        depthId: 40,
+        subjectId: 20
+};
+
+function createVisualUsageIndex(previousVisuals) {
+    const frequencies = Object.fromEntries(Object.keys(VISUAL_HISTORY_WEIGHTS).map((key) => [key, new Map()]));
+    const combinations = new Map();
+    const visualGroupIds = new Set();
+    for (const previous of previousVisuals) {
+        const kind = previous.kind || '*';
+        for (const key of Object.keys(VISUAL_HISTORY_WEIGHTS)) {
+            const value = previous[key];
+            if (!value) continue;
+            const indexKey = `${kind}:${value}`;
+            frequencies[key].set(indexKey, (frequencies[key].get(indexKey) || 0) + 1);
+        }
+        const combination = `${kind}:${previous.subjectId || ''}:${previous.sceneId || ''}:${previous.placementId || ''}`;
+        combinations.set(combination, (combinations.get(combination) || 0) + 1);
+        if (previous.visualGroupId) visualGroupIds.add(previous.visualGroupId);
     }
+    return { frequencies, combinations, visualGroupIds };
+}
+
+function scoreVisualPair(pair, usageIndex) {
+    const entries = [toVisualHistoryEntry('portrait', pair.portrait), toVisualHistoryEntry('mood', pair.mood)];
+    let score = 0;
+    for (const entry of entries) {
+        for (const [key, weight] of Object.entries(VISUAL_HISTORY_WEIGHTS)) {
+            if (!entry[key]) continue;
+            const exactCount = usageIndex.frequencies[key].get(`${entry.kind}:${entry[key]}`) || 0;
+            const legacyCount = usageIndex.frequencies[key].get(`*:${entry[key]}`) || 0;
+            score += (exactCount + legacyCount) * weight;
+        }
+        const combination = `${entry.kind}:${entry.subjectId}:${entry.sceneId}:${entry.placementId}`;
+        const legacyCombination = `*:${entry.subjectId}:${entry.sceneId}:${entry.placementId}`;
+        score += ((usageIndex.combinations.get(combination) || 0) + (usageIndex.combinations.get(legacyCombination) || 0)) * 100000;
+    }
+    return score;
+}
+
+function assignNovelVisualVariant(payload) {
+    const previousVisuals = profileGenerationHistory.getVisualAssignments(payload.templateType);
+    const usageIndex = createVisualUsageIndex(previousVisuals);
+    const baseNonce = payload.visualNonce;
+    let best = null;
+    let candidateCount = 0;
+    for (let attempt = 0; attempt < 128; attempt += 1) {
+        const candidateNonce = attempt === 0
+            ? baseNonce
+            : crypto.createHash('sha256').update(`${baseNonce}\0${attempt}`).digest('hex').slice(0, 16);
+        payload.visualNonce = candidateNonce;
+        const pair = getVisualPair(payload);
+        const reuseScore = scoreVisualPair(pair, usageIndex);
+        candidateCount += 1;
+        if (!best || reuseScore < best.reuseScore) best = { nonce: candidateNonce, pair, reuseScore };
+        if (reuseScore === 0) break;
+    }
+    payload.visualNonce = best.nonce;
+    payload.visualNovelty = {
+        priorVisualCount: previousVisuals.length,
+        candidateCount,
+        reuseScore: best.reuseScore,
+        reusedVisualGroup: [best.pair.portrait, best.pair.mood].some((variation) => (
+            usageIndex.visualGroupIds.has(variation.visualGroupId)
+        ))
+    };
+}
+
+function reserveGenerationHistory(id, payload, jobId = '', generateImageRequested = true) {
+    const pair = generateImageRequested ? getVisualPair(payload) : null;
+    return profileGenerationHistory.reserve({
+        id,
+        campaignId: PROFILE_CAMPAIGN_ID,
+        jobId,
+        templateType: payload.templateType,
+        copyVariant: payload.copyVariant,
+        visuals: pair
+            ? [toVisualHistoryEntry('portrait', pair.portrait), toVisualHistoryEntry('mood', pair.mood)]
+            : []
+    });
+}
+
+function completeGenerationHistory(id, payload, profile, imageGuide) {
+    const similarity = profileGenerationHistory.complete(id, { profile, imageGuide });
+    if (similarity.needsReview) {
+        console.warn(`[generation-history] copy similarity review id=${id} matched=${similarity.matchedRecordId} score=${similarity.similarityScore}`);
+    }
+    return {
+        copy: payload.copyVariant?.novelty || { priorAssignmentCount: 0, reuseScore: 0 },
+        visual: payload.visualNovelty || { priorVisualCount: 0, reuseScore: 0, reusedVisualGroup: false },
+        similarityScore: similarity.similarityScore,
+        needsReview: similarity.needsReview
+    };
 }
 
 function getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested) {
@@ -2118,11 +2254,20 @@ async function executePersistedProfileJob(jobId) {
         }
     }
 
+    const completedProfile = { ...profile, profileImage, moodImage };
+    const imageGuide = buildProfileImageGuide(payload, portraitContext, moodContext);
+    const noveltyMeta = completeGenerationHistory(
+        `${PROFILE_CAMPAIGN_ID}:${jobId}`,
+        payload,
+        completedProfile,
+        imageGuide
+    );
     return {
-        profile: { ...profile, profileImage, moodImage },
+        profile: completedProfile,
         copyMeta: payload.copyVariant,
-        imageGuide: buildProfileImageGuide(payload, portraitContext, moodContext),
+        imageGuide,
         imageMeta: buildImageMeta(initialJob.input.generateImageRequested, profileImage, moodImage, imageFailures),
+        noveltyMeta,
         usage,
         ...(initialJob.kind === 'document' ? { meta: sourceMeta } : {})
     };
@@ -2197,6 +2342,12 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
             record.input.usage = usage;
             return record;
         });
+        reserveGenerationHistory(
+            `${PROFILE_CAMPAIGN_ID}:${created.job.id}`,
+            input.payload,
+            created.job.id,
+            input.generateImageRequested
+        );
         profileJobQueue.enqueue(created.job.id);
     }
 
@@ -2227,6 +2378,8 @@ app.get('/api/health', (req, res) => {
         profileCampaignId: PROFILE_CAMPAIGN_ID,
         profileCampaignSafetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
         profileCampaignJobs: profileJobStore.count(),
+        profileGenerationHistoryRecords: profileGenerationHistory.count(),
+        profileCopySimilarityThreshold: PROFILE_COPY_SIMILARITY_THRESHOLD,
         profileCampaignPendingJobs: profileJobQueue.pending.length,
         profileCampaignWorkerRunning: profileJobQueue.running,
         profileAiMockMode: PROFILE_AI_MOCK_MODE,
@@ -2379,6 +2532,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         getReferenceFingerprint(referenceImages)
     ]);
     assignProfileCopyVariant(payload, [payload.specialty, payload.tone, payload.career, payload.referenceText].join('\n'));
+    if (generateImageRequested) assignNovelVisualVariant(payload);
     const fingerprintPayload = getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested);
 
     if (!validateApiKey(res)) return;
@@ -2397,6 +2551,8 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
     }
     const usage = reserveProfileUsage(req, res);
     if (!usage) return;
+    const generationHistoryId = `${PROFILE_CAMPAIGN_ID}:direct:${crypto.randomUUID()}`;
+    reserveGenerationHistory(generationHistoryId, payload, '', generateImageRequested);
 
     try {
         const profile = await generateProfileTextFromInput(payload);
@@ -2422,15 +2578,14 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
             }
         }
 
+        const completedProfile = { ...profile, profileImage, moodImage };
+        const imageGuide = buildProfileImageGuide(payload, portraitContext, moodContext);
         res.json({
-            profile: {
-                ...profile,
-                profileImage,
-                moodImage
-            },
+            profile: completedProfile,
             copyMeta: payload.copyVariant,
-            imageGuide: buildProfileImageGuide(payload, portraitContext, moodContext),
+            imageGuide,
             imageMeta: buildImageMeta(generateImageRequested, profileImage, moodImage, imageFailures),
+            noveltyMeta: completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
             usage
         });
     } catch (error) {
@@ -2520,9 +2675,10 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             getReferenceFingerprint(referenceImages)
         ]);
         assignProfileCopyVariant(payload, `${parsedDocument.combinedText}\n${payload.referenceText || ''}`);
+        const generateImageRequested = String(payload.generateImage) === 'true';
+        if (generateImageRequested) assignNovelVisualVariant(payload);
 
         if (PROFILE_CAMPAIGN_MODE) {
-            const generateImageRequested = String(payload.generateImage) === 'true';
             submitProfileJob(req, res, {
                 kind: 'document',
                 fingerprintInput: getDocumentProfileFingerprintInput(
@@ -2542,6 +2698,8 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             return;
         }
 
+        const generationHistoryId = `${PROFILE_CAMPAIGN_ID}:document:${crypto.randomUUID()}`;
+        reserveGenerationHistory(generationHistoryId, payload, '', generateImageRequested);
         const profile = await generateProfileTextFromPpt(payload, parsedDocument);
         let profileImage = '';
         let moodImage = '';
@@ -2564,15 +2722,14 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             }
         }
 
+        const completedProfile = { ...profile, profileImage, moodImage };
+        const imageGuide = buildProfileImageGuide(payload, imageContext, imageContext);
         res.json({
-            profile: {
-                ...profile,
-                profileImage,
-                moodImage
-            },
+            profile: completedProfile,
             copyMeta: payload.copyVariant,
-            imageGuide: buildProfileImageGuide(payload, imageContext, imageContext),
+            imageGuide,
             imageMeta: buildImageMeta(String(payload.generateImage) === 'true', profileImage, moodImage, imageFailures),
+            noveltyMeta: completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
             usage,
             meta: documentMeta
         });
@@ -2590,11 +2747,7 @@ app.post('/api/regenerate-profile-slot', ...protectedApiMiddleware, async (req, 
     }
     payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
     if (!payload.copyVariant) {
-        payload.copyVariant = selectProfileCopyVariant({
-            templateType: payload.templateType,
-            sourceText: `${JSON.stringify(payload.currentProfile)}\n${payload.referenceText}`,
-            identity: JSON.stringify(payload.currentProfile)
-        });
+        assignProfileCopyVariant(payload, `${JSON.stringify(payload.currentProfile)}\n${payload.referenceText}`);
     }
 
     if (!validateApiKey(res)) return;

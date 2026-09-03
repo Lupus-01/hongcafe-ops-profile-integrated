@@ -138,7 +138,7 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
-    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v8-distinct-location-groups');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v9-cross-campaign-history');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         groupsPerImage: {
@@ -192,6 +192,12 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(uniqueJobIds.size, 5);
     const uniqueJobs = await Promise.all([...uniqueJobIds].map((jobId) => waitForJob(baseUrl, jobId)));
     assert.equal(new Set(uniqueJobs.map((job) => job.result.copyMeta.generationSequence)).size, 5);
+    const generatedVisualGroups = [duplicateJob, ...uniqueJobs].flatMap((job) => ([
+        job.result.imageGuide.portrait.visualGroupId,
+        job.result.imageGuide.mood.visualGroupId
+    ]));
+    assert.equal(new Set(generatedVisualGroups).size, generatedVisualGroups.length);
+    assert.equal(uniqueJobs.every((job) => job.result.noveltyMeta.visual.reusedVisualGroup === false), true);
 
     const documentSubmission = await submitTextDocument(baseUrl, 'text-document-key');
     assert.ok([200, 202].includes(documentSubmission.response.status));
@@ -221,6 +227,8 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
 
     const finalHealth = await (await fetch(`${baseUrl}/api/health`)).json();
     assert.equal(finalHealth.profileCampaignJobs, 10);
+    assert.equal(finalHealth.profileGenerationHistoryRecords, 10);
+    assert.equal(finalHealth.profileCopySimilarityThreshold, 0.55);
     assert.equal(finalHealth.maxDocumentFileCount, 5);
     assert.equal(finalHealth.maxDocumentTotalBytes, 26214400);
     assert.equal(finalHealth.usedGeminiRequestsToday, 0);

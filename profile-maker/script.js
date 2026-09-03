@@ -290,17 +290,20 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlotRegenerateState();
     }
 
-    function buildGenerationStatus(baseMessage, usage, imageMeta) {
+    function buildGenerationStatus(baseMessage, usage, imageMeta, noveltyMeta = null) {
         const usageMessage = usage
             ? ` ${usage.campaign ? '캠페인 누적' : '오늘 사용량'} ${usage.used}/${usage.limit}`
+            : '';
+        const similarityMessage = noveltyMeta?.needsReview
+            ? ` 이전 프로필 문구와 유사도 ${Math.round(Number(noveltyMeta.similarityScore || 0) * 100)}%가 감지되었습니다. 추가 과금을 막기 위해 자동 재생성하지 않았으니 문구를 검토해주세요.`
             : '';
 
         if (imageMeta?.requested && !imageMeta?.hasAnyImage) {
             const imageMessage = imageMeta.message || '이미지는 프로필 빌더에서 직접 업로드할 수 있습니다.';
-            return `${baseMessage}${usageMessage} 텍스트는 정상 생성되었고, 이미지는 자동 생성되지 않아 직접 업로드로 이어서 작업할 수 있습니다. ${imageMessage}`;
+            return `${baseMessage}${usageMessage}${similarityMessage} 텍스트는 정상 생성되었고, 이미지는 자동 생성되지 않아 직접 업로드로 이어서 작업할 수 있습니다. ${imageMessage}`;
         }
 
-        return `${baseMessage}${usageMessage}`;
+        return `${baseMessage}${usageMessage}${similarityMessage}`;
     }
 
     function getCurrentPresentationElement() {
@@ -1770,7 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setStatus(
                 aiStatus,
-                buildGenerationStatus(shouldGenerateImages ? '생성이 완료되었습니다.' : '글 중심 프로필 구성이 완료되었습니다.', data.usage, data.imageMeta),
+                buildGenerationStatus(shouldGenerateImages ? '생성이 완료되었습니다.' : '글 중심 프로필 구성이 완료되었습니다.', data.usage, data.imageMeta, data.noveltyMeta),
                 'success'
             );
             renderImageIssue(aiImageIssue, data.imageMeta);
@@ -1871,7 +1874,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 buildGenerationStatus(
                     `${sourceMessage} ${shouldGenerateImages ? '생성이 완료되었습니다.' : '글 중심 프로필 구성이 완료되었습니다.'}`.trim(),
                     data.usage,
-                    data.imageMeta
+                    data.imageMeta,
+                    data.noveltyMeta
                 ),
                 'success'
             );
