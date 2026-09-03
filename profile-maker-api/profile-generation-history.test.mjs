@@ -60,12 +60,13 @@ test('generation history persists copy and visual assignments across campaign ID
         jobId: 'job-1',
         templateType: 'saju-ppt',
         copyVariant: { groupId: 'saju-group-1' },
-        visuals: [{ kind: 'portrait', visualGroupId: 'visual-1', sceneId: 'scene-1' }]
+        visuals: [{ kind: 'portrait', visualGroupId: 'visual-1', subjectId: 'brass-bell', sceneId: 'scene-1' }]
     });
 
     const reloaded = new FileProfileGenerationHistory({ filePath });
     assert.deepEqual(reloaded.getCopyAssignments('saju-ppt').map((item) => item.groupId), ['saju-group-1']);
     assert.deepEqual(reloaded.getVisualAssignments('saju-ppt').map((item) => item.visualGroupId), ['visual-1']);
+    assert.equal(reloaded.getVisualAssignments('saju-ppt')[0].motifFamilyId, 'bell');
 });
 
 test('available completed campaign jobs are imported once into shared history', (t) => {

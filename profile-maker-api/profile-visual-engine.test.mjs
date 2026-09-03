@@ -16,7 +16,7 @@ test('structured image groups exceed the text variation count even for a fixed t
         palettes: 8,
         fixedHeroSubject: true
     });
-    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v9-cross-campaign-history');
+    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v10-sinjeom-motif-rotation');
     assert.equal(VISUAL_REALIZATION_COUNT_PER_BASE, 61440000);
     assert.ok(fixedTarot > textVariationCount);
 });

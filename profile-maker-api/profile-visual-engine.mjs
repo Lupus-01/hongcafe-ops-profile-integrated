@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v9-cross-campaign-history';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v10-sinjeom-motif-rotation';
 
 function createOptions(prefix, prompts) {
     return prompts.map((prompt, index) => ({ id: `${prefix}-${index + 1}`, prompt }));
@@ -95,7 +95,7 @@ const CATEGORY_LOCATION_GROUPS = {
     'sinjeom-ppt': createOptions('sinjeom-place', [
         'Realize the assigned indoor, outdoor, or threshold environment as a bright, modest Korean prayer-preparation place with respectful spacing and no crowded altar.',
         'Use a quiet Korean architectural or natural boundary appropriate to the assigned environment, keeping the ceremonial object as the sole visual anchor.',
-        'Use a clean ritual-object preparation zone based only on the support available in the assigned scene, with no smoke, flame, readable talisman, or theatrical spectacle.',
+        'Use a clean ritual-object preparation zone based only on the support available in the assigned scene, with no smoke, uncontrolled flame, readable talisman, or theatrical spectacle; a small steady flame is allowed only for an assigned candle subject.',
         'Use a restrained prayer setting with open space, pale natural light, and one culturally appropriate support without changing the assigned environment type.',
         'Use a calm courtyard, veranda, or sheltered interior interpretation that follows the assigned environment without mixing in tarot or saju tools.',
         'Use respectful ceremonial preparation or fitted storage only where compatible with the assigned scene; outdoors, keep the object secured on the assigned support instead.',

@@ -176,21 +176,39 @@ const TEMPLATE_GUIDES = {
         cardFallbackBody: '신점은 답답하게 막힌 흐름 속에서 놓치기 쉬운 신호를 짚어내는 상담입니다. 감각적인 메시지를 현실적인 조언으로 정리해 마음의 방향을 세웁니다.',
         closingFallbackTitle: '무거운 마음의 짐을 내려놓으세요',
         closingFallbackBody: '복잡한 상황일수록 지금 필요한 말과 방향이 중요합니다. 날카로운 직관과 따뜻한 해석으로 고민의 핵심을 차분히 풀어드립니다.',
-        imageMood: 'The category must be unmistakably Korean sinjeom consultation. Feature only the specifically assigned restrained ceremonial or consultation object as the hero subject, with at most two quiet supporting materials. The objects must be intact, clean, culturally respectful, and arranged for practical use. Do not include tarot cards, saju grids, readable talisman writing, damaged antiques, skulls, candles, smoke, glowing objects, or generic fantasy decorations.',
-        moodScene: 'Build a bright, modest Korean sinjeom consultation or preparation environment around only the assigned object and assigned setting. It must not reuse the other image’s hero ritual object, furniture group, room, or lighting setup. Do not include people in ceremonial costume, crowded altars, ghosts, red lighting, smoke, fire, floating talismans, horror imagery, or theatrical spectacle.',
+        imageMood: 'The category must be unmistakably Korean sinjeom consultation or a culturally respectful Korean prayer setting. Feature only the specifically assigned ceremonial, Buddhist, prayer, or consultation object as the hero subject, with at most two quiet compatible supporting materials. The objects must be intact, clean, culturally respectful, and arranged for practical use. Do not include tarot cards, saju grids, readable talisman writing, damaged antiques, skulls, uncontrolled fire, dense smoke, supernatural glow, or generic fantasy decorations. A small steady candle flame is allowed only when the assigned hero subject belongs to the candle motif family.',
+        moodScene: 'Build a bright, modest Korean sinjeom consultation, prayer, or preparation environment around only the assigned object and compatible setting. It must not reuse the other image’s hero object, motif family, furniture group, room, or lighting setup. Do not include people in ceremonial costume, crowded altars, ghosts, red lighting, floating talismans, horror imagery, or theatrical spectacle. Buddhist and traditional sinjeom motifs must not be crowded together as competing hero subjects.',
         visualSubjects: [
-            { id: 'ritual-fan', prompt: 'one restrained Korean ceremonial folding fan with a pale paper surface and subtle traditional color accents, fully closed or gently opened on a support' },
-            { id: 'brass-bell', prompt: 'one familiar handheld-size brass ritual bell with realistic mild patina and a simple wooden handle' },
-            { id: 'paper-lotus-lantern', prompt: 'one small unlit lotus-shaped paper lantern in restrained cream and pale accent colors, with no glow, flame, or electric light' },
-            { id: 'five-color-cloth', prompt: 'one neatly folded restrained five-color ceremonial cloth showing clean woven texture without becoming a costume' },
-            { id: 'wooden-tray', role: 'support', prompt: 'one shallow handmade wooden preparation tray holding folded blank white paper and no food or offerings' },
-            { id: 'brass-bowl', role: 'support', prompt: 'one small plain brass ceremonial bowl with a natural matte surface, empty and resting securely on cloth' },
-            { id: 'traditional-knot', role: 'support', prompt: 'one carefully arranged traditional multicolor knot cord stored in a small open wooden case' },
-            { id: 'folded-hanji', role: 'support', prompt: 'a set of folded blank hanji papers and a plain paperweight, with no talisman writing or visible text' },
-            { id: 'small-hand-drum', prompt: 'one compact traditional handheld drum stored respectfully on a low padded support, not being performed' },
-            { id: 'brass-mirror', prompt: 'one small round brass ritual mirror with a matte reflection and a simple fabric pouch' },
-            { id: 'wooden-clappers', role: 'support', prompt: 'one pair of small plain wooden ritual clappers resting parallel on a folded neutral cloth' },
-            { id: 'prayer-beads', role: 'support', prompt: 'one strand of plain dark wooden prayer beads arranged beside a closed unbranded fabric pouch' }
+            { id: 'ritual-fan', motifFamilyId: 'fan', tradition: 'sinjeom', prompt: 'one restrained Korean ceremonial folding fan with a pale paper surface and subtle traditional color accents, fully closed or gently opened on a support' },
+            { id: 'brass-bell', motifFamilyId: 'bell', tradition: 'sinjeom', prompt: 'one familiar handheld-size brass ritual bell with realistic mild patina and a simple wooden handle' },
+            { id: 'paper-lotus-lantern', motifFamilyId: 'lantern', tradition: 'buddhist', sceneFamilies: ['lantern-space', 'temple-interior', 'threshold-veranda', 'architectural-wide'], prompt: 'one small unlit lotus-shaped Korean paper lantern in restrained cream and pale accent colors, with clearly layered petals and no flame' },
+            { id: 'five-color-cloth', motifFamilyId: 'cloth', tradition: 'sinjeom', prompt: 'one neatly folded restrained five-color ceremonial cloth showing clean woven texture without becoming a costume' },
+            { id: 'small-hand-drum', motifFamilyId: 'drum', tradition: 'sinjeom', prompt: 'one compact traditional handheld drum stored respectfully on a low padded support, not being performed' },
+            { id: 'brass-mirror', motifFamilyId: 'mirror', tradition: 'sinjeom', prompt: 'one small round brass ritual mirror with a matte reflection and a simple fabric pouch' },
+            { id: 'hanging-lotus-lantern', motifFamilyId: 'lantern', tradition: 'buddhist', sceneFamilies: ['lantern-space', 'temple-interior', 'threshold-veranda', 'architectural-wide'], prompt: 'one medium hanging lotus lantern made from layered hanji petals, suspended securely beneath Korean wooden eaves with a soft electric light and no exposed flame', safetyPrompt: 'The lantern may have only a restrained electric glow. Do not place a candle or open flame inside it.' },
+            { id: 'lantern-canopy', motifFamilyId: 'lantern', tradition: 'buddhist', sceneFamilies: ['lantern-space', 'temple-interior', 'architectural-wide'], prompt: 'a modest orderly canopy of five to nine Korean lotus lanterns with varied pale colors, visible hanging cords, and generous spacing inside a real temple or prayer hall', safetyPrompt: 'Keep every lantern intact and electrically lit or unlit, with no fire, smoke, festival crowd, or readable hanging labels.' },
+            { id: 'single-prayer-candle', motifFamilyId: 'candle', tradition: 'neutral', sceneFamilies: ['candle-prayer', 'temple-interior'], prompt: 'one short ivory prayer candle burning with a small steady flame in a wide stable brass holder on a nonflammable stone surface', safetyPrompt: 'Show exactly one small controlled flame, no smoke, melted spill, nearby paper, unattended hazard, red lighting, or supernatural glow.' },
+            { id: 'three-votive-candles', motifFamilyId: 'candle', tradition: 'neutral', sceneFamilies: ['candle-prayer', 'temple-interior'], prompt: 'three small ivory votive candles of different heights in separate stable metal cups, arranged with safe spacing on a stone ledge', safetyPrompt: 'Allow only three small steady flames with no smoke, dripping wax, nearby fabric or paper, dramatic darkness, or fire effect.' },
+            { id: 'small-stone-buddha', motifFamilyId: 'buddha', tradition: 'buddhist', sceneFamilies: ['buddha-space', 'temple-interior', 'architectural-wide'], prompt: 'one small intact Korean-style seated stone Buddha figure with a calm simplified form on a clean stone or wooden base', safetyPrompt: 'Treat the sacred figure respectfully: keep it complete, undamaged, naturally lit, secondary to the real place, and free of fantasy glow or living human features.' },
+            { id: 'small-brass-buddha', motifFamilyId: 'buddha', tradition: 'buddhist', sceneFamilies: ['buddha-space', 'temple-interior'], prompt: 'one small intact matte-brass seated Buddha figure with restrained patina on a simple fitted wooden stand', safetyPrompt: 'Keep the sacred figure complete and respectful, without dramatic worship spectacle, gold fantasy lighting, smoke, or a crowded altar.' },
+            { id: 'wooden-moktak', motifFamilyId: 'moktak', tradition: 'buddhist', sceneFamilies: ['prayer-space', 'temple-interior', 'detail-closeup'], prompt: 'one compact Korean wooden moktak with a separate padded striker resting beside it on a clean woven mat, not being played' },
+            { id: 'empty-prayer-cushion', motifFamilyId: 'prayer', tradition: 'neutral', sceneFamilies: ['prayer-space', 'floor-setting', 'temple-interior'], prompt: 'one empty muted-gray Korean prayer cushion aligned toward a quiet blank wall or distant sacred focal area, with no person or body trace' },
+            { id: 'lotus-offering', motifFamilyId: 'lotus', tradition: 'buddhist', sceneFamilies: ['prayer-space', 'temple-interior', 'detail-closeup'], prompt: 'one fresh pale lotus flower in a low plain ceramic vessel on a clean prayer-room ledge, with no food offering or decorative excess' },
+            { id: 'ceramic-water-offering', motifFamilyId: 'offering', tradition: 'neutral', sceneFamilies: ['prayer-space', 'temple-interior', 'detail-closeup'], prompt: 'three small identical white ceramic water cups arranged in one straight respectful row on a plain wooden ledge, without food or readable labels' },
+            { id: 'wrapped-prayer-book', motifFamilyId: 'prayer-book', tradition: 'buddhist', sceneFamilies: ['prayer-space', 'temple-interior', 'archive-storage', 'detail-closeup'], prompt: 'one closed Korean prayer book wrapped in plain neutral cloth with no readable title, placed on a low sloped wooden book rest' },
+            { id: 'unlit-incense-holder', motifFamilyId: 'incense', tradition: 'neutral', sceneFamilies: ['prayer-space', 'temple-interior', 'detail-closeup'], prompt: 'one clean stone incense holder containing three completely unlit plain incense sticks with no ember, ash cloud, or smoke' },
+            { id: 'wooden-tray', role: 'support', motifFamilyId: 'tray', tradition: 'neutral', prompt: 'one shallow handmade wooden preparation tray holding folded blank white paper and no food or offerings' },
+            { id: 'brass-bowl', role: 'support', motifFamilyId: 'bowl', tradition: 'neutral', prompt: 'one small plain brass ceremonial bowl with a natural matte surface, empty and resting securely on cloth' },
+            { id: 'traditional-knot', role: 'support', motifFamilyId: 'knot', tradition: 'sinjeom', prompt: 'one carefully arranged traditional multicolor knot cord stored in a small open wooden case' },
+            { id: 'folded-hanji', role: 'support', motifFamilyId: 'hanji', tradition: 'neutral', prompt: 'a set of folded blank hanji papers and a plain paperweight, with no talisman writing or visible text' },
+            { id: 'wooden-clappers', role: 'support', motifFamilyId: 'clappers', tradition: 'sinjeom', prompt: 'one pair of small plain wooden ritual clappers resting parallel on a folded neutral cloth' },
+            { id: 'prayer-beads', role: 'support', motifFamilyId: 'beads', tradition: 'neutral', prompt: 'one strand of plain dark wooden prayer beads arranged beside a closed unbranded fabric pouch' },
+            { id: 'white-lotus-flower', role: 'support', motifFamilyId: 'lotus', tradition: 'buddhist', compatibleMotifFamilies: ['buddha', 'moktak', 'prayer', 'offering', 'prayer-book'], prompt: 'one small fresh white lotus flower in a plain low ceramic cup, kept secondary to the assigned hero subject' },
+            { id: 'candle-snuffer', role: 'support', motifFamilyId: 'candle-tool', tradition: 'neutral', compatibleMotifFamilies: ['candle'], prompt: 'one small matte-brass candle snuffer resting safely away from any flame' },
+            { id: 'small-votive-cup', role: 'support', motifFamilyId: 'votive-cup', tradition: 'neutral', compatibleMotifFamilies: ['candle'], prompt: 'one empty frosted votive cup on a stable stone coaster with no flame' },
+            { id: 'plain-prayer-cloth', role: 'support', motifFamilyId: 'prayer-cloth', tradition: 'neutral', compatibleMotifFamilies: ['prayer', 'moktak', 'beads', 'prayer-book'], prompt: 'one neatly folded plain cream prayer cloth with no writing, embroidery, or costume styling' },
+            { id: 'incense-storage-box', role: 'support', motifFamilyId: 'incense-box', tradition: 'neutral', compatibleMotifFamilies: ['incense'], prompt: 'one narrow closed wooden incense storage box with no readable label and no loose ash' },
+            { id: 'wooden-lantern-stand', role: 'support', motifFamilyId: 'lantern-stand', tradition: 'buddhist', compatibleMotifFamilies: ['lantern'], prompt: 'one simple dark wooden lantern stand with clean joinery, used only when compatible with the assigned lantern subject' }
         ]
     }
 };
@@ -212,14 +230,14 @@ const TAROT_CARD_TYPES = {
     'dream-archetype': { labelKo: '꿈·원형 타로', subjectId: 'dream-archetype' }
 };
 
-function createSceneArchetype(id, family, prompt, camera, tabletop = false) {
+function createSceneArchetype(id, family, prompt, camera, tabletop = false, options = {}) {
     const shotMode = family === 'detail-closeup'
         ? 'close-detail'
         : (family === 'architectural-wide' ? 'wide-environment' : 'environmental');
     const environment = family.startsWith('outdoor-')
         ? 'outdoor'
         : (family === 'threshold-veranda' ? 'threshold' : 'indoor');
-    return { id, family, prompt, camera, shotMode, tabletop, environment };
+    return { id, family, prompt, camera, shotMode, tabletop, environment, ...options };
 }
 
 const BASE_SCENE_ARCHETYPES = {
@@ -317,7 +335,25 @@ const BASE_SCENE_ARCHETYPES = {
         createSceneArchetype('sinjeom-floor-cushion-space', 'floor-setting', 'Place the assigned hero object on a low woven support beside one floor cushion in a bright open room, no table.', '40mm floor-level environmental view'),
         createSceneArchetype('sinjeom-mat-preparation', 'floor-setting', 'Use a clean floor mat with the assigned hero object and one supporting material clearly separated.', '50mm low diagonal floor view'),
         createSceneArchetype('sinjeom-prayer-room-wide', 'architectural-wide', 'Show a bright uncluttered Korean prayer room with the assigned hero object on a wall ledge as the clear anchor, no crowded altar.', '30mm architectural wide view'),
-        createSceneArchetype('sinjeom-courtyard-building-wide', 'architectural-wide', 'Show a modest wooden building and courtyard with the assigned hero object visible on the veranda edge.', '30mm exterior architectural view')
+        createSceneArchetype('sinjeom-courtyard-building-wide', 'architectural-wide', 'Show a modest wooden building and courtyard with the assigned hero object visible on the veranda edge.', '30mm exterior architectural view'),
+        createSceneArchetype('sinjeom-lantern-eaves-row', 'lantern-space', 'Show a modest row of Korean lotus lanterns hanging beneath deep wooden eaves in clear daytime, with visible spacing and no crowd.', '40mm diagonal view along the eaves', false, { motifFamilies: ['lantern'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-lantern-hall-ceiling', 'lantern-space', 'Frame an orderly lantern canopy inside a bright Korean prayer hall, keeping wooden ceiling structure and safe suspension clearly visible.', '32mm upward but level architectural view', false, { motifFamilies: ['lantern'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-lantern-corridor-depth', 'lantern-space', 'Use a quiet covered temple corridor with a short sequence of lotus lanterns creating natural depth and no readable labels.', '45mm eye-level corridor view', false, { motifFamilies: ['lantern'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-temple-window-prayer-room', 'temple-interior', 'Use a small uncluttered prayer room beside a paper window, with one assigned Buddhist or neutral prayer object in soft daylight.', '45mm side-lit interior view', false, { motifFamilies: ['lantern', 'buddha', 'moktak', 'prayer', 'lotus', 'offering', 'prayer-book', 'incense', 'candle'], traditions: ['buddhist', 'neutral'] }),
+        createSceneArchetype('sinjeom-temple-wooden-floor-wide', 'temple-interior', 'Show a clean wooden-floored Korean prayer hall with generous empty space and one assigned object as the visual anchor.', '32mm level wide interior view', false, { motifFamilies: ['lantern', 'buddha', 'moktak', 'prayer', 'lotus', 'offering', 'prayer-book', 'incense'], traditions: ['buddhist', 'neutral'] }),
+        createSceneArchetype('sinjeom-temple-side-hall-alcove', 'temple-interior', 'Use a quiet side-hall alcove with restrained timber joinery and one low fitted support for the assigned prayer object.', '50mm compressed alcove view', false, { motifFamilies: ['buddha', 'moktak', 'lotus', 'offering', 'prayer-book', 'incense', 'candle'], traditions: ['buddhist', 'neutral'] }),
+        createSceneArchetype('sinjeom-temple-doorway-daylight', 'temple-interior', 'Frame a modest prayer-room interior through an open wooden doorway with courtyard daylight and no visitors.', '40mm layered doorway view', false, { motifFamilies: ['lantern', 'buddha', 'moktak', 'prayer', 'lotus', 'offering', 'prayer-book'], traditions: ['buddhist', 'neutral'] }),
+        createSceneArchetype('sinjeom-single-candle-stone-ledge', 'candle-prayer', 'Place the assigned prayer candle on a broad nonflammable stone ledge with ample clearance from paper, fabric, and wood.', '70mm close side view of the stable holder', false, { motifFamilies: ['candle'], traditions: ['neutral'] }),
+        createSceneArchetype('sinjeom-votive-candle-niche', 'candle-prayer', 'Use a shallow pale-stone prayer niche containing only the assigned votive candles with safe separation and soft ambient daylight.', '55mm straight-on niche view', false, { motifFamilies: ['candle'], traditions: ['neutral'] }),
+        createSceneArchetype('sinjeom-candle-holder-close', 'candle-prayer', 'Show the complete assigned candle holder and its stable stone support in close detail, with the surrounding prayer room softly visible.', '75mm controlled close detail', false, { motifFamilies: ['candle'], traditions: ['neutral'] }),
+        createSceneArchetype('sinjeom-stone-buddha-garden', 'buddha-space', 'Place the assigned small stone Buddha figure in a quiet maintained temple garden corner on a secure low stone base.', '55mm respectful garden portrait', false, { motifFamilies: ['buddha'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-brass-buddha-alcove', 'buddha-space', 'Use a simple wooden prayer-hall alcove with the assigned small brass Buddha figure centered on a plain fitted stand and no crowded altar.', '65mm level front three-quarter view', false, { motifFamilies: ['buddha'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-buddha-window-side', 'buddha-space', 'Show the assigned Buddha figure beside a paper window where neutral daylight reveals the material without dramatic rays or glow.', '70mm calm side-lit portrait', false, { motifFamilies: ['buddha'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-empty-cushion-prayer-room', 'prayer-space', 'Show one empty prayer cushion aligned in a bright uncluttered room, with no person, clothing, body trace, or staged performance.', '40mm seated-eye-line environmental view', false, { motifFamilies: ['prayer'], traditions: ['neutral'] }),
+        createSceneArchetype('sinjeom-moktak-prayer-mat', 'prayer-space', 'Place the assigned moktak and padded striker on a clean woven prayer mat with clear separation and no hands.', '60mm low diagonal detail', false, { motifFamilies: ['moktak'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-lotus-water-offering', 'prayer-space', 'Use a plain wooden ledge for the assigned lotus or water-cup arrangement, keeping the background bright, modest, and free of food offerings.', '55mm orderly still-life view', false, { motifFamilies: ['lotus', 'offering'], traditions: ['buddhist', 'neutral'] }),
+        createSceneArchetype('sinjeom-wrapped-prayer-book-rest', 'prayer-space', 'Show the assigned closed wrapped prayer book on a low sloped wooden rest beside an empty prayer area, with no readable writing.', '60mm side-front study view', false, { motifFamilies: ['prayer-book'], traditions: ['buddhist'] }),
+        createSceneArchetype('sinjeom-unlit-incense-preparation', 'prayer-space', 'Place the assigned completely unlit incense holder on a stable stone coaster near a closed storage box, with no ember, ash cloud, or smoke.', '65mm close preparation view', false, { motifFamilies: ['incense'], traditions: ['neutral'] })
     ]
 };
 
@@ -412,12 +448,13 @@ function validateTemplateVisualGuides() {
             throw new Error(`[visual-config] ${templateType} requires at least 6 hero-eligible visual subjects.`);
         }
         const baseArchetypes = BASE_SCENE_ARCHETYPES[templateType];
-        if (!Array.isArray(baseArchetypes) || baseArchetypes.length !== 30) {
-            throw new Error(`[visual-config] ${templateType} requires exactly 30 base scene archetypes.`);
+        if (!Array.isArray(baseArchetypes) || baseArchetypes.length < 30) {
+            throw new Error(`[visual-config] ${templateType} requires at least 30 base scene archetypes.`);
         }
         const archetypes = SCENE_ARCHETYPES[templateType];
-        if (!Array.isArray(archetypes) || archetypes.length !== 300) {
-            throw new Error(`[visual-config] ${templateType} requires exactly 300 scene archetypes.`);
+        const expectedSceneCount = baseArchetypes.length * SCENE_SITE_VARIANTS.length;
+        if (!Array.isArray(archetypes) || archetypes.length !== expectedSceneCount) {
+            throw new Error(`[visual-config] ${templateType} requires exactly ${expectedSceneCount} expanded scene archetypes.`);
         }
         if (new Set(archetypes.map((scene) => scene.id)).size !== archetypes.length) {
             throw new Error(`[visual-config] ${templateType} contains duplicate scene archetype IDs.`);
@@ -706,13 +743,53 @@ function getDifferentOptionIndex(options, firstIndex, digest, byteOffset) {
     return (firstIndex + 1 + (digest[byteOffset % digest.length] % (options.length - 1))) % options.length;
 }
 
-function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, allowSharedTabletop = false) {
+function getSubjectMotifFamily(subject) {
+    return subject?.motifFamilyId || subject?.id || 'unknown';
+}
+
+function isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily = '') {
+    const motifFamily = getSubjectMotifFamily(subject);
+    if (excludedMotifFamily && motifFamily === excludedMotifFamily) return false;
+    if (Array.isArray(subject?.sceneFamilies) && !subject.sceneFamilies.includes(scene.family)) return false;
+    if (Array.isArray(scene?.motifFamilies) && !scene.motifFamilies.includes(motifFamily)) return false;
+    if (Array.isArray(scene?.traditions) && subject?.tradition && !scene.traditions.includes(subject.tradition)) return false;
+    return true;
+}
+
+function pickCompatibleSubject(subjects, scene, digest, byteOffset, excludedMotifFamily = '') {
+    const candidates = subjects.filter((subject) => isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily));
+    if (!candidates.length) {
+        throw new Error(`[visual-config] No compatible subject is available for scene ${scene.id}.`);
+    }
+    return pickVisualOption(candidates, digest, byteOffset);
+}
+
+function pickCompatibleSupport(subjects, heroSubject, digest, byteOffset, excludedId = '') {
+    const heroTradition = heroSubject?.tradition || '';
+    const heroMotifFamily = getSubjectMotifFamily(heroSubject);
+    const candidates = subjects.filter((subject) => (
+        subject.id !== excludedId
+        && (!heroTradition || !subject.tradition || subject.tradition === 'neutral' || subject.tradition === heroTradition)
+        && (!Array.isArray(subject.compatibleMotifFamilies) || subject.compatibleMotifFamilies.includes(heroMotifFamily))
+        && getSubjectMotifFamily(subject) !== heroMotifFamily
+    ));
+    return candidates.length ? pickVisualOption(candidates, digest, byteOffset) : null;
+}
+
+function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, {
+    allowSharedTabletop = false,
+    heroSubjects = [],
+    excludedMotifFamily = ''
+} = {}) {
     const candidates = archetypes.filter((scene) => (
         scene.id !== firstScene.id
         && scene.venueId !== firstScene.venueId
         && scene.baseVenueId !== firstScene.baseVenueId
         && scene.family !== firstScene.family
         && (allowSharedTabletop || !(scene.tabletop && firstScene.tabletop))
+        && (!heroSubjects.length || heroSubjects.some((subject) => (
+            isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily)
+        )))
     ));
     if (!candidates.length) {
         throw new Error('[visual-config] No compatible non-duplicate scene archetype is available.');
@@ -743,24 +820,26 @@ function getVisualPair(payload) {
     const selectedTarotSubjectIndex = tarotCardType?.subjectId
         ? heroSubjects.findIndex((subject) => subject.id === tarotCardType.subjectId)
         : -1;
-    const portraitSubjectIndex = selectedTarotSubjectIndex >= 0
-        ? selectedTarotSubjectIndex
-        : pairDigest[0] % heroSubjects.length;
-    const moodSubjectIndex = payload.templateType === 'tarot-ppt'
-        ? portraitSubjectIndex
-        : getDifferentOptionIndex(heroSubjects, portraitSubjectIndex, pairDigest, 1);
     const portraitScene = pickVisualOption(archetypes, pairDigest, 2);
     const allowPairedTabletop = payload.templateType === 'tarot-ppt';
-    const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3, allowPairedTabletop);
+    const portraitSubject = selectedTarotSubjectIndex >= 0
+        ? heroSubjects[selectedTarotSubjectIndex]
+        : pickCompatibleSubject(heroSubjects, portraitScene, pairDigest, 0);
+    const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3, {
+        allowSharedTabletop: allowPairedTabletop,
+        heroSubjects,
+        excludedMotifFamily: allowPairedTabletop ? '' : getSubjectMotifFamily(portraitSubject)
+    });
+    const moodSubject = allowPairedTabletop
+        ? portraitSubject
+        : pickCompatibleSubject(heroSubjects, moodScene, pairDigest, 1, getSubjectMotifFamily(portraitSubject));
     const paletteOptions = payload.templateType === 'tarot-ppt'
         ? TAROT_VISUAL_PALETTES
         : VISUAL_VARIATION_OPTIONS.palettes;
     const portraitPaletteIndex = pairDigest[7] % paletteOptions.length;
     const moodPaletteIndex = getDifferentOptionIndex(paletteOptions, portraitPaletteIndex, pairDigest, 4);
-    const portraitSupportIndex = supportSubjects.length ? pairDigest[5] % supportSubjects.length : -1;
-    const moodSupportIndex = supportSubjects.length
-        ? getDifferentOptionIndex(supportSubjects, portraitSupportIndex, pairDigest, 6)
-        : -1;
+    const portraitSupport = pickCompatibleSupport(supportSubjects, portraitSubject, pairDigest, 5);
+    const moodSupport = pickCompatibleSupport(supportSubjects, moodSubject, pairDigest, 6, portraitSupport?.id || '');
     const realizationPair = getVisualRealizationPair({
         templateType: payload.templateType,
         stableIdentity,
@@ -789,6 +868,7 @@ function getVisualPair(payload) {
             realization,
             visualGroupId: [
                 payload.templateType,
+                getSubjectMotifFamily(subject),
                 subject.id,
                 supportSubject?.id || 'no-support',
                 scene.id,
@@ -801,24 +881,24 @@ function getVisualPair(payload) {
     const pair = {
         portrait: buildKindVariation(
             'portrait',
-            heroSubjects[portraitSubjectIndex],
-            heroSubjects[moodSubjectIndex],
+            portraitSubject,
+            moodSubject,
             portraitScene,
             moodScene,
             paletteOptions[portraitPaletteIndex],
             portraitPaletteIndex,
-            portraitSupportIndex >= 0 ? supportSubjects[portraitSupportIndex] : null,
+            portraitSupport,
             realizationPair.portrait
         ),
         mood: buildKindVariation(
             'mood',
-            heroSubjects[moodSubjectIndex],
-            heroSubjects[portraitSubjectIndex],
+            moodSubject,
+            portraitSubject,
             moodScene,
             portraitScene,
             paletteOptions[moodPaletteIndex],
             moodPaletteIndex,
-            moodSupportIndex >= 0 ? supportSubjects[moodSupportIndex] : null,
+            moodSupport,
             realizationPair.mood
         )
     };
@@ -826,6 +906,9 @@ function getVisualPair(payload) {
         payload.templateType === 'tarot-ppt'
             ? pair.portrait.subject.id === pair.mood.subject.id
             : pair.portrait.subject.id !== pair.mood.subject.id,
+        payload.templateType === 'tarot-ppt'
+            ? getSubjectMotifFamily(pair.portrait.subject) === getSubjectMotifFamily(pair.mood.subject)
+            : getSubjectMotifFamily(pair.portrait.subject) !== getSubjectMotifFamily(pair.mood.subject),
         pair.portrait.scene.id !== pair.mood.scene.id,
         pair.portrait.scene.venueId !== pair.mood.scene.venueId,
         pair.portrait.scene.baseVenueId !== pair.mood.scene.baseVenueId,
@@ -908,6 +991,8 @@ function buildVisualVariationPrompt(variation, imageKind) {
     return `
 Consultant-specific paired visual direction (pair ${variation.pairId}, variant ${variation.id}):
 - Assigned hero subject: ${variation.subject.prompt}.
+- Assigned motif family: ${getSubjectMotifFamily(variation.subject)}.
+${variation.subject.safetyPrompt ? `- Subject-specific safety: ${variation.subject.safetyPrompt}` : ''}
 - ${pairSubjectRule}
 - Assigned scene ID: ${variation.scene.id}.
 - Assigned physical venue ID: ${variation.scene.venueId} (base ${variation.scene.baseVenueId}, realization ${variation.scene.siteVariant}).
@@ -1734,6 +1819,7 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: portraitVariation.pairId,
             variationId: portraitVariation.id,
             visualGroupId: portraitVariation.visualGroupId,
+            motifFamilyId: getSubjectMotifFamily(portraitVariation.subject),
             paletteId: portraitVariation.paletteId,
             realizationId: portraitVariation.realization.id,
             locationId: portraitVariation.realization.location.id,
@@ -1757,6 +1843,7 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             pairId: moodVariation.pairId,
             variationId: moodVariation.id,
             visualGroupId: moodVariation.visualGroupId,
+            motifFamilyId: getSubjectMotifFamily(moodVariation.subject),
             paletteId: moodVariation.paletteId,
             realizationId: moodVariation.realization.id,
             locationId: moodVariation.realization.location.id,
@@ -1962,6 +2049,7 @@ function toVisualHistoryEntry(kind, variation) {
         kind,
         visualGroupId: variation.visualGroupId,
         subjectId: variation.subject.id,
+        motifFamilyId: getSubjectMotifFamily(variation.subject),
         sceneFamily: variation.scene.family,
         sceneId: variation.scene.id,
         venueId: variation.scene.venueId,
@@ -1978,6 +2066,7 @@ function toVisualHistoryEntry(kind, variation) {
 
 const VISUAL_HISTORY_WEIGHTS = {
         visualGroupId: 1000000,
+        motifFamilyId: 500,
         sceneId: 300,
         venueId: 250,
         realizationId: 220,
@@ -1996,6 +2085,9 @@ function createVisualUsageIndex(previousVisuals) {
     const frequencies = Object.fromEntries(Object.keys(VISUAL_HISTORY_WEIGHTS).map((key) => [key, new Map()]));
     const combinations = new Map();
     const visualGroupIds = new Set();
+    const recentMotifFamilies = new Set(
+        previousVisuals.slice(0, 8).map((visual) => visual.motifFamilyId).filter(Boolean)
+    );
     for (const previous of previousVisuals) {
         const kind = previous.kind || '*';
         for (const key of Object.keys(VISUAL_HISTORY_WEIGHTS)) {
@@ -2008,13 +2100,14 @@ function createVisualUsageIndex(previousVisuals) {
         combinations.set(combination, (combinations.get(combination) || 0) + 1);
         if (previous.visualGroupId) visualGroupIds.add(previous.visualGroupId);
     }
-    return { frequencies, combinations, visualGroupIds };
+    return { frequencies, combinations, visualGroupIds, recentMotifFamilies };
 }
 
 function scoreVisualPair(pair, usageIndex) {
     const entries = [toVisualHistoryEntry('portrait', pair.portrait), toVisualHistoryEntry('mood', pair.mood)];
     let score = 0;
     for (const entry of entries) {
+        if (usageIndex.recentMotifFamilies.has(entry.motifFamilyId)) score += 250000;
         for (const [key, weight] of Object.entries(VISUAL_HISTORY_WEIGHTS)) {
             if (!entry[key]) continue;
             const exactCount = usageIndex.frequencies[key].get(`${entry.kind}:${entry[key]}`) || 0;
@@ -2426,6 +2519,14 @@ app.get('/api/health', (req, res) => {
             Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => [
                 templateType,
                 guide.visualSubjects.filter((subject) => subject.role !== 'support').length
+            ])
+        ),
+        pairedHeroMotifFamilies: Object.fromEntries(
+            Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => [
+                templateType,
+                new Set(guide.visualSubjects
+                    .filter((subject) => subject.role !== 'support')
+                    .map(getSubjectMotifFamily)).size
             ])
         ),
         baseSceneArchetypeCounts: Object.fromEntries(

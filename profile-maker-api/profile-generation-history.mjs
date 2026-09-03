@@ -15,6 +15,21 @@ const PROFILE_TEXT_FIELDS = [
     'closingBody'
 ];
 
+const LEGACY_VISUAL_MOTIF_FAMILIES = {
+    'ritual-fan': 'fan',
+    'brass-bell': 'bell',
+    'paper-lotus-lantern': 'lantern',
+    'five-color-cloth': 'cloth',
+    'small-hand-drum': 'drum',
+    'brass-mirror': 'mirror',
+    'wooden-tray': 'tray',
+    'brass-bowl': 'bowl',
+    'traditional-knot': 'knot',
+    'folded-hanji': 'hanji',
+    'wooden-clappers': 'clappers',
+    'prayer-beads': 'beads'
+};
+
 function hash(value) {
     return crypto.createHash('sha256').update(String(value || '')).digest('hex');
 }
@@ -56,10 +71,12 @@ export function calculateProfileSimilarity(left, right) {
 }
 
 function normalizeVisual(kind, guide = {}) {
+    const subjectId = String(guide.subjectId || '');
     return {
         kind,
         visualGroupId: String(guide.visualGroupId || ''),
-        subjectId: String(guide.subjectId || ''),
+        subjectId,
+        motifFamilyId: String(guide.motifFamilyId || LEGACY_VISUAL_MOTIF_FAMILIES[subjectId] || subjectId),
         sceneFamily: String(guide.sceneFamily || ''),
         sceneId: String(guide.sceneId || ''),
         venueId: String(guide.venueId || ''),
@@ -112,7 +129,12 @@ export class FileProfileGenerationHistory {
         try {
             const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
             for (const record of parsed.records || []) {
-                if (record?.id) this.records.set(record.id, record);
+                if (record?.id) {
+                    this.records.set(record.id, {
+                        ...record,
+                        visuals: (record.visuals || []).map((visual) => normalizeVisual(visual.kind, visual))
+                    });
+                }
             }
         } catch (error) {
             if (error?.code !== 'ENOENT') throw error;
@@ -171,6 +193,7 @@ export class FileProfileGenerationHistory {
     getVisualAssignments(templateType) {
         return [...this.records.values()]
             .filter((record) => record.templateType === templateType)
+            .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))
             .flatMap((record) => record.visuals || []);
     }
 

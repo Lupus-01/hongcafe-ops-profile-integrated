@@ -44,6 +44,25 @@ async function submitProfile(baseUrl, name, requestKey) {
     return { response, data };
 }
 
+async function submitSinjeomProfile(baseUrl, name, requestKey) {
+    const form = new FormData();
+    form.append('templateType', 'sinjeom-ppt');
+    form.append('name', name);
+    form.append('specialty', '기도와 마음 정리 상담');
+    form.append('tone', '차분하고 현실적');
+    form.append('career', '오랜 상담 경험');
+    form.append('imageStyle', '밝고 정갈한 한국 기도 공간');
+    form.append('generateImage', 'true');
+    form.append('imageQuality', 'standard');
+    const response = await fetch(`${baseUrl}/api/generate-profile`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': requestKey },
+        body: form
+    });
+    const data = await response.json();
+    return { response, data };
+}
+
 async function submitTextDocument(baseUrl, requestKey) {
     const form = new FormData();
     form.append('pptFile', new Blob([
@@ -121,6 +140,9 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
             PROFILE_CAMPAIGN_MODE: 'true',
             PROFILE_CAMPAIGN_ID: 'integration-campaign',
             PROFILE_CAMPAIGN_SAFETY_CAP: '1500',
+            DAILY_PROFILE_LIMIT: '100',
+            DAILY_IMAGE_LIMIT: '100',
+            PROFILE_USER_DAILY_LIMIT: '100',
             PROFILE_JOB_STORE_DIR: storeDirectory,
             AUTH_BYPASS: 'true',
             GEMINI_API_KEY: 'mock-key-that-is-never-called'
@@ -138,13 +160,13 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
-    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v9-cross-campaign-history');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v10-sinjeom-motif-rotation');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         groupsPerImage: {
             'tarot-ppt': '2064384000000',
             'saju-ppt': '1769472000000',
-            'sinjeom-ppt': '5308416000000'
+            'sinjeom-ppt': '50960793600000'
         },
         fixedTarotDeckGroupsPerImage: '147456000000'
     });
@@ -155,6 +177,11 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
         expressionStyles: 20,
         variantsTotal: 88473600
     });
+    assert.equal(initialHealth.pairedSceneSubjects['sinjeom-ppt'], 30);
+    assert.equal(initialHealth.pairedHeroSubjects['sinjeom-ppt'], 18);
+    assert.equal(initialHealth.pairedHeroMotifFamilies['sinjeom-ppt'], 14);
+    assert.equal(initialHealth.baseSceneArchetypeCounts['sinjeom-ppt'], 48);
+    assert.equal(initialHealth.sceneArchetypeCounts['sinjeom-ppt'], 480);
 
     const duplicateSubmissions = await Promise.all(
         Array.from({ length: 20 }, (_, index) => submitProfile(baseUrl, 'same consultant', `duplicate-${index}`))
@@ -199,6 +226,23 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(new Set(generatedVisualGroups).size, generatedVisualGroups.length);
     assert.equal(uniqueJobs.every((job) => job.result.noveltyMeta.visual.reusedVisualGroup === false), true);
 
+    const sinjeomSubmissions = await Promise.all(
+        Array.from({ length: 12 }, (_, index) => submitSinjeomProfile(baseUrl, `sinjeom-${index}`, `sinjeom-key-${index}`))
+    );
+    assert.equal(sinjeomSubmissions.every(({ response }) => [200, 202].includes(response.status)), true);
+    const sinjeomJobs = await Promise.all(sinjeomSubmissions.map(({ data }) => waitForJob(baseUrl, data.job.id)));
+    const sinjeomGuides = sinjeomJobs.flatMap((job) => [job.result.imageGuide.portrait, job.result.imageGuide.mood]);
+    for (const job of sinjeomJobs) {
+        assert.notEqual(job.result.imageGuide.portrait.motifFamilyId, job.result.imageGuide.mood.motifFamilyId);
+    }
+    assert.equal(new Set(sinjeomGuides.map((guide) => guide.visualGroupId)).size, sinjeomGuides.length);
+    assert.ok(new Set(sinjeomGuides.map((guide) => guide.motifFamilyId)).size >= 10);
+    for (const guide of sinjeomGuides) {
+        if (guide.motifFamilyId === 'candle') assert.ok(['candle-prayer', 'temple-interior'].includes(guide.sceneFamily));
+        if (guide.motifFamilyId === 'buddha') assert.ok(['buddha-space', 'temple-interior', 'architectural-wide'].includes(guide.sceneFamily));
+        if (guide.motifFamilyId === 'lantern') assert.ok(['lantern-space', 'temple-interior', 'threshold-veranda', 'architectural-wide'].includes(guide.sceneFamily));
+    }
+
     const documentSubmission = await submitTextDocument(baseUrl, 'text-document-key');
     assert.ok([200, 202].includes(documentSubmission.response.status));
     const documentJob = await waitForJob(baseUrl, documentSubmission.data.job.id);
@@ -226,8 +270,8 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.notEqual(reversedMultipleDocumentSubmission.data.job.id, multipleDocumentSubmission.data.job.id);
 
     const finalHealth = await (await fetch(`${baseUrl}/api/health`)).json();
-    assert.equal(finalHealth.profileCampaignJobs, 10);
-    assert.equal(finalHealth.profileGenerationHistoryRecords, 10);
+    assert.equal(finalHealth.profileCampaignJobs, 22);
+    assert.equal(finalHealth.profileGenerationHistoryRecords, 22);
     assert.equal(finalHealth.profileCopySimilarityThreshold, 0.55);
     assert.equal(finalHealth.maxDocumentFileCount, 5);
     assert.equal(finalHealth.maxDocumentTotalBytes, 26214400);
