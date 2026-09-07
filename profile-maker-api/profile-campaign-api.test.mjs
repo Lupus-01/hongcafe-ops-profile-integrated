@@ -149,6 +149,7 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
             PROFILE_USER_DAILY_LIMIT: '',
             PROFILE_RATE_LIMIT_MAX: '',
             GEMINI_MAX_QUEUE_DEPTH: '',
+            GEMINI_MIN_REQUEST_INTERVAL_MS: '',
             PROFILE_JOB_STORE_DIR: storeDirectory,
             AUTH_BYPASS: 'true',
             GEMINI_API_KEY: 'mock-key-that-is-never-called'
@@ -172,6 +173,7 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileUserDailyLimit, 720);
     assert.equal(initialHealth.profileRateLimitMax, 240);
     assert.equal(initialHealth.geminiMaxQueueDepth, 120);
+    assert.equal(initialHealth.geminiMinRequestIntervalMs, 10000);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v11-photographic-direction');

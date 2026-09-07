@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import vm from 'node:vm';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
 import {
     canReuseLegacyProfileImages,
@@ -29,6 +30,47 @@ function createInput(generateImageRequested = true) {
         referenceImages: []
     };
 }
+
+test('10-second AI spacing stays serial and never repeats a failed external request', async () => {
+    const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
+    const requestFunction = source.slice(source.indexOf('async function runGeminiRequest('), source.indexOf('function createHttpError('));
+    let now = 100000;
+    let attempts = 0;
+    const starts = [];
+    const delays = [];
+    const run = vm.runInNewContext(`
+        let geminiQueue = Promise.resolve();
+        let geminiQueueDepth = 0;
+        let lastGeminiRequestAt = 0;
+        const GEMINI_MAX_QUEUE_DEPTH = 120;
+        const GEMINI_MIN_REQUEST_INTERVAL_MS = 10000;
+        ${requestFunction}
+        runGeminiRequest;
+    `, {
+        Date: { now: () => now },
+        wait: async (ms) => { delays.push(ms); now += ms; },
+        reserveGeminiAttempt: () => ({ geminiUsed: ++attempts, geminiLimit: 960 }),
+        requestContext: { getStore: () => ({}) },
+        getKstTimestamp: () => '',
+        console: { log() {}, warn() {} },
+        createHttpError: (status, message) => Object.assign(new Error(message), { status })
+    });
+    const failure = new Error('external request failed');
+    const results = await Promise.allSettled([3000, 15000, 3000].map((duration, index) => run(`request-${index}`, async () => {
+        starts.push(now);
+        await Promise.resolve();
+        now += duration;
+        if (index === 0) throw failure;
+        return index;
+    })));
+    assert.deepEqual(starts, [100000, 110000, 125000]);
+    assert.deepEqual(delays, [7000]);
+    assert.equal(attempts, 3);
+    assert.equal(results[0].status, 'rejected');
+    assert.equal(failure.externalRequestStarted, true);
+    assert.equal(results[1].value, 1);
+    assert.equal(results[2].value, 2);
+});
 
 async function waitForTerminalState(store, jobId) {
     for (let attempt = 0; attempt < 100; attempt += 1) {
