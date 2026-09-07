@@ -124,6 +124,96 @@ test('protected site properties receive important priority at runtime', () => {
     assert.equal(calls.find((call) => call.property === 'color').priority, '');
 });
 
+test('site protection removes entire CSS blocks and preserves content and other inline styles', () => {
+    const fontFamily = "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+    const protect = vm.runInNewContext(`(() => {
+        ${getFunctionSource(script, 'setProtectedInlineStyles')}
+        return ${getFunctionSource(script, 'applyProfileSiteProtectionStyles')};
+    })()`, { defaultTypography: { fontFamily } });
+    const makeElement = (textContent, initialStyles = {}, src = '') => ({
+        textContent,
+        src,
+        values: { ...initialStyles },
+        style: {
+            setProperty(property, value, priority = '') {
+                this.owner.values[property] = { value, priority };
+            }
+        }
+    });
+    const title = makeElement('기존 제목', { 'font-size': { value: '42px', priority: 'important' } });
+    const body = makeElement('기존 본문', {
+        'font-size': { value: '20px', priority: 'important' },
+        'line-height': { value: '1.65', priority: 'important' }
+    });
+    const photo = makeElement('', {
+        'aspect-ratio': { value: '16 / 8.6', priority: 'important' },
+        background: { value: '#fff', priority: '' }
+    }, 'https://example.com/existing-image.jpg');
+    const root = makeElement('', { padding: { value: '12px 8px', priority: '' } });
+    const elements = [root, title, body, photo];
+    elements.forEach((element) => { element.style.owner = element; });
+    const before = elements.map((element) => ({ ...element.values }));
+    const blocks = [
+        { textContent: '@import url(font.css); .pb-site-profile-output { box-sizing: border-box; }' },
+        { textContent: '.pb-export-capture { box-sizing: border-box; }' }
+    ];
+    blocks.forEach((block) => { block.remove = () => { block.removed = true; }; });
+    root.querySelectorAll = (selector) => {
+        if (selector === 'style') return blocks.filter((block) => !block.removed);
+        assert.equal(selector, '*');
+        return [...blocks.filter((block) => !block.removed), title, body, photo];
+    };
+
+    protect(root);
+    protect(root);
+
+    assert.equal(root.querySelectorAll('style').length, 0);
+    // 편집기가 태그만 없애더라도 CSS 텍스트가 남아 있지 않아야 한다.
+    assert.equal(root.querySelectorAll('*').map((node) => node.textContent).join(''), '기존 제목기존 본문');
+    elements.forEach((element, index) => {
+        assert.deepEqual(element.values['font-family'], { value: fontFamily, priority: 'important' });
+        assert.deepEqual(element.values['box-sizing'], { value: 'border-box', priority: 'important' });
+        for (const [property, value] of Object.entries(before[index])) {
+            assert.deepEqual(element.values[property], value);
+        }
+    });
+    assert.equal(photo.src, 'https://example.com/existing-image.jpg');
+});
+
+test('site protection runs after all export formatting while capture keeps its stylesheet', () => {
+    const start = script.indexOf('function applyEditorFriendlyExportStyles(');
+    const end = script.indexOf('function validateReferenceFile(', start);
+    const source = script.slice(start, end).trim();
+    const run = vm.runInNewContext(`(${source})`, {
+        defaultTypography: { fontFamily: 'Pretendard', titleSize: 66, bodySize: 35, pointSize: 35, lineHeight: 1.7 },
+        siteTypography: { bodySize: '20px', pointSize: '20px', lineHeight: '1.65', chipSize: '20px', eyebrowSize: '12px' },
+        currentBrandBg: '#fff',
+        currentBrandColor: '#c21129',
+        currentBrandLight: '#fbe6e8',
+        setInlineStyles: vm.runInNewContext(`(${getFunctionSource(script, 'setInlineStyles')})`),
+        setProtectedInlineStyles: vm.runInNewContext(`(${getFunctionSource(script, 'setProtectedInlineStyles')})`),
+        stabilizeExportListMarkers() {},
+        normalizeExportRichText(root) { root.steps.push('normalize'); },
+        appendProfileExportCaptureStyles(root) { root.steps.push('capture'); },
+        applyProfileSiteProtectionStyles(root) {
+            assert.equal(root.steps.at(-1), 'normalize');
+            assert.equal(root.values['box-sizing'], 'border-box');
+            root.steps.push('site');
+        }
+    });
+    const makeRoot = () => {
+        const root = { steps: [], values: {}, classList: { add() {} }, querySelectorAll() { return []; } };
+        root.style = { setProperty(property, value) { root.values[property] = value; } };
+        return root;
+    };
+    const site = makeRoot();
+    run(site, { outputMode: 'site' });
+    assert.deepEqual(site.steps, ['normalize', 'site']);
+    const capture = makeRoot();
+    run(capture);
+    assert.deepEqual(capture.steps, ['capture', 'normalize']);
+});
+
 test('site exports reject mixed manual blocks and remove pasted nested formatting', () => {
     assert.match(script, /function assertStandardProfileExport\([\s\S]*?canvasElements\.length !== 1/);
     assert.match(script, /assertStandardProfileExport\(\);[\s\S]*?getCleanCanvasClone\(\)/);

@@ -60,7 +60,8 @@ test('site code protects fonts, sizes, line heights, and image ratios from host 
     assert.match(script, /function setProtectedInlineStyles\([\s\S]*?'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing'/);
     assert.match(script, /element\.style\.setProperty\(property, value, protectedProperties\.has\(property\) \? 'important' : ''\)/);
     assert.match(script, /classList\.add\('pb-site-profile-output'\)/);
-    assert.match(script, /@import url\('https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard\/dist\/web\/static\/pretendard\.css'\)/);
+    assert.doesNotMatch(script, /@import|appendProfileSiteProtectionStyles/);
+    assert.match(script, /normalizeExportRichText\(clone\);\s*if \(isSiteCode\) applyProfileSiteProtectionStyles\(clone\);/);
     assert.match(script, /'aspect-ratio': isPortrait \? '16 \/ 8\.6' : '16 \/ 8\.8'/);
     assert.match(script, /const setMediaStyles = isSiteCode \? setProtectedInlineStyles : setInlineStyles;/);
 });

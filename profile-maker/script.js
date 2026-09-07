@@ -1023,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const protectedProperties = new Set([
             'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing',
             'width', 'max-width', 'min-width', 'height', 'min-height', 'aspect-ratio',
-            'object-fit', 'object-position'
+            'object-fit', 'object-position', 'box-sizing'
         ]);
         Object.entries(styles).forEach(([property, value]) => {
             element.style.setProperty(property, value, protectedProperties.has(property) ? 'important' : '');
@@ -1116,21 +1116,15 @@ document.addEventListener('DOMContentLoaded', () => {
         root.prepend(style);
     }
 
-    function appendProfileSiteProtectionStyles(root) {
-        if (root.querySelector('[data-pb-site-protection-style]')) return;
-
-        const style = document.createElement('style');
-        style.setAttribute('data-pb-site-protection-style', 'true');
-        style.textContent = `
-            @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-
-            .pb-site-profile-output,
-            .pb-site-profile-output * {
-                box-sizing: border-box !important;
-                font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
-            }
-        `;
-        root.prepend(style);
+    function applyProfileSiteProtectionStyles(root) {
+        // 등록 편집기가 style 태그만 제거해 CSS 본문을 노출하지 않도록 블록 전체를 제외한다.
+        root.querySelectorAll('style').forEach((style) => style.remove());
+        [root, ...root.querySelectorAll('*')].forEach((element) => {
+            setProtectedInlineStyles(element, {
+                'box-sizing': 'border-box',
+                'font-family': defaultTypography.fontFamily
+            });
+        });
     }
 
     function waitForExportImages(root) {
@@ -1159,7 +1153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isSiteCode) {
             clone.querySelectorAll('[data-pb-export-capture-style]').forEach((style) => style.remove());
             clone.classList.add('pb-site-profile-output');
-            appendProfileSiteProtectionStyles(clone);
         } else {
             appendProfileExportCaptureStyles(clone);
         }
@@ -1465,6 +1458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         normalizeExportRichText(clone);
+        if (isSiteCode) applyProfileSiteProtectionStyles(clone);
     }
 
     function validateReferenceFile(file) {
