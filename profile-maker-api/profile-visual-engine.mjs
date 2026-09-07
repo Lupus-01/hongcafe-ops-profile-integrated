@@ -1,6 +1,20 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v10-sinjeom-motif-rotation';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v11-photographic-direction';
+
+function getPhotographicDirection(scene) {
+    const camera = String(scene?.camera || '');
+    if (/overhead/i.test(camera) || scene?.family === 'overhead-spread') {
+        return { id: 'ordered-overhead', prompt: 'Make the existing object arrangement and clear gaps the dominant visual structure. Preserve the assigned overhead angle and complete objects. Use the existing surface as the background; do not add a room horizon or foreground architecture.' };
+    }
+    if (scene?.shotMode === 'close-detail' || /closeup|detail/i.test(`${scene?.family || ''} ${camera}`)) {
+        return { id: 'material-detail', prompt: 'Make the complete hero object and its material boundaries dominate the frame at the assigned close distance. Keep the background simple and secondary; do not turn this into a wide room view or crop the object.' };
+    }
+    if (scene?.shotMode === 'wide-environment') {
+        return { id: 'open-space', prompt: 'Make the existing architecture or landscape and open space clearly readable at the assigned wide distance. Keep the hero identifiable within that setting. Use broad practical focus and do not collapse the background into a close-up.' };
+    }
+    return { id: 'layered-space', prompt: 'Separate the existing support, hero object, and background into readable near and far planes at the assigned camera distance. Use an existing boundary for depth without adding props, furniture, or changing the arrangement.' };
+}
 
 function createOptions(prefix, prompts) {
     return prompts.map((prompt, index) => ({ id: `${prefix}-${index + 1}`, prompt }));
@@ -8,18 +22,21 @@ function createOptions(prefix, prompts) {
 
 const LIGHTING_OPTIONS = createOptions('light', [
     'Use soft morning side light with restrained contrast and natural contact shadows.',
-    'Use clear late-morning window light with a neutral white balance and gentle shadow direction.',
+    'Use bright late-morning daylight, clear neutral whites, and a visibly light background without clipping highlights.',
     'Use diffuse overcast daylight with soft material separation and no dramatic glow.',
-    'Use calm afternoon light entering from the opposite side of the paired image.',
+    'Use directional afternoon light with visible medium-length contact shadows and readable darker midtones, without theatrical contrast.',
     'Use bright indirect daylight reflected from a pale wall, keeping every object readable.',
     'Use soft north-facing window light with cool-neutral highlights and warm natural materials.',
-    'Use mild warm practical room light balanced by neutral daylight, without theatrical contrast.',
+    'Use warm reflected daylight on the assigned materials with warm midtones and neutral whites, without an orange filter or changing the assigned environment.',
     'Use even skylight-like illumination with realistic exposure and quiet dimensional shadows.',
-    'Use a narrow band of natural side light while keeping the background softly illuminated.',
-    'Use subdued end-of-day daylight with accurate color and no orange cinematic grading.',
-    'Use clean front-side daylight with gentle highlight roll-off and visible surface texture.',
+    'Use a broad band of natural side light with a visibly shaded but readable background and clear texture separation.',
+    'Use subdued end-of-day daylight with deeper readable midtones, accurate color, and no dramatic darkness or orange cinematic grading.',
+    'Use directional front-side daylight with visible material relief and medium tonal contrast rather than uniformly flat illumination.',
     'Use broad soft light from behind the camera with one subtle side shadow for depth.'
-]);
+]).map((option, index) => ({
+    ...option,
+    exposureId: ['balanced', 'bright', 'balanced', 'directional', 'bright', 'balanced', 'warm', 'bright', 'directional', 'subdued', 'directional', 'bright'][index]
+}));
 
 const TONE_OPTIONS = createOptions('tone', [
     'Keep neutral whites and restrained natural saturation with a clean documentary color response.',
@@ -220,6 +237,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
     const placementOptions = CATEGORY_PLACEMENT_OPTIONS[templateType] || CATEGORY_PLACEMENT_OPTIONS['sinjeom-ppt'];
     const selected = {
         templateType,
+        photographicDirection: getPhotographicDirection(scene),
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
         placement: pickOption(placementOptions, digest, 4, excluded?.placement?.id),
@@ -231,6 +249,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
     };
     selected.id = [
         templateType,
+        selected.photographicDirection.id,
         selected.location.id,
         selected.environmentLocation.id,
         selected.placement.id,
@@ -250,16 +269,23 @@ export function getVisualRealizationPair({ templateType, stableIdentity, nonce, 
 }
 
 export function buildVisualRealizationPrompt(realization) {
+    const direction = realization.photographicDirection;
     return [
         `Category identity: ${realization.templateType}. Keep every location and placement specific to this consultation category.`,
+        ...(direction ? [
+            `Primary photographic direction (${direction.id}): ${direction.prompt}`,
+            'Make this composition visibly legible before adding small material details. Generic calm or neutral mood suggestions must not flatten the assigned light direction, tonal separation, and composition. Preserve natural exposure, category colors, safety, and compatible reference-image traits.'
+        ] : []),
         `Distinct category location: ${realization.location.prompt}`,
         `Environment-compatible physical place: ${realization.environmentLocation.prompt}`,
         `Category-specific photographic placement: ${realization.placement.prompt}`,
         `Lighting realization: ${realization.lighting.prompt}`,
         `Color and exposure realization: ${realization.tone.prompt}`,
         `Material realization: ${realization.material.prompt}`,
-        `Focus realization: ${realization.focus.prompt}`,
-        `Depth realization: ${realization.depth.prompt}`,
+        ...(!direction || direction.id === 'layered-space' ? [
+            `Focus realization: ${realization.focus.prompt}`,
+            `Depth realization: ${realization.depth.prompt}`
+        ] : []),
         'These are secondary realization constraints. They must preserve the assigned hero subject, scene family, environment, support method, spread or object arrangement, and camera distance.',
         'When reference images are attached, their safe compatible palette, material, lighting, and spatial traits remain the primary evidence; adapt these realization choices around those traits instead of overriding them.'
     ].join('\n');

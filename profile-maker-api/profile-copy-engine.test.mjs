@@ -15,6 +15,28 @@ test('copy engine exposes the full combinatorial group space and twenty styles',
     assert.equal(COPY_VARIANT_COUNT_TOTAL, 88473600);
 });
 
+test('400 assignments per category rotate concrete editorial treatments without changing source topic', () => {
+    for (const templateType of ['tarot-ppt', 'saju-ppt', 'sinjeom-ppt']) {
+        const history = [];
+        const counts = Array(8).fill(0);
+        const titleRules = new Set();
+        for (let generationSequence = 0; generationSequence < 400; generationSequence += 1) {
+            const variant = selectProfileCopyVariant({ templateType, sourceText: '관계', identity: 'same', generationSequence, recent: history });
+            assert.ok(!history.slice(0, 3).some((previous) => previous.openingIndex === variant.openingIndex));
+            if (history.length) assert.equal(variant.topicIndex, history[0].topicIndex);
+            counts[variant.openingIndex] += 1;
+            const direction = buildProfileCopyDirection(variant);
+            titleRules.add(direction.split('\n').find((line) => line.startsWith('제목 작성 규칙:')));
+            assert.match(direction, /본문 역할 분담:/);
+            assert.match(direction, /문장 호흡:/);
+            assert.match(direction, /고유 사실을 창작하지 않는다/);
+            history.unshift(variant);
+        }
+        assert.equal(titleRules.size, 8);
+        assert.ok(counts.every((count) => count >= 30 && count <= 70), `${templateType}: ${counts}`);
+    }
+});
+
 test('copy variants are deterministic and never repeat recent group, signature, or style', () => {
     const input = { templateType: 'tarot-ppt', sourceText: '관계와 상대방 속마음', identity: 'consultant-1' };
     const first = selectProfileCopyVariant(input);

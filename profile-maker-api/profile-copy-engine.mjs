@@ -70,6 +70,24 @@ const OPENINGS = ['핵심 장면 제시', '현재 고민에서 시작', '반복 
 const CLOSINGS = ['작은 행동으로 종결', '선택 기준으로 종결', '마음의 안정으로 종결', '장기 방향으로 종결', '경계와 균형으로 종결', '준비할 시점으로 종결', '상담사의 태도로 종결', '스스로 확인할 질문으로 종결'];
 const STYLES = ['분석형', '서사형', '진단형', '질문 유도형', '대비형', '단계 진행형', '패턴 해석형', '시기 중심형', '공감형', '단정한 안내형', '차분한 전문가형', '실천 가이드형', '다층 해석형', '미니멀형', '따뜻한 상담형', '근거 정리형', '전환점형', '균형형', '성찰형', '브랜드 에디토리얼형'];
 
+// Existing opening IDs also identify concrete editorial treatments; legacy assignments remain usable.
+const EDITORIAL_TREATMENTS = [
+    ['장면형', '입력에 있는 고민의 한 장면을 짧은 평서문 제목으로 쓴다.', 'sectionBody는 그 장면에서 무엇을 먼저 살피는지, cardBody는 살핀 내용을 어떻게 설명하는지 맡는다. 실제 상담 사례를 꾸며내지 않는다.'],
+    ['공감형', '입력에 드러난 어려움을 직접 짚는 완결된 제목으로 쓴다.', 'sectionBody는 고민을 나누어 살피는 과정, cardBody는 그 과정에서 상담사가 지키는 태도를 맡는다. 독자의 상태를 단정하지 않는다.'],
+    ['질문형', '입력의 핵심 고민을 한 개의 짧은 질문 제목으로 쓴다.', 'sectionBody는 질문을 검토할 관점, cardBody는 상담에서 정리할 판단 기준을 맡는다. 제목의 질문을 본문에서 되풀이하지 않는다.'],
+    ['대비형', '입력에서 확인되는 두 관심사를 대비하는 제목으로 쓴다. 두 관심사가 없으면 한 고민의 확인과 선택을 대비한다.', 'sectionBody는 두 관점을 각각 설명하고, cardBody는 함께 고려하는 방법을 맡는다. 원문에 없는 전문분야를 대비 소재로 만들지 않는다.'],
+    ['과정형', '상담사가 어떻게 살피는지 구체적인 동사로 끝나는 제목을 쓴다.', 'sectionBody는 자료에서 확인되는 상담 접근 순서, cardBody는 그 접근이 내담자의 이해를 어떻게 돕는지 맡는다. 자료에 없는 검사나 상담 절차는 만들지 않는다.'],
+    ['준비형', '결과를 약속하지 않고 무엇을 살피거나 준비하는지 보여주는 제목을 쓴다.', 'sectionBody는 입력의 관심사에서 점검할 부분, cardBody는 상담 내용을 생활의 판단에 연결하는 방식을 맡는다. 미래 사건이나 시기를 예언하지 않는다.'],
+    ['관찰형', '입력의 강점을 드러내는 관찰 대상을 제목의 중심에 놓는다.', 'sectionBody는 무엇에 주목하는지, cardBody는 그 관찰을 설명할 때의 신중함과 한계를 맡는다. 숨은 원인을 이미 알아낸 것처럼 쓰지 않는다.'],
+    ['기준형', '입력의 고민에 관련된 판단 기준을 간결한 제목으로 쓴다.', 'sectionBody는 고민을 정리할 기준, cardBody는 내담자의 선택을 존중하는 상담 방식을 맡는다. 추상적인 위로로 두 문단을 채우지 않는다.']
+];
+const SENTENCE_RHYTHMS = [
+    '각 본문은 짧은 핵심 문장 뒤에 구체적인 설명 문장을 둔다.',
+    '각 본문은 상황을 설명하는 문장 뒤에 짧고 명료한 정리 문장을 둔다.',
+    '각 본문의 두 문장은 비슷한 길이로 쓰되 관찰과 설명의 역할을 나눈다.',
+    '각 본문은 구체적인 대상을 먼저 밝히고 다음 문장에서 상담사의 접근을 설명한다.'
+];
+
 const CATEGORY_VOICE = {
     'tarot-ppt': '카드의 상징과 감정 이동을 연결하되 미래를 단정하지 않고 선택의 여지를 남긴다. 사주 용어와 신점식 계시 표현을 쓰지 않는다.',
     'saju-ppt': '타고난 구조와 시기의 흐름을 차분하고 분석적으로 설명한다. 카드 상징이나 신점식 직감·징조 표현을 쓰지 않는다.',
@@ -153,6 +171,7 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
     const recentExact = new Set(recent.map((item) => item?.groupId).filter(Boolean));
     const recentSignatures = new Set(recent.slice(0, 10).map((item) => item?.signature).filter(Boolean));
     const recentStyleIds = new Set(recent.slice(0, 10).map((item) => item?.styleId).filter(Boolean));
+    const recentOpeningIndices = new Set(recent.slice(0, 3).map((item) => item?.openingIndex).filter(Number.isInteger));
     const frequency = (key) => recent.reduce((counts, item) => {
         const value = item?.[key];
         if (value !== undefined && value !== null && value !== '') counts.set(value, (counts.get(value) || 0) + 1);
@@ -181,6 +200,7 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
         const signature = `${resolvedType}:${topicIndex}:${lensIndex}:${structureIndex}`;
         const styleId = `style-${styleIndex + 1}`;
         if (recentExact.has(groupId) || recentSignatures.has(signature) || recentStyleIds.has(styleId)) continue;
+        if (recentOpeningIndices.has(openingIndex)) continue;
         const reuseScore = (
             (frequencies.signature.get(signature) || 0) * 1000
             + (frequencies.styleId.get(styleId) || 0) * 80
@@ -223,6 +243,7 @@ export function buildProfileCopyDirection(copyVariant) {
     const topicDirection = copyVariant?.topicMatchMode === 'fallback'
         ? categoryLanguage.fallbackTopic
         : topic[2];
+    const treatment = EDITORIAL_TREATMENTS[copyVariant?.openingIndex ?? 0];
     return [
         `카테고리 고유 문체: ${CATEGORY_VOICE[resolvedType]}`,
         `핵심 상담 주제: ${topicDirection}`,
@@ -232,6 +253,13 @@ export function buildProfileCopyDirection(copyVariant) {
         `도입 방식: ${categoryLanguage.openingBasis}에서 ${OPENINGS[copyVariant?.openingIndex ?? 0]} 방식으로 시작한다.`,
         `마무리 방식: ${categoryLanguage.closingBasis}을 중심으로 ${CLOSINGS[copyVariant?.closingIndex ?? 0]} 방식으로 끝맺는다.`,
         `표현 방식: ${STYLES[copyVariant?.styleIndex ?? 0]}을 유지하되 ${categoryLanguage.styleBasis}를 사용한다.`,
+        `이번 편집 방식: ${treatment[0]}. 아래 구체적인 작성 규칙을 추상적인 문체 이름보다 우선한다.`,
+        `제목 작성 규칙: ${treatment[1]} 제목에 흐름·방향·해답을 관성적으로 나열하지 않는다.`,
+        `본문 역할 분담: ${treatment[2]}`,
+        `문장 호흡: ${SENTENCE_RHYTHMS[(copyVariant?.styleIndex ?? 0) % SENTENCE_RHYTHMS.length]} 정해진 문장 수와 출력 분량은 유지한다.`,
+        'intro는 입력에 있는 이름과 강점 소개만 맡고, bulletPoints는 각기 다른 핵심 정보를 요약한다. closingBody는 본문 내용을 재설명하지 않고 배정된 마무리 방식으로 끝낸다.',
+        '원문에 있는 구체적인 강점이나 표현을 우선 활용한다. 자료가 부족하면 일반적인 상담 접근으로 한정하고 고유 사실을 창작하지 않는다.',
+        '제목과 각 문단의 첫 구절을 서로 다르게 쓴다. 같은 핵심 명사와 서술어 조합을 문단마다 바꾸어 말하지 않는다.',
         `권장 핵심 어휘: ${categoryLanguage.preferredWords.join(', ')} 중 문맥에 맞는 표현을 결과 전체에 2개 이상 자연스럽게 사용한다.`,
         `교차 카테고리 금지 어휘: ${categoryLanguage.excludedWords.join(', ')}를 결과 문구에 사용하지 않는다.`,
         '공통적인 "흐름·방향·현실적인 조언"만 반복하지 말고, 해당 카테고리의 해석 근거가 각 본문과 핵심 포인트에 드러나게 한다.',

@@ -60,13 +60,16 @@ test('generation history persists copy and visual assignments across campaign ID
         jobId: 'job-1',
         templateType: 'saju-ppt',
         copyVariant: { groupId: 'saju-group-1' },
-        visuals: [{ kind: 'portrait', visualGroupId: 'visual-1', subjectId: 'brass-bell', sceneId: 'scene-1' }]
+        visuals: [{ kind: 'portrait', visualGroupId: 'visual-1', subjectId: 'brass-bell', sceneId: 'scene-1', photographicDirectionId: 'layered-space', exposureId: 'bright', toneId: 'tone-2' }]
     });
 
     const reloaded = new FileProfileGenerationHistory({ filePath });
     assert.deepEqual(reloaded.getCopyAssignments('saju-ppt').map((item) => item.groupId), ['saju-group-1']);
     assert.deepEqual(reloaded.getVisualAssignments('saju-ppt').map((item) => item.visualGroupId), ['visual-1']);
     assert.equal(reloaded.getVisualAssignments('saju-ppt')[0].motifFamilyId, 'bell');
+    assert.equal(reloaded.getVisualAssignments('saju-ppt')[0].photographicDirectionId, 'layered-space');
+    assert.equal(reloaded.getVisualAssignments('saju-ppt')[0].exposureId, 'bright');
+    assert.equal(reloaded.getVisualAssignments('saju-ppt')[0].toneId, 'tone-2');
 });
 
 test('available completed campaign jobs are imported once into shared history', (t) => {
@@ -91,6 +94,9 @@ test('available completed campaign jobs are imported once into shared history', 
     assert.equal(history.count(), 1);
     assert.equal(history.getCopyAssignments('sinjeom-ppt')[0].groupId, 'legacy-group');
     assert.equal(history.getVisualAssignments('sinjeom-ppt')[0].visualGroupId, 'legacy-visual');
+    assert.equal(history.getVisualAssignments('sinjeom-ppt')[0].photographicDirectionId, '');
+    assert.equal(history.getVisualAssignments('sinjeom-ppt')[0].exposureId, '');
+    assert.equal(history.getVisualAssignments('sinjeom-ppt')[0].toneId, '');
     assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /private prompt material|막힘을 정리/);
 
     const reloaded = new FileProfileGenerationHistory({ filePath, sourceJobDirectory: directory });

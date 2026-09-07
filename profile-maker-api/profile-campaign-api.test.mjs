@@ -160,7 +160,8 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
-    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v10-sinjeom-motif-rotation');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v11-photographic-direction');
+    assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v7-concrete-editorial-direction');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         groupsPerImage: {
