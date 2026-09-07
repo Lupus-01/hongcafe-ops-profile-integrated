@@ -139,10 +139,16 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
             PROFILE_API_HOST: '127.0.0.1',
             PROFILE_CAMPAIGN_MODE: 'true',
             PROFILE_CAMPAIGN_ID: 'integration-campaign',
-            PROFILE_CAMPAIGN_SAFETY_CAP: '1500',
-            DAILY_PROFILE_LIMIT: '100',
-            DAILY_IMAGE_LIMIT: '100',
-            PROFILE_USER_DAILY_LIMIT: '100',
+            // Empty values exercise defaults without inheriting developer .env limits.
+            PROFILE_CAMPAIGN_SAFETY_CAP: '',
+            DAILY_PROFILE_LIMIT: '',
+            DAILY_IMAGE_LIMIT: '',
+            DAILY_GEMINI_REQUEST_LIMIT: '',
+            DAILY_IMAGE_ATTEMPT_LIMIT: '',
+            DAILY_PREMIUM_IMAGE_ATTEMPT_LIMIT: '',
+            PROFILE_USER_DAILY_LIMIT: '',
+            PROFILE_RATE_LIMIT_MAX: '',
+            GEMINI_MAX_QUEUE_DEPTH: '',
             PROFILE_JOB_STORE_DIR: storeDirectory,
             AUTH_BYPASS: 'true',
             GEMINI_API_KEY: 'mock-key-that-is-never-called'
@@ -157,7 +163,15 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
 
     const initialHealth = await waitForHealth(baseUrl);
     assert.equal(initialHealth.profileCampaignMode, true);
-    assert.equal(initialHealth.profileCampaignSafetyCap, 1500);
+    assert.equal(initialHealth.profileCampaignSafetyCap, 24000);
+    assert.equal(initialHealth.dailyLimit, 480);
+    assert.equal(initialHealth.dailyImageLimit, 480);
+    assert.equal(initialHealth.dailyGeminiRequestLimit, 960);
+    assert.equal(initialHealth.dailyImageAttemptLimit, 720);
+    assert.equal(initialHealth.dailyPremiumImageAttemptLimit, 144);
+    assert.equal(initialHealth.profileUserDailyLimit, 720);
+    assert.equal(initialHealth.profileRateLimitMax, 240);
+    assert.equal(initialHealth.geminiMaxQueueDepth, 120);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v11-photographic-direction');

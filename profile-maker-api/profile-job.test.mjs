@@ -11,7 +11,7 @@ import {
     reuseCompletedProfileImageStages
 } from './profile-job-queue.mjs';
 
-function createTestStore(safetyCap = 1500) {
+function createTestStore(safetyCap) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-profile-job-'));
     const store = new FileProfileJobStore({
         directory,
@@ -187,7 +187,7 @@ test('one idempotency key cannot be reused for different input', (t) => {
     }), (error) => error.status === 409);
 });
 
-test('campaign safety cap is enforced at 1500-compatible job counting', (t) => {
+test('an explicit campaign safety cap remains enforced', (t) => {
     const { directory, store } = createTestStore(2);
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     for (let index = 0; index < 2; index += 1) {
@@ -203,6 +203,25 @@ test('campaign safety cap is enforced at 1500-compatible job counting', (t) => {
         kind: 'direct',
         input: createInput(false),
         userId: 'user-a'
+    }), (error) => error.status === 429);
+});
+
+test('default campaign cap accepts job 24000, rejects new work beyond it, and replays existing work', (t) => {
+    const { directory, store } = createTestStore();
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    assert.equal(store.safetyCap, 24000);
+    // Model the boundary count without writing 24000 unrelated job files.
+    t.mock.method(store, 'count', () => 23999);
+    const request = {
+        fingerprint: createProfileJobFingerprint({ profile: 'last-allowed' }),
+        kind: 'direct', input: createInput(false), userId: 'user-a'
+    };
+    const created = store.createOrGet(request);
+    assert.equal(created.replayed, false);
+    t.mock.method(store, 'count', () => 24000);
+    assert.equal(store.createOrGet(request).replayed, true);
+    assert.throws(() => store.createOrGet({
+        ...request, fingerprint: createProfileJobFingerprint({ profile: 'over-cap' })
     }), (error) => error.status === 429);
 });
 

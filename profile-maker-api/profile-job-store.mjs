@@ -27,7 +27,7 @@ function createHttpError(status, message) {
 }
 
 export class FileProfileJobStore {
-    constructor({ directory, campaignId, safetyCap = 1500, retentionDays = 45 }) {
+    constructor({ directory, campaignId, safetyCap = 24000, retentionDays = 45 }) {
         this.campaignId = campaignId;
         const safeCampaignDirectory = String(campaignId).replace(/[^a-zA-Z0-9._-]/g, '_');
         this.directory = path.resolve(directory, safeCampaignDirectory);
