@@ -243,6 +243,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
         shootType: scene?.shootType || '',
         tabletopAccessories: Boolean(scene?.tabletopAccessories),
         obliqueTabletop: Boolean(scene?.obliqueTabletop),
+        diverseTarot: Boolean(scene?.diverseTarot),
         photographicDirection: getPhotographicDirection(scene),
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
@@ -290,7 +291,9 @@ export function buildVisualRealizationPrompt(realization) {
                 : `Lighting realization: ${realization.lighting.prompt}`,
             `Secondary tonal treatment: ${realization.tone.prompt} Keep the scene's explicit surface and background colors.`,
             'Show believable print, paper edges and contact shadows only on materials already present in the assigned scene.',
-            realization.obliqueTabletop
+            realization.diverseTarot
+                ? 'Preserve the assigned camera, card scale and crop exactly. Keep the PRIMARY CLOTH COLOR recognizable despite secondary lighting and tone. Keep the assigned accessory set small and sharp in the cloth margin. Do not add room context beyond the assigned crop or copy the companion camera.'
+                : realization.obliqueTabletop
                 ? 'Preserve the assigned high three-quarter view, visible table edge, reading cloth and restrained window or wall context. Keep all card faces and the existing accessory set in focus with natural perspective; no vertical flat lay, distant shelf cards or extra objects.'
                 : realization.tabletopAccessories
                 ? 'Keep the assigned card spread and accessory set sharp and fully on the flat surface. Preserve the true overhead camera and large card scale; no room, horizon, upright display or extra objects.'

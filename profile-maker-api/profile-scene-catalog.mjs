@@ -84,7 +84,44 @@ export function createAdditionalSceneArchetypes(createScene) {
     scenes['tarot-ppt'].push(...createIndependentTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createOverheadTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createObliqueTarotScenes(createScene));
+    scenes['tarot-ppt'].push(...createDiverseTarotScenes(createScene));
     return scenes;
+}
+
+// Additive policy: persisted v14-v16 definitions above remain unchanged.
+function createDiverseTarotScenes(createScene) {
+    const settings = [
+        ['round', 'a round walnut reading table', 'window'],
+        ['square', 'a square pale oak reading table', 'plaster-wall'],
+        ['oval', 'an oval dark wooden reading table', 'curtain'],
+        ['rectangular', 'a rectangular maple reading table', 'plain-screen'],
+        ['rounded-square', 'a rounded-square ash reading table', 'alcove']
+    ];
+    const groups = [
+        ['oblique', 'medium-environment', 'high-oblique', '40mm high three-quarter view at 45 degrees above the tabletop',
+            'Show the near table edge and a little assigned background. The table fills 60 to 75 percent of the frame; cards span 35 to 55 percent of its width.',
+            [['three-card-row', 'three face-up cards in a straight row'], ['four-card-grid', 'four face-up cards in a two by two grid'], ['five-card-arc', 'five face-up cards in an open arc']]],
+        ['closeup', 'close', 'low-oblique', '70mm close photograph at 25 degrees above the reading surface',
+            'The complete card arrangement spans 65 to 80 percent of the frame width. Only cards, assigned accessories and surrounding cloth are visible; exclude table edges, room, windows and walls.',
+            [['single-card', 'one complete face-up card'], ['two-card-diagonal', 'two complete face-up cards placed diagonally with a clear gap'], ['three-card-fan', 'three separate complete face-up cards in a shallow fan without overlap']]],
+        ['overhead', 'medium', 'overhead', '50mm true vertical 90-degree overhead photograph',
+            'The card arrangement spans 60 to 75 percent of the frame width. Fill the remaining frame with reading cloth; exclude table edges, horizon, room, windows and walls.',
+            [['three-card-triangle', 'three face-up cards in an open triangle'], ['five-card-cross', 'five face-up cards in a cross with clear gaps'], ['stepped-row', 'four face-up cards in a stair-step row']]],
+        ['deck-detail', 'tight-detail', 'surface-level', '85mm close photograph at 15 degrees above the surface, focused on paper edges and printed faces',
+            'Complete cards and matching deck span 65 to 80 percent of the frame width. Show paper layers and one matching card back; no microscopic magnification. Only cloth surrounds the objects; exclude table edges, room, windows and walls.',
+            [['deck-and-one', 'one complete face-up card beside its squared matching deck'], ['deck-and-two', 'two complete face-up cards beside their squared matching deck'], ['deck-offset', 'one complete face-up card in front of its offset squared matching deck']]]
+    ];
+    return groups.flatMap(([shootingGroup, distance, cameraHeight, camera, framing, layouts]) =>
+        settings.flatMap(([tableShape, table, background]) => layouts.map(([cardLayout, arrangement]) => createScene(
+            `tarot-diverse-${shootingGroup}-${tableShape}-${cardLayout}`, shootingGroup,
+            `Place ${arrangement} on the independently assigned reading cloth on ${table}. ${framing} ${shootingGroup === 'oblique' ? `The only room context is ${background}.` : 'The supporting table shape is outside the crop.'} Keep every card complete, separate and identifiable. Place the assigned accessory set in a small cloth margin beside the cards, never covering them. No extra objects, people, hands or readable text.`,
+            `${camera}; zero camera roll, natural perspective and sufficient focus for every card and assigned accessory`, true,
+            { shootingGroup, cardLayout, shootType: shootingGroup, distance, cameraHeight,
+                support: tableShape, tableShape: shootingGroup === 'oblique' ? tableShape : 'outside-crop',
+                background: shootingGroup === 'oblique' ? background : 'cloth-only',
+                shotMode: ['closeup', 'deck-detail'].includes(shootingGroup) ? 'close-detail' : 'environmental',
+                tabletopAccessories: true, diverseTarot: true }
+        ))));
 }
 
 // Separate photographic subjects, not room/cloth permutations. Legacy IDs above

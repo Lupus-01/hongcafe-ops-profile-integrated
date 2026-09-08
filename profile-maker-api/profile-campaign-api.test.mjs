@@ -188,19 +188,22 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v3-material-only');
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v16-oblique-tables');
-    assert.equal(initialHealth.tarotIndependentShootingTypes.length, 6);
-    assert.equal(initialHealth.tarotActiveBaseSceneCount, 30);
+    assert.equal(initialHealth.tarotIndependentShootingTypes.length, 4);
+    assert.equal(initialHealth.tarotActiveBaseSceneCount, 60);
     assert.equal(initialHealth.tarotAccessoryCount, 21);
+    assert.equal(initialHealth.tarotDiversityPolicyVersion, 'tarot-diversity-v1-shots-cloth');
+    assert.equal(initialHealth.tarotClothColors.length, 10);
+    assert.deepEqual(initialHealth.tarotShootingGroupWeights, { oblique: 30, closeup: 30, overhead: 25, 'deck-detail': 15 });
     assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v9-expanded-editorial');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
-        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/deck/accessory choices only',
+        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
         groupsPerImage: {
-            'tarot-ppt': '84672000',
+            'tarot-ppt': '1693440000',
             'saju-ppt': '7077888000000',
             'sinjeom-ppt': '127401984000000'
         },
-        fixedTarotDeckGroupsPerImage: '6048000'
+        fixedTarotDeckGroupsPerImage: '120960000'
     });
     assert.deepEqual(initialHealth.profileCopyConfiguration, {
         categories: 3,

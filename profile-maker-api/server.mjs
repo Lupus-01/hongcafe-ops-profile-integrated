@@ -691,9 +691,10 @@ const VISUAL_VARIATION_OPTIONS = {
 };
 
 function getVisualCombinationConfigurationSummary() {
-    const fixedTarotGroups = SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.obliqueTabletop)
+    const fixedTarotGroups = SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.diverseTarot)
         .reduce((total, scene) => total + BigInt(countIndependentRealizations(scene)), 0n)
         * BigInt(TAROT_VISUAL_PALETTES.length)
+        * BigInt(TAROT_CLOTH_COLORS.length)
         * BigInt(TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support').length);
     const groupsPerImage = Object.fromEntries(Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => {
         const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support').length;
@@ -711,7 +712,7 @@ function getVisualCombinationConfigurationSummary() {
     }));
     return {
         realizationCombinationsPerBase: String(VISUAL_REALIZATION_COUNT_PER_BASE),
-        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/deck/accessory choices only',
+        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
         groupsPerImage,
         fixedTarotDeckGroupsPerImage: fixedTarotGroups.toString()
     };
@@ -842,7 +843,15 @@ function pickCompatibleSupport(subjects, heroSubject, digest, byteOffset, exclud
     return candidates.length ? pickVisualOption(candidates, digest, byteOffset) : null;
 }
 
+const TAROT_DIVERSITY_POLICY_VERSION = 'tarot-diversity-v1-shots-cloth';
+const TAROT_SHOOTING_WEIGHTS = { oblique: 30, closeup: 30, overhead: 25, 'deck-detail': 15 };
+const TAROT_CLOTH_COLORS = ['burgundy', 'forest green', 'indigo', 'plum', 'terracotta', 'mustard', 'dusty rose', 'ivory', 'teal', 'charcoal'];
+
 function areSceneCompositionsCompatible(firstScene, secondScene) {
+    if (firstScene.diverseTarot || secondScene.diverseTarot) {
+        return Boolean(firstScene.diverseTarot && secondScene.diverseTarot
+            && firstScene.shootingGroup !== secondScene.shootingGroup);
+    }
     if (firstScene.tabletopAccessories || secondScene.tabletopAccessories) {
         return Boolean(firstScene.tabletopAccessories && secondScene.tabletopAccessories
             && firstScene.shootType !== secondScene.shootType
@@ -880,7 +889,7 @@ function getVisualPair(payload, candidateScenes = null) {
     const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support');
     // Keep old IDs available only when restoring an already assigned job.
     const archetypes = SCENE_ARCHETYPES[payload.templateType].filter(scene =>
-        payload.visualSceneIds || payload.templateType !== 'tarot-ppt' || scene.obliqueTabletop);
+        payload.visualSceneIds || payload.templateType !== 'tarot-ppt' || scene.diverseTarot);
     const stableIdentity = payload.visualIdentity || createVisualIdentity([
         payload.templateType,
         payload.name,
@@ -942,6 +951,10 @@ function getVisualPair(payload, candidateScenes = null) {
         const variationDigest = crypto.createHash('sha256')
             .update(`${VISUAL_VARIATION_VERSION}\0${stableIdentity}\0${nonce}\0${imageKind}`)
             .digest();
+        const portraitClothIndex = pairDigest[8] % TAROT_CLOTH_COLORS.length;
+        const clothIndex = imageKind === 'portrait' ? portraitClothIndex
+            : (portraitClothIndex + 1 + pairDigest[9] % (TAROT_CLOTH_COLORS.length - 1)) % TAROT_CLOTH_COLORS.length;
+        const clothColor = scene.diverseTarot ? TAROT_CLOTH_COLORS[clothIndex] : '';
         return {
             id: variationDigest.toString('hex').slice(0, 12),
             pairId,
@@ -951,6 +964,10 @@ function getVisualPair(payload, candidateScenes = null) {
             supportSubject,
             palette,
             paletteId: `palette-${paletteIndex + 1}`,
+            ...(scene.diverseTarot ? {
+                tarotDiversityPolicyVersion: TAROT_DIVERSITY_POLICY_VERSION,
+                clothColor
+            } : {}),
             scene,
             counterpartScene,
             allowPairedTabletop,
@@ -961,6 +978,7 @@ function getVisualPair(payload, candidateScenes = null) {
                 subject.id,
                 supportSubject?.id || 'no-support',
                 scene.id,
+                ...(scene.diverseTarot ? [TAROT_DIVERSITY_POLICY_VERSION, clothColor] : []),
                 `palette-${paletteIndex + 1}`,
                 realization.id
             ].join(':')
@@ -1108,7 +1126,9 @@ function buildVisualVariationPrompt(variation, imageKind) {
     const pairSubjectRule = usesSameHeroFamily
         ? `DECK CONSISTENCY: the paired image uses this same card family. Preserve the identical card size, border system, back design, palette, paper stock, and illustration language, while showing different individual cards and a different arrangement.`
         : `HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.`;
-    const pairDifferenceRule = variation.scene.obliqueTabletop
+    const pairDifferenceRule = variation.scene.diverseTarot
+        ? `Use only this image's assigned ${variation.scene.shootingGroup} camera and crop. The companion uses a different shooting group and cloth color; do not copy its angle, background or subject scale.`
+        : variation.scene.obliqueTabletop
         ? 'Both photographs use high three-quarter views of a reading table with a visible near edge and restrained surrounding space. Differentiate the assigned table setting, card arrangement, existing accessory family, palette and lighting. Keep every card identifiable; no room-dominant view or vertical flat lay.'
         : variation.scene.tabletopAccessories
         ? 'Both photographs must retain the same true overhead camera axis and card-first scale. Differentiate the spread geometry, accessory family, surface material, palette and lighting. Do not introduce room architecture or change to a side view for variety.'
@@ -1127,6 +1147,7 @@ ${variation.subject.safetyPrompt ? `- Subject-specific safety: ${variation.subje
 - Environment type: ${variation.scene.environment}.
 - Scene construction: ${variation.scene.prompt}.
 - Required camera treatment: ${variation.scene.camera}.
+${variation.scene.diverseTarot ? `- PRIMARY CLOTH COLOR: ${variation.clothColor}. Show this recognizable color on the assigned reading cloth. It takes priority over secondary palette, tonal treatment, references and optional user mood. Do not neutralize it to gray or brown. Preserve the selected deck's own colors independently.` : ''}
 - ${tabletopRule}
 - ${supportRule}
 - Secondary color family on existing materials only: ${variation.palette}. Preserve explicit scene colors and the assigned deck design; do not add props or cloth to carry these colors.
@@ -1837,10 +1858,10 @@ function buildPortraitImagePrompt(payload, extraPrompt = '', visualVariation = g
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
     const safeImageStyle = sanitizeExtraPrompt(payload.imageStyle, 200);
     return `
-Create one 16:9 image for a Korean ${guide.labelEn} consultant profile page as ${qualityProfile.captureStyle}. ${visualVariation.scene.obliqueTabletop ? 'Show a reading table with identifiable face-up cards, a cloth, its near edge and a little surrounding space in a high three-quarter view.' : visualVariation.scene.tabletopAccessories ? 'Keep the large face-up card spread as the main subject in a true overhead photograph.' : 'Preserve category identity at the subject scale assigned by the scene, including a small identifiable category cue when the architecture is the main subject.'}
+Create one 16:9 image for a Korean ${guide.labelEn} consultant profile page as ${qualityProfile.captureStyle}. ${visualVariation.scene.diverseTarot ? 'Keep the assigned complete cards prominent at the assigned camera distance.' : visualVariation.scene.obliqueTabletop ? 'Show a reading table with identifiable face-up cards, a cloth, its near edge and a little surrounding space in a high three-quarter view.' : visualVariation.scene.tabletopAccessories ? 'Keep the large face-up card spread as the main subject in a true overhead photograph.' : 'Preserve category identity at the subject scale assigned by the scene, including a small identifiable category cue when the architecture is the main subject.'}
 
 The physical scene to photograph:
-${visualVariation.scene.obliqueTabletop ? guide.obliqueImageMood : !visualVariation.scene.tabletopAccessories && guide.legacyImageMood ? guide.legacyImageMood : guide.imageMood}
+${visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueImageMood : !visualVariation.scene.tabletopAccessories && guide.legacyImageMood ? guide.legacyImageMood : guide.imageMood}
 
 Photography direction:
 - keep every required category object fully inside the frame and easy to identify
@@ -1860,7 +1881,7 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'portrait')}
 Upright orientation and gravity requirements:
-${visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'portrait')}
 Quality-specific optimization for the selected ${imageQuality} tier:
@@ -1894,7 +1915,7 @@ function buildMoodImagePrompt(payload, extraPrompt = '', visualVariation = getVi
 Create one 16:9 image of a Korean ${guide.labelEn} consultation-related scene as ${qualityProfile.captureStyle}. The category identity is the highest priority: the assigned working environment, physical surface, and camera distance must clearly show the required ${guide.labelEn} hero object and must not become a generic office or decorative room.
 
 The category and environment rules:
-${visualVariation.scene.obliqueTabletop ? guide.obliqueMoodScene : !visualVariation.scene.tabletopAccessories && guide.legacyMoodScene ? guide.legacyMoodScene : guide.moodScene}
+${visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueMoodScene : !visualVariation.scene.tabletopAccessories && guide.legacyMoodScene ? guide.legacyMoodScene : guide.moodScene}
 
 Photography direction:
 - follow the assigned scene family, physical surface, object arrangement, and camera treatment exactly
@@ -1914,12 +1935,12 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'mood')}
 Upright orientation and gravity requirements:
-${visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'mood')}
 Quality-specific optimization for the selected ${imageQuality} tier:
 ${qualityProfile.prompt}
-${visualVariation.scene.obliqueTabletop ? '- Keep the table stable and walls upright, with natural card perspective and zero camera roll.' : visualVariation.scene.tabletopAccessories ? '- Keep all card faces oriented toward the top of the frame, with gravity acting into the tabletop and no camera roll.' : '- The environment must be readable immediately without rotating the image: gravity downward, architecture upright when present, and zero sideways roll.'}
+${visualVariation.scene.diverseTarot ? '- Keep the assigned camera axis and crop, with natural card perspective and zero camera roll.' : visualVariation.scene.obliqueTabletop ? '- Keep the table stable and walls upright, with natural card perspective and zero camera roll.' : visualVariation.scene.tabletopAccessories ? '- Keep all card faces oriented toward the top of the frame, with gravity acting into the tabletop and no camera roll.' : '- The environment must be readable immediately without rotating the image: gravity downward, architecture upright when present, and zero sideways roll.'}
 - Make this the complementary scene in its assigned shot mode, visibly different from the signature scene while keeping the category-defining object recognizable.
 `.trim();
 }
@@ -1964,6 +1985,11 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: portraitVariation.subject.id,
             sceneFamily: portraitVariation.scene.family,
             shootType: portraitVariation.scene.shootType || '',
+            shootingGroup: portraitVariation.scene.shootingGroup || '',
+            cardLayout: portraitVariation.scene.cardLayout || '',
+            tableShape: portraitVariation.scene.tableShape || '',
+            clothColor: portraitVariation.clothColor || '',
+            tarotDiversityPolicyVersion: portraitVariation.tarotDiversityPolicyVersion || '',
             accessoryId: portraitVariation.scene.tabletopAccessories ? portraitVariation.supportSubject?.id || '' : '',
             accessoryFamily: portraitVariation.scene.tabletopAccessories ? portraitVariation.supportSubject?.motifFamilyId || '' : '',
             distance: portraitVariation.scene.distance || '',
@@ -1998,6 +2024,11 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: moodVariation.subject.id,
             sceneFamily: moodVariation.scene.family,
             shootType: moodVariation.scene.shootType || '',
+            shootingGroup: moodVariation.scene.shootingGroup || '',
+            cardLayout: moodVariation.scene.cardLayout || '',
+            tableShape: moodVariation.scene.tableShape || '',
+            clothColor: moodVariation.clothColor || '',
+            tarotDiversityPolicyVersion: moodVariation.tarotDiversityPolicyVersion || '',
             accessoryId: moodVariation.scene.tabletopAccessories ? moodVariation.supportSubject?.id || '' : '',
             accessoryFamily: moodVariation.scene.tabletopAccessories ? moodVariation.supportSubject?.motifFamilyId || '' : '',
             distance: moodVariation.scene.distance || '',
@@ -2208,6 +2239,11 @@ function toVisualHistoryEntry(kind, variation) {
         motifFamilyId: getSubjectMotifFamily(variation.subject),
         sceneFamily: variation.scene.family,
         shootType: variation.scene.shootType || '',
+        shootingGroup: variation.scene.shootingGroup || '',
+        cardLayout: variation.scene.cardLayout || '',
+        tableShape: variation.scene.tableShape || '',
+        clothColor: variation.clothColor || '',
+        tarotDiversityPolicyVersion: variation.tarotDiversityPolicyVersion || '',
         accessoryId: variation.scene.tabletopAccessories ? variation.supportSubject?.id || '' : '',
         accessoryFamily: variation.scene.tabletopAccessories ? variation.supportSubject?.motifFamilyId || '' : '',
         distance: variation.scene.distance || '',
@@ -2231,6 +2267,10 @@ function toVisualHistoryEntry(kind, variation) {
 }
 
 const VISUAL_HISTORY_WEIGHTS = {
+        shootingGroup: 2000,
+        cardLayout: 900,
+        tableShape: 900,
+        clothColor: 1800,
         shootType: 2000,
         accessoryId: 2200,
         accessoryFamily: 1400,
@@ -2275,6 +2315,7 @@ const getVisualUsageTotals = createIncrementalIndex(
 function createVisualUsageIndex(previousVisuals) {
     return {
         ...getVisualUsageTotals(previousVisuals),
+        recentVisibleCombinations: new Set(previousVisuals.slice(0, 12).filter(entry => entry.shootingGroup && entry.clothColor).map(entry => `${entry.shootingGroup}:${entry.clothColor}:${entry.background}`)),
         recentAccessoryFamilies: new Set(previousVisuals.slice(0, 4).map(entry => entry.accessoryFamily).filter(Boolean)),
         recentShootTypes: new Set(previousVisuals.slice(0, 4).map(entry => entry.shootType).filter(Boolean)),
         recentMotifFamilies: new Set(previousVisuals.slice(0, 8).map(entry => entry.motifFamilyId).filter(Boolean)),
@@ -2319,18 +2360,29 @@ function assignNovelVisualVariant(payload) {
     // Prioritize underused scenes within EVERY family to retain compatible pair choices.
     const families = new Map();
     for (const scene of SCENE_ARCHETYPES[payload.templateType]) {
-        if (payload.templateType === 'tarot-ppt' && !scene.obliqueTabletop) continue;
+        if (payload.templateType === 'tarot-ppt' && !scene.diverseTarot) continue;
         if (!families.has(scene.family)) families.set(scene.family, []);
         families.get(scene.family).push(scene);
     }
-    const candidateScenes = [...families.values()].flatMap(scenes => scenes
+    let candidateScenes = [...families.values()].flatMap(scenes => scenes
         .sort((left, right) => (usageIndex.sceneCounts.get(left.id) || 0) - (usageIndex.sceneCounts.get(right.id) || 0))
         .slice(0, 12));
+    if (payload.templateType === 'tarot-ppt') {
+        // Minimize the increase in weighted usage, counting actual photographs.
+        // Select two different groups before selecting layouts/material variants.
+        const groups = Object.entries(TAROT_SHOOTING_WEIGHTS).map(([group, weight]) => {
+            const count = ['portrait', 'mood', '*'].reduce((sum, kind) =>
+                sum + (usageIndex.frequencies.shootingGroup.get(`${kind}:${group}`) || 0), 0);
+            return { group, cost: (2 * count + 1) / weight };
+        }).sort((a, b) => a.cost - b.cost);
+        const selectedGroups = new Set(groups.slice(0, 2).map(entry => entry.group));
+        candidateScenes = candidateScenes.filter(scene => selectedGroups.has(scene.shootingGroup));
+    }
     delete payload.visualSceneIds;
     let best = null;
     let candidateCount = 0;
     for (let attempt = 0; attempt < 128; attempt += 1) {
-        if (attempt >= 32 && best && best.differentDirection && !best.reused && best.recentStructureCount === 0) break;
+        if (payload.templateType !== 'tarot-ppt' && attempt >= 32 && best && best.differentDirection && !best.reused && best.recentStructureCount === 0) break;
         const candidateNonce = attempt === 0 ? baseNonce
             : crypto.createHash('sha256').update(baseNonce + '\0' + attempt).digest('hex').slice(0, 16);
         payload.visualNonce = candidateNonce;
@@ -2349,7 +2401,14 @@ function assignNovelVisualVariant(payload) {
         const accessoryCount = pair.portrait.scene.tabletopAccessories
             ? accessories.reduce((sum, subject) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
                 total + (usageIndex.frequencies.accessoryId.get(kind + ':' + subject.id) || 0), 0), 0) : 0;
-        const rank = [Number(reused), recentStructureCount, recentAccessoryCount, accessoryCount, structureCount, Number(!differentDirection), macroScore, reuseScore];
+        const visibleEntries = [pair.portrait, pair.mood];
+        const recentVisibleCount = visibleEntries.filter(entry => usageIndex.recentVisibleCombinations.has(
+            `${entry.scene.shootingGroup}:${entry.clothColor}:${entry.scene.background}`)).length;
+        const clothCount = visibleEntries.reduce((sum, entry) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
+            total + (usageIndex.frequencies.clothColor.get(`${kind}:${entry.clothColor}`) || 0), 0), 0);
+        const rank = payload.templateType === 'tarot-ppt'
+            ? [Number(reused), recentVisibleCount, clothCount, recentAccessoryCount, accessoryCount, reuseScore]
+            : [Number(reused), recentStructureCount, recentAccessoryCount, accessoryCount, structureCount, Number(!differentDirection), macroScore, reuseScore];
         candidateCount += 1;
         if (!best || rank.some((value, index) => value < best.rank[index] && rank.slice(0, index).every((prior, i) => prior === best.rank[i]))) {
             best = { nonce: candidateNonce, pair, reuseScore, macroScore, reused, differentDirection, recentStructureCount, rank };
@@ -2781,8 +2840,11 @@ app.get('/api/health', (req, res) => {
             Object.entries(BASE_SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
         ),
         sceneSiteVariantCount: SCENE_SITE_VARIANTS.length,
-        tarotIndependentShootingTypes: [...new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.obliqueTabletop).map(scene => scene.shootType).filter(Boolean))],
-        tarotActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.obliqueTabletop).length,
+        tarotDiversityPolicyVersion: TAROT_DIVERSITY_POLICY_VERSION,
+        tarotShootingGroupWeights: TAROT_SHOOTING_WEIGHTS,
+        tarotClothColors: TAROT_CLOTH_COLORS,
+        tarotIndependentShootingTypes: [...new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.diverseTarot).map(scene => scene.shootType).filter(Boolean))],
+        tarotActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.diverseTarot).length,
         tarotAccessoryCount: TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support').length,
         sceneArchetypeCounts: Object.fromEntries(
             Object.entries(SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])

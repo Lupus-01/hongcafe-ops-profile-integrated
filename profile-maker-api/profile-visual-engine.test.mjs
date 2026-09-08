@@ -12,44 +12,43 @@ import {
     VISUAL_REALIZATION_COUNT_PER_BASE
 } from './profile-visual-engine.mjs';
 
-test('new tarot assignments rotate six oblique table layouts and separate each pair structurally', (t) => {
+test('new tarot assignments balance shooting groups and cloth colors with distinct pairs', (t) => {
     const history = [];
     const runtime = createOfflineVisualRuntime(() => history);
     const counts = new Map();
+    const colors = new Map();
     const accessories = new Set();
     let recentRepeats = 0;
     for (let sample = 0; sample < 180; sample += 1) {
-        const payload = { templateType: 'tarot-ppt', tarotCardType: 'universal-waite', visualIdentity: `independent-${sample}`, visualNonce: String(sample) };
+        const payload = { templateType: 'tarot-ppt', tarotCardType: 'universal-waite', visualIdentity: 'diverse-' + sample, visualNonce: String(sample) };
         runtime.assignNovelVisualVariant(payload);
         const pair = runtime.getVisualPair(payload);
-        const a = pair.portrait.scene;
-        const b = pair.mood.scene;
-        assert.ok(a.shootType && b.shootType);
-        assert.notEqual(a.shootType, b.shootType);
-        assert.notEqual(a.support, b.support);
-        assert.equal(a.cameraHeight, 'high-oblique');
-        assert.equal(b.cameraHeight, 'high-oblique');
-        assert.ok(a.tabletopAccessories && b.tabletopAccessories);
-        assert.ok(a.obliqueTabletop && b.obliqueTabletop);
+        assert.notEqual(pair.portrait.scene.shootingGroup, pair.mood.scene.shootingGroup);
+        assert.notEqual(pair.portrait.clothColor, pair.mood.clothColor);
         assert.notEqual(pair.portrait.supportSubject.motifFamilyId, pair.mood.supportSubject.motifFamilyId);
-        accessories.add(pair.portrait.supportSubject.id);
-        accessories.add(pair.mood.supportSubject.id);
-        assert.equal(pair.portrait.subject.id, 'classic-symbolic');
-        assert.equal(pair.mood.subject.id, 'classic-symbolic');
-        assert.equal(pair.portrait.scene.id, payload.visualSceneIds.portrait);
-        const recent = new Set(history.slice(0, 4).map(entry => entry.shootType));
+        const restored = runtime.getVisualPair(JSON.parse(JSON.stringify(payload)));
+        const recent = new Set(history.slice(0, 12).map(entry => [entry.shootingGroup, entry.clothColor, entry.background].join(':')));
         for (const kind of ['portrait', 'mood']) {
             const entry = runtime.toVisualHistoryEntry(kind, pair[kind]);
-            if (recent.has(entry.shootType)) recentRepeats += 1;
-            counts.set(entry.shootType, (counts.get(entry.shootType) || 0) + 1);
+            assert.ok(pair[kind].scene.diverseTarot);
+            assert.equal(pair[kind].subject.id, 'classic-symbolic');
+            assert.equal(restored[kind].clothColor, pair[kind].clothColor);
+            assert.equal(restored[kind].scene.id, pair[kind].scene.id);
+            accessories.add(pair[kind].supportSubject.id);
+            if (recent.has([entry.shootingGroup, entry.clothColor, entry.background].join(':'))) recentRepeats += 1;
+            counts.set(entry.shootingGroup, (counts.get(entry.shootingGroup) || 0) + 1);
+            colors.set(entry.clothColor, (colors.get(entry.clothColor) || 0) + 1);
         }
         history.unshift(runtime.toVisualHistoryEntry('portrait', pair.portrait), runtime.toVisualHistoryEntry('mood', pair.mood));
     }
-    assert.equal(counts.size, 6);
+    for (const [group, target] of Object.entries({ oblique: 108, closeup: 108, overhead: 90, 'deck-detail': 54 })) {
+        assert.ok(Math.abs(counts.get(group) - target) <= 2, JSON.stringify([...counts]));
+    }
     assert.equal(accessories.size, 21);
-    for (const count of counts.values()) assert.ok(count >= 45 && count <= 75, JSON.stringify([...counts]));
-    assert.ok(recentRepeats <= 36, `Recent structural repeats: ${recentRepeats}/360`);
-    t.diagnostic(`180 profiles / 360 images: ${JSON.stringify(Object.fromEntries(counts))}; recent repeats=${recentRepeats}`);
+    assert.equal(colors.size, 10);
+    assert.ok(Math.max(...colors.values()) - Math.min(...colors.values()) <= 8, JSON.stringify([...colors]));
+    assert.ok(recentRepeats <= 10, 'recent visible combination repeats: ' + recentRepeats);
+    t.diagnostic(JSON.stringify({ groups: Object.fromEntries(counts), colors: Object.fromEntries(colors), recentRepeats }));
 });
 
 test('oblique prompts preserve identifiable card faces and assigned accessories despite reference layouts', () => {
@@ -98,7 +97,7 @@ test('v14 room and detail IDs remain restorable without newly assigned accessori
     assert.equal(pair.mood.supportSubject, null);
 });
 
-test('saved v15 scenes keep overhead prompts and accessories while new scenes are oblique', () => {
+test('saved v15 scenes keep overhead prompts and accessories while new scenes use diverse shooting groups', () => {
     const runtime = createOfflineVisualRuntime(() => []);
     const payload = { templateType: 'tarot-ppt', visualIdentity: 'saved-v15', visualNonce: 'persisted', visualSceneIds: {
         portrait: 'tarot-overhead-three-card-row-linen--quiet-original',
@@ -115,7 +114,7 @@ test('saved v15 scenes keep overhead prompts and accessories while new scenes ar
         assert.doesNotMatch(prompt, /OBLIQUE READING TABLE/);
     }
     const fresh = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'new-v16' });
-    for (const kind of ['portrait', 'mood']) assert.equal(fresh[kind].scene.cameraHeight, 'high-oblique');
+    for (const kind of ['portrait', 'mood']) assert.ok(fresh[kind].scene.diverseTarot);
 });
 
 test('400 realizations retain scene-compatible composition and varied exposure for each camera mode', () => {

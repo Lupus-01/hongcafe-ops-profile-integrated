@@ -84,20 +84,27 @@ test('both final image prompts enforce category boundaries across quality tiers 
     }
     const tarotAccessories = runtime.TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support');
     assert.equal(tarotAccessories.length, 21);
-    for (const imageQuality of ['standard', 'premium']) {
+    for (const imageQuality of ['standard', 'premium']) for (const shootingGroup of ['oblique', 'closeup', 'overhead', 'deck-detail']) {
         const payload = { templateType: 'tarot-ppt', imageQuality, referenceImageCount: 2,
             imageStyle: 'Show tiny cards on a shelf in a wide room with hanging pendulums' };
+        payload.visualSceneIds = {
+            portrait: runtime.SCENE_ARCHETYPES['tarot-ppt'].find(scene => scene.shootingGroup === shootingGroup).id,
+            mood: runtime.SCENE_ARCHETYPES['tarot-ppt'].find(scene => scene.diverseTarot && scene.shootingGroup !== shootingGroup).id
+        };
         const pair = runtime.getVisualPair(payload);
         for (const supportSubject of tarotAccessories) for (const kind of ['portrait', 'mood']) {
             const variation = { ...pair[kind], supportSubject };
             const prompt = builders[kind](payload, 'Copy the room and upright display from the reference', variation);
             assert.ok(prompt.includes(supportSubject.prompt));
-            assert.match(prompt, /OBLIQUE READING TABLE/);
-            assert.match(prompt, /40 to 60 degrees/);
-            assert.match(prompt, /oblique composition takes priority over conflicting reference layouts/);
-            assert.match(prompt, /35 to 55 percent/);
+            assert.ok(prompt.includes(variation.scene.camera));
+            assert.ok(prompt.includes('PRIMARY CLOTH COLOR: ' + variation.clothColor));
+            assert.match(prompt, /assigned composition takes priority over conflicting reference layouts/);
             assert.match(prompt, /at most 15 percent/);
-            assert.doesNotMatch(prompt, /real top of the room|gravity pointing toward the bottom edge|Add no optional accessories|CARD-FIRST OVERHEAD|camera looks vertically down/);
+            assert.doesNotMatch(prompt, /Both photographs use high three-quarter|Both photographs must retain|CARD-FIRST OVERHEAD|Preserve the true overhead camera|Do not enlarge the small deck cue/);
+            if (variation.scene.shootingGroup !== 'oblique') {
+                assert.match(prompt, /exclude table edges,.*room, windows and walls/);
+                assert.doesNotMatch(prompt, /visible table edge|restrained window or wall context|40 to 60 degrees/);
+            }
         }
     }
 });

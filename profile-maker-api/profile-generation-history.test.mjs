@@ -24,8 +24,8 @@ test('independent photographic structure survives reservation, completion and re
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const filePath = path.join(directory, 'history.json');
     const history = new FileProfileGenerationHistory({ filePath });
-    const structure = { shootType: 'three-card-row', distance: 'medium', support: 'linen', background: 'flat-surface', cameraHeight: 'overhead', accessoryId: 'brass-pendulum', accessoryFamily: 'pendulum' };
-    const guide = { ...structure, visualGroupId: 'independent-card', sceneId: 'tarot-overhead-three-card-row-linen--quiet-original' };
+    const structure = { shootingGroup: 'overhead', cardLayout: 'three-card-row', tableShape: 'outside-crop', clothColor: 'burgundy', tarotDiversityPolicyVersion: 'tarot-diversity-v1-shots-cloth', shootType: 'overhead', distance: 'medium', support: 'linen', background: 'flat-surface', cameraHeight: 'overhead', accessoryId: 'brass-pendulum', accessoryFamily: 'pendulum' };
+    const guide = { ...structure, visualGroupId: 'independent-card', sceneId: 'tarot-diverse-overhead-round-three-card-triangle--quiet-original' };
     history.reserve({ id: 'new-shot', campaignId: 'test', templateType: 'tarot-ppt', visuals: [{ kind: 'portrait', ...guide }] });
     for (const [key, value] of Object.entries(structure)) assert.equal(history.getVisualAssignments('tarot-ppt')[0][key], value);
     history.complete('new-shot', { profile: {}, imageGuide: { portrait: guide } });
