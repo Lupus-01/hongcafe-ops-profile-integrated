@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { compareImageSignatures } from './profile-image-similarity.mjs';
 
 const PROFILE_TEXT_FIELDS = [
     'eyebrow',
@@ -32,6 +33,12 @@ const LEGACY_VISUAL_MOTIF_FAMILIES = {
 
 function hash(value) {
     return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+function historyCopyVariant(variant) {
+    if (!variant?.sourceFocus) return variant || null;
+    const { sourceFocus, ...assignment } = variant;
+    return { ...assignment, sourceFocus: { limited: Boolean(sourceFocus.limited) } };
 }
 
 function normalizeProfileText(profile) {
@@ -68,6 +75,12 @@ export function calculateProfileSimilarity(left, right) {
     }
     const union = leftSet.size + rightSet.size - intersection;
     return union ? intersection / union : 0;
+}
+
+export function createProfileFieldSignatures(profile) {
+    return Object.fromEntries(['headline', 'intro', 'sectionBody', 'cardBody', 'closingBody']
+        .map((field) => [field, createProfileSimilaritySignature({ [field]: profile?.[field] || '' })])
+        .filter(([, signature]) => signature.length >= 12));
 }
 
 function normalizeVisual(kind, guide = {}) {
@@ -110,9 +123,10 @@ function recordFromJob(job) {
         templateType: String(payload.templateType),
         createdAt: String(job.createdAt || ''),
         updatedAt: String(job.completedAt || job.updatedAt || ''),
-        copyVariant: payload.copyVariant || null,
+        copyVariant: historyCopyVariant(payload.copyVariant),
         visuals,
         profileSignature: profile ? createProfileSimilaritySignature(profile) : null,
+        fieldSignatures: profile ? createProfileFieldSignatures(profile) : {},
         source: 'job-import'
     };
 }
@@ -135,6 +149,7 @@ export class FileProfileGenerationHistory {
                 if (record?.id) {
                     this.records.set(record.id, {
                         ...record,
+                        copyVariant: historyCopyVariant(record.copyVariant),
                         visuals: (record.visuals || []).map((visual) => normalizeVisual(visual.kind, visual))
                     });
                 }
@@ -161,6 +176,8 @@ export class FileProfileGenerationHistory {
                 if (!entry.isFile() || !/^[a-f0-9]{32}\.json$/.test(entry.name)) continue;
                 try {
                     const job = JSON.parse(fs.readFileSync(path.join(campaignDirectory, entry.name), 'utf8'));
+                    const known = this.records.get(`${job.campaignId || 'legacy'}:${job.id}`);
+                    if (known?.profileSignature && known.fieldSignatures) continue;
                     const record = recordFromJob(job);
                     if (!record) continue;
                     const existing = this.records.get(record.id);
@@ -169,7 +186,7 @@ export class FileProfileGenerationHistory {
                         imported += 1;
                         continue;
                     }
-                    if (existing.profileSignature || !record.profileSignature) continue;
+                    if ((existing.profileSignature && existing.fieldSignatures) || !record.profileSignature) continue;
                     this.records.set(record.id, {
                         ...existing,
                         ...record,
@@ -210,7 +227,7 @@ export class FileProfileGenerationHistory {
             templateType,
             createdAt: existing.createdAt || createdAt,
             updatedAt: new Date().toISOString(),
-            copyVariant: copyVariant || existing.copyVariant || null,
+            copyVariant: historyCopyVariant(copyVariant || existing.copyVariant),
             visuals: visuals.map((visual) => normalizeVisual(visual.kind, visual)),
             source: existing.source || 'reservation'
         });
@@ -218,19 +235,47 @@ export class FileProfileGenerationHistory {
         return this.records.get(id);
     }
 
-    complete(id, { profile, imageGuide = null } = {}) {
+    complete(id, { profile, imageGuide = null, imageSignatures = {} } = {}) {
         const record = this.records.get(id);
         if (!record) return { similarityScore: 0, matchedRecordId: '', needsReview: false };
         const profileSignature = profile ? createProfileSimilaritySignature(profile) : null;
+        const fieldSignatures = profile ? createProfileFieldSignatures(profile) : {};
+        const fieldMatches = {};
+        const imageMatches = {};
+        let comparedImages = 0;
         let best = { score: 0, recordId: '' };
         if (profileSignature) {
             for (const candidate of this.records.values()) {
                 if (candidate.id === id || candidate.templateType !== record.templateType || !candidate.profileSignature) continue;
                 const score = calculateProfileSimilarity(profileSignature, candidate.profileSignature);
                 if (score > best.score) best = { score, recordId: candidate.id };
+                for (const [field, signature] of Object.entries(fieldSignatures)) {
+                    const fieldScore = calculateProfileSimilarity(signature, candidate.fieldSignatures?.[field]);
+                    if (fieldScore >= 0.8 && fieldScore > (fieldMatches[field]?.score || 0)) {
+                        fieldMatches[field] = { score: Number(fieldScore.toFixed(4)), recordId: candidate.id };
+                    }
+                }
             }
         }
+        for (const [kind, signature] of Object.entries(imageSignatures)) {
+            if (!signature) continue;
+            for (const candidate of this.records.values()) {
+                if (candidate.id === id || candidate.templateType !== record.templateType) continue;
+                for (const [matchedKind, previous] of Object.entries(candidate.imageSignatures || {})) {
+                    if (!previous) continue;
+                    comparedImages += 1;
+                    const score = compareImageSignatures(signature, previous);
+                    if (score >= 0.94 && score > (imageMatches[kind]?.score || 0)) imageMatches[kind] = { score, recordId: candidate.id, kind: matchedKind };
+                }
+            }
+        }
+        if (imageSignatures.portrait && imageSignatures.mood) {
+            const score = compareImageSignatures(imageSignatures.portrait, imageSignatures.mood);
+            if (score >= 0.94) imageMatches.pair = { score, recordId: id, kind: 'portrait/mood' };
+        }
         record.profileSignature = profileSignature || record.profileSignature || null;
+        if (profile) record.fieldSignatures = fieldSignatures;
+        record.imageSignatures = { ...record.imageSignatures, ...imageSignatures };
         if (imageGuide) {
             record.visuals = ['portrait', 'mood']
                 .filter((kind) => imageGuide[kind])
@@ -244,7 +289,10 @@ export class FileProfileGenerationHistory {
         return {
             similarityScore,
             matchedRecordId: best.recordId,
-            needsReview: similarityScore >= this.similarityThreshold
+            fieldMatches,
+            imageMatches,
+            imageComparison: { comparedImages, assessed: Object.values(imageSignatures).filter(Boolean).length, unassessed: Object.values(imageSignatures).filter((value) => !value).length },
+            needsReview: similarityScore >= this.similarityThreshold || Object.keys(fieldMatches).length > 0 || Object.keys(imageMatches).length > 0
         };
     }
 

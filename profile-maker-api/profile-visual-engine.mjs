@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v11-photographic-direction';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v12-macro-balance';
 
 function getPhotographicDirection(scene) {
     const camera = String(scene?.camera || '');
@@ -272,6 +272,7 @@ export function buildVisualRealizationPrompt(realization) {
     const direction = realization.photographicDirection;
     return [
         `Category identity: ${realization.templateType}. Keep every location and placement specific to this consultation category.`,
+        'Visual hierarchy: establish the assigned main subject, scene layout and camera distance first. Color, texture and tiny props are secondary; they must not substitute for a visibly different composition.',
         ...(direction ? [
             `Primary photographic direction (${direction.id}): ${direction.prompt}`,
             'Make this composition visibly legible before adding small material details. Generic calm or neutral mood suggestions must not flatten the assigned light direction, tonal separation, and composition. Preserve natural exposure, category colors, safety, and compatible reference-image traits.'

@@ -294,16 +294,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const usageMessage = usage
             ? ` ${usage.campaign ? '캠페인 누적' : '오늘 사용량'} ${usage.used}/${usage.limit}`
             : '';
+        const reviewParts = [];
+        if (Object.keys(noveltyMeta?.fieldMatches || {}).length) reviewParts.push('제목 또는 본문 일부의 반복');
+        if (Object.keys(noveltyMeta?.imageMatches || {}).length) reviewParts.push('이미지의 유사한 형태·색상');
         const similarityMessage = noveltyMeta?.needsReview
-            ? ` 이전 프로필 문구와 유사도 ${Math.round(Number(noveltyMeta.similarityScore || 0) * 100)}%가 감지되었습니다. 추가 과금을 막기 위해 자동 재생성하지 않았으니 문구를 검토해주세요.`
+            ? ` ${reviewParts.join(', ') || `이전 프로필 문구와 유사도 ${Math.round(Number(noveltyMeta.similarityScore || 0) * 100)}%`}가 감지되었습니다. 추가 과금을 막기 위해 자동 재생성하지 않았으니 결과를 검토해주세요.`
             : '';
+        const qualityMessage = `${noveltyMeta?.limitedSource ? ' 개인별 특징을 더 살리려면 원자료의 구체적인 경력이나 상담 방식을 보완해주세요.' : ''}${noveltyMeta?.imageComparison?.unassessed ? ' 일부 이미지의 유사도 검사를 완료하지 못했습니다. 이미지는 그대로 보존했습니다.' : ''}`;
 
         if (imageMeta?.requested && !imageMeta?.hasAnyImage) {
             const imageMessage = imageMeta.message || '이미지는 프로필 빌더에서 직접 업로드할 수 있습니다.';
-            return `${baseMessage}${usageMessage}${similarityMessage} 텍스트는 정상 생성되었고, 이미지는 자동 생성되지 않아 직접 업로드로 이어서 작업할 수 있습니다. ${imageMessage}`;
+            return `${baseMessage}${usageMessage}${similarityMessage}${qualityMessage} 텍스트는 정상 생성되었고, 이미지는 자동 생성되지 않아 직접 업로드로 이어서 작업할 수 있습니다. ${imageMessage}`;
         }
 
-        return `${baseMessage}${usageMessage}${similarityMessage}`;
+        return `${baseMessage}${usageMessage}${similarityMessage}${qualityMessage}`;
     }
 
     function getCurrentPresentationElement() {

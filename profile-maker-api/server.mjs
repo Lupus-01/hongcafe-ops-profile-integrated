@@ -15,6 +15,7 @@ import {
 } from './profile-document-parser.mjs';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
 import { FileProfileGenerationHistory } from './profile-generation-history.mjs';
+import { createProfileImageSignatures } from './profile-image-similarity.mjs';
 import {
     canReuseLegacyProfileImages,
     DurableProfileJobQueue,
@@ -513,9 +514,9 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = PROFILE_VISUAL_VARIATION_VERSION;
-const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v7-concrete-editorial-direction';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v8-source-first';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
-const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v6-cross-campaign-history', 'profile-copy-v5-generation-sequence', 'profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
+const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v7-concrete-editorial-direction', 'profile-copy-v6-cross-campaign-history', 'profile-copy-v5-generation-sequence', 'profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
@@ -1549,7 +1550,7 @@ ${payload.referenceText || '없음'}
 - intro는 상담사 이름과 경력/강점을 담되 2개의 자연스러운 문장으로 작성하고, 너무 짧은 단답형 문장으로 끝내지 않는다.
 - sectionBody는 상담사가 어떤 고민을 어떤 관점으로 정리해주는지 2문장으로 구체적으로 설명한다.
 - bulletPoints는 3개를 유지하되 각 항목에 분야 전문성, 상담 방식, 기대되는 정리 포인트가 드러나게 작성한다.
-- cardTitle/cardBody는 연결 안내가 아니라 ${guide.labelKo} 분야의 전문성, 상담 방식, 해석 강점을 꾸며서 설명한다.
+- cardTitle/cardBody는 원문에서 확인되는 ${guide.labelKo} 상담 방식과 해석 강점을 구체적으로 설명한다. 정보가 없으면 꾸며내지 않는다.
 - cardBody는 상담의 깊이와 실제 도움 방향이 보이도록 2개의 밀도 있는 문장으로 작성한다.
 - closingTitle/closingBody는 연락 유도 없이 브랜드 마무리 문구로 작성하되, 상담사의 태도와 신뢰감이 느껴지게 2문장으로 정리한다.
 
@@ -1598,9 +1599,9 @@ ${payload.referenceText || '없음'}
 반드시 제외할 내용:
 - 업로드 문서 원문에 전화번호, 060 번호, 고유번호, 연결 후 0번 입력, 상담 연결 안내가 있어도 결과에 포함하지 않는다.
 - 예약, 문의, 전화 연결, 상담 신청 방법 같은 행동 유도 문구를 쓰지 않는다.
-- cardTitle/cardBody는 연결 안내가 아니라 ${guide.labelKo} 분야의 전문성, 상담 방식, 해석 강점을 꾸며서 설명한다.
+- cardTitle/cardBody는 원문에서 확인되는 ${guide.labelKo} 상담 방식과 해석 강점을 구체적으로 설명한다. 정보가 없으면 꾸며내지 않는다.
 - closingTitle/closingBody는 연락 유도 없이 상담사의 분위기와 신뢰감을 정리하는 마무리로 작성한다.
-- 업로드 문서 원문이 짧더라도 결과가 빈약해 보이지 않도록 상담사의 전문성, 해석 관점, 상담 후 정리되는 지점을 자연스럽게 보강한다.
+- 업로드 문서가 짧으면 확인되는 사실을 간결하게 설명한다. 분량을 채우기 위한 공통 홍보 문구나 근거 없는 전문성을 추가하지 않는다.
 - 원문을 과장하지 말고, 업로드 자료에서 읽히는 톤과 분야 정보를 바탕으로 소개 페이지에 어울리는 깊이를 더한다.
 - 여러 참고 파일의 공통된 전문성, 상담 방향, 분위기를 우선 종합한다.
 - 참고 파일끼리 사실이 충돌하면 어느 한쪽을 임의로 확정하지 말고 공통적으로 확인되는 내용만 사용한다.
@@ -1612,9 +1613,9 @@ ${limitedDocumentText}
 {
   "eyebrow": "짧은 브랜딩 문구",
   "headline": "메인 제목",
-  "intro": "상단 소개 문단 2~3문장",
+  "intro": "이름과 원문에서 확인되는 배경을 소개하는 2문장",
   "sectionTitle": "중간 섹션 제목",
-  "sectionBody": "상담 관점과 해석 방식을 담은 중간 설명 본문 2~3문장",
+  "sectionBody": "원문에 있는 주력 고민을 이번 편집 방식으로 설명하는 2문장",
   "bulletPoints": ["${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 1", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 2", "${guide.labelKo} 전문성과 상담 방식이 보이는 포인트 3"],
   "cardTitle": "${guide.labelKo} 전문성 카드 제목",
   "cardBody": "${guide.labelKo} 상담 방식과 해석 강점을 구체적으로 설명하는 2문장",
@@ -2122,7 +2123,22 @@ function createVisualUsageIndex(previousVisuals) {
         combinations.set(combination, (combinations.get(combination) || 0) + 1);
         if (previous.visualGroupId) visualGroupIds.add(previous.visualGroupId);
     }
-    return { frequencies, combinations, visualGroupIds, recentMotifFamilies, recentPhotographicCombinations, recentColorCombinations };
+    const macroCounts = new Map();
+    for (const entry of previousVisuals) {
+        if (!entry.sceneFamily || !entry.photographicDirectionId) continue;
+        const key = `${entry.motifFamilyId || entry.subjectId}:${entry.sceneFamily}:${entry.photographicDirectionId}`;
+        macroCounts.set(key, (macroCounts.get(key) || 0) + 1);
+    }
+    return { frequencies, combinations, visualGroupIds, recentMotifFamilies, recentPhotographicCombinations, recentColorCombinations, macroCounts };
+}
+
+function scoreVisualMacroPair(pair, usageIndex) {
+    const entries = [toVisualHistoryEntry('portrait', pair.portrait), toVisualHistoryEntry('mood', pair.mood)];
+    return entries.reduce((score, entry) => {
+        const key = `${entry.motifFamilyId}:${entry.sceneFamily}:${entry.photographicDirectionId}`;
+        const directionCount = ['portrait', 'mood', '*'].reduce((sum, kind) => sum + (usageIndex.frequencies.photographicDirectionId.get(`${kind}:${entry.photographicDirectionId}`) || 0), 0);
+        return score + (usageIndex.macroCounts.get(key) || 0) * 100 + directionCount;
+    }, entries[0].photographicDirectionId === entries[1].photographicDirectionId ? 1000 : 0);
 }
 
 function scoreVisualPair(pair, usageIndex) {
@@ -2158,15 +2174,19 @@ function assignNovelVisualVariant(payload) {
         payload.visualNonce = candidateNonce;
         const pair = getVisualPair(payload);
         const reuseScore = scoreVisualPair(pair, usageIndex);
+        const macroScore = scoreVisualMacroPair(pair, usageIndex);
         candidateCount += 1;
-        if (!best || reuseScore < best.reuseScore) best = { nonce: candidateNonce, pair, reuseScore };
-        if (reuseScore === 0) break;
+        if (!best || macroScore < best.macroScore || (macroScore === best.macroScore && reuseScore < best.reuseScore)) {
+            best = { nonce: candidateNonce, pair, reuseScore, macroScore };
+        }
+        if (macroScore === 0 && reuseScore === 0) break;
     }
     payload.visualNonce = best.nonce;
     payload.visualNovelty = {
         priorVisualCount: previousVisuals.length,
         candidateCount,
         reuseScore: best.reuseScore,
+        macroScore: best.macroScore,
         reusedVisualGroup: [best.pair.portrait, best.pair.mood].some((variation) => (
             usageIndex.visualGroupIds.has(variation.visualGroupId)
         ))
@@ -2187,8 +2207,9 @@ function reserveGenerationHistory(id, payload, jobId = '', generateImageRequeste
     });
 }
 
-function completeGenerationHistory(id, payload, profile, imageGuide) {
-    const similarity = profileGenerationHistory.complete(id, { profile, imageGuide });
+async function completeGenerationHistory(id, payload, profile, imageGuide) {
+    const imageSignatures = await createProfileImageSignatures(profile);
+    const similarity = profileGenerationHistory.complete(id, { profile, imageGuide, imageSignatures });
     if (similarity.needsReview) {
         console.warn(`[generation-history] copy similarity review id=${id} matched=${similarity.matchedRecordId} score=${similarity.similarityScore}`);
     }
@@ -2196,6 +2217,10 @@ function completeGenerationHistory(id, payload, profile, imageGuide) {
         copy: payload.copyVariant?.novelty || { priorAssignmentCount: 0, reuseScore: 0 },
         visual: payload.visualNovelty || { priorVisualCount: 0, reuseScore: 0, reusedVisualGroup: false },
         similarityScore: similarity.similarityScore,
+        fieldMatches: similarity.fieldMatches,
+        imageMatches: similarity.imageMatches,
+        imageComparison: similarity.imageComparison,
+        limitedSource: Boolean(payload.copyVariant?.sourceFocus?.limited),
         needsReview: similarity.needsReview
     };
 }
@@ -2373,7 +2398,7 @@ async function executePersistedProfileJob(jobId) {
 
     const completedProfile = { ...profile, profileImage, moodImage };
     const imageGuide = buildProfileImageGuide(payload, portraitContext, moodContext);
-    const noveltyMeta = completeGenerationHistory(
+    const noveltyMeta = await completeGenerationHistory(
         `${PROFILE_CAMPAIGN_ID}:${jobId}`,
         payload,
         completedProfile,
@@ -2418,7 +2443,14 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
             .find(Boolean) || ''
         : '';
     const reusableLegacyJob = reusableLegacyJobId ? profileJobStore.read(reusableLegacyJobId) : null;
-    const aliasedJobId = profileJobFingerprintAliases.get(fingerprint);
+    // 동일 입력의 이전 버전 결과도 그대로 돌려준다. 배포만으로 유료 재생성을 시작하지 않는다.
+    const previousFingerprint = createProfileJobFingerprint({
+        kind,
+        ...fingerprintInput,
+        profileTextPromptVersion: 'profile-copy-v7-concrete-editorial-direction',
+        visualVariationVersion: fingerprintInput.generateImageRequested ? 'profile-visual-v11-photographic-direction' : 'none'
+    });
+    const aliasedJobId = profileJobFingerprintAliases.get(fingerprint) || profileJobFingerprintAliases.get(previousFingerprint);
     const aliasedJob = aliasedJobId ? profileJobStore.read(aliasedJobId) : null;
     if (aliasedJob) {
         res.setHeader('Idempotency-Replayed', 'true');
@@ -2710,7 +2742,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
             copyMeta: payload.copyVariant,
             imageGuide,
             imageMeta: buildImageMeta(generateImageRequested, profileImage, moodImage, imageFailures),
-            noveltyMeta: completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
+            noveltyMeta: await completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
             usage
         });
     } catch (error) {
@@ -2854,7 +2886,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
             copyMeta: payload.copyVariant,
             imageGuide,
             imageMeta: buildImageMeta(String(payload.generateImage) === 'true', profileImage, moodImage, imageFailures),
-            noveltyMeta: completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
+            noveltyMeta: await completeGenerationHistory(generationHistoryId, payload, completedProfile, imageGuide),
             usage,
             meta: documentMeta
         });

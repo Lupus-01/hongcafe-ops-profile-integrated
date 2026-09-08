@@ -31,7 +31,7 @@ test('profile similarity detects repeated copy without storing the original text
         campaignId: 'round-1',
         jobId: 'job-1',
         templateType: 'tarot-ppt',
-        copyVariant: { groupId: 'group-1', styleId: 'style-1' }
+        copyVariant: { groupId: 'group-1', styleId: 'style-1', sourceFocus: { limited: false, evidence: ['개별 상담사의 원문 근거'] } }
     });
     history.complete('round-1:job-1', { profile: firstProfile });
 
@@ -46,7 +46,7 @@ test('profile similarity detects repeated copy without storing the original text
     assert.equal(assessment.similarityScore, 1);
     assert.equal(assessment.needsReview, true);
     assert.equal(assessment.matchedRecordId, 'round-1:job-1');
-    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /관계의 흐름|반복되는 감정/);
+    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /관계의 흐름|반복되는 감정|개별 상담사의 원문 근거/);
 });
 
 test('generation history persists copy and visual assignments across campaign IDs', (t) => {
@@ -113,4 +113,23 @@ test('similarity remains low for substantially different profile copy', () => {
         '오행의 균형과 장기적인 직업 계획을 분석합니다.'
     ));
     assert.ok(calculateProfileSimilarity(first, second) < 0.3);
+});
+
+test('matching headline or image is reviewed even when overall text differs, including after reload', (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-field-history-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const filePath = path.join(directory, 'history.json');
+    let history = new FileProfileGenerationHistory({ filePath });
+    history.reserve({ id: 'first', campaignId: 'old', templateType: 'tarot-ppt' });
+    history.complete('first', { profile: { headline: '같은 제목이 계속 반복되는 상담 소개', intro: '전혀 다른 첫 번째 이야기입니다.' }, imageSignatures: { portrait: { version: 1, exactHash: 'same-image' } } });
+    history = new FileProfileGenerationHistory({ filePath });
+    history.reserve({ id: 'next', campaignId: 'new', templateType: 'tarot-ppt' });
+    const result = history.complete('next', { profile: { headline: '같은 제목이 계속 반복되는 상담 소개', intro: '새로운 직업을 찾는 고민과 면접 준비의 경험을 설명합니다.', cardBody: '여러 선택지의 장단점을 분석하여 정리하는 개별적인 방법입니다.' }, imageSignatures: { mood: { version: 1, exactHash: 'same-image' }, portrait: null } });
+    assert.equal(result.fieldMatches.headline.score, 1);
+    assert.equal(result.imageMatches.mood.recordId, 'first');
+    assert.equal(result.imageMatches.mood.kind, 'portrait');
+    assert.equal(result.imageComparison.unassessed, 1);
+    assert.equal(result.needsReview, true);
+    assert.equal(history.count(), 2);
+    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /같은 제목이|새로운 직업/);
 });

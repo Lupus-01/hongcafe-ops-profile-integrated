@@ -37,6 +37,6 @@ test('copy group and reference text survive history restore and slot regeneratio
 
 test('high copy similarity is shown without automatic AI regeneration', () => {
     assert.match(script, /noveltyMeta\?\.needsReview/);
-    assert.match(script, /추가 과금을 막기 위해 자동 재생성하지 않았으니 문구를 검토해주세요/);
+    assert.match(script, /추가 과금을 막기 위해 자동 재생성하지 않았으니 결과를 검토해주세요/);
     assert.doesNotMatch(script, /noveltyMeta\?\.needsReview[\s\S]{0,300}fetch\(/);
 });
