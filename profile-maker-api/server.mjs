@@ -122,6 +122,7 @@ const TEMPLATE_GUIDES = {
     'tarot-ppt': {
         labelKo: '타로',
         labelEn: 'tarot',
+        imageBoundary: 'Allowed context: a secular tarot/oracle consultation space, card storage or a simple photographic backdrop. Keep the assigned card family as the category cue at the assigned scale. Exclude Buddhist temples, temple halls, Buddha statues, lotus prayer lanterns, shamanic shrines, religious altars, ritual bells, ceremonial drums, five-color ritual cloth and saju/manse analysis charts from both foreground and background. A close card picture must not acquire a temple setting merely to look different.',
         expertiseGuide: '타로 카드가 보여주는 관계 흐름, 상대방의 속마음, 선택의 갈림길, 현재 감정의 결을 중심으로 전문성을 표현한다.',
         pointFallbacks: ['상대방의 속마음과 관계 흐름을 섬세하게 해석', '현재 감정의 결을 카드 상징으로 정리', '선택의 갈림길에서 참고할 현실적인 방향 제시'],
         cardFallbackTitle: '카드가 짚어내는 관계의 흐름',
@@ -150,6 +151,7 @@ const TEMPLATE_GUIDES = {
     'saju-ppt': {
         labelKo: '사주',
         labelEn: 'saju',
+        imageBoundary: 'Allowed context: a Korean saju/manse analysis study, reference archive or secular consultation space. Use structured four-pillars worksheets, calendar references or analysis books as category cues with unreadable personal information. Exclude tarot/oracle decks, card spreads, Buddhist temples, temple halls, Buddha statues, lotus prayer lanterns, shamanic shrines, religious altars, ritual bells and ceremonial drums from both foreground and background. Traditional wood or paper architecture alone does not authorize a religious setting.',
         expertiseGuide: '사주의 타고난 기질, 대운과 세운의 흐름, 직업과 관계의 균형, 중요한 시기 판단을 중심으로 전문성을 표현한다.',
         pointFallbacks: ['타고난 기질과 성향을 바탕으로 한 분석', '대운과 세운의 흐름을 함께 살피는 해석', '직업, 관계, 변화 시기를 현실적으로 정리'],
         cardFallbackTitle: '사주의 큰 흐름과 현실적인 선택',
@@ -176,6 +178,7 @@ const TEMPLATE_GUIDES = {
     'sinjeom-ppt': {
         labelKo: '신점',
         labelEn: 'sinjeom',
+        imageBoundary: 'Allowed context: the assigned Korean sinjeom preparation/consultation or compatible prayer setting. Exclude tarot/oracle decks, reading spreads, saju worksheets and manse analysis charts from foreground, storage and background. Match every background and accessory to this image\'s assigned tradition; do not assemble a mixed-religion scene for visual variety.',
         expertiseGuide: '신점의 직관적 메시지, 막힌 흐름의 원인, 마음의 불안 정리, 현실에서 바로 참고할 수 있는 조언을 중심으로 전문성을 표현한다.',
         pointFallbacks: ['막힌 흐름의 원인을 직관적으로 짚는 상담', '불안한 마음을 현실적인 조언으로 정리', '지금 필요한 선택과 방향을 선명하게 제시'],
         cardFallbackTitle: '직관과 현실 조언이 만나는 신점',
@@ -219,6 +222,10 @@ const TEMPLATE_GUIDES = {
     }
 };
 
+for (const [templateType, guide] of Object.entries(TEMPLATE_GUIDES)) {
+    guide.visualSubjects = guide.visualSubjects.map(subject => ({ ...subject, templateType }));
+}
+
 const TAROT_CARD_TYPES = {
     auto: { labelKo: '자동 추천', subjectId: '' },
     'universal-waite': { labelKo: '유니버셜 웨이트 계열', subjectId: 'classic-symbolic' },
@@ -243,7 +250,10 @@ function createSceneArchetype(id, family, prompt, camera, tabletop = false, opti
     const environment = family.startsWith('outdoor-')
         ? 'outdoor'
         : (family === 'threshold-veranda' ? 'threshold' : 'indoor');
-    return { id, family, prompt, camera, shotMode, tabletop, environment, ...options };
+    const templateType = ['tarot', 'saju', 'sinjeom'].find(category => id.startsWith(`${category}-`)) + '-ppt';
+    const traditions = templateType === 'sinjeom-ppt' && ['temple-interior', 'buddha-space', 'lantern-space'].includes(family)
+        ? ['buddhist', 'neutral'] : undefined;
+    return { id, family, prompt, camera, shotMode, tabletop, environment, templateType, traditions, ...options };
 }
 
 const BASE_SCENE_ARCHETYPES = {
@@ -329,7 +339,7 @@ const BASE_SCENE_ARCHETYPES = {
         createSceneArchetype('sinjeom-riverside-rock', 'outdoor-prayer', 'Use a broad dry riverside rock in a sheltered area with the assigned hero object secured in its case.', '40mm outdoor view with water distant and subdued'),
         createSceneArchetype('sinjeom-hillside-path-shelter', 'outdoor-prayer', 'Use a small rest shelter beside a hillside path, with the assigned hero object on a built-in wooden shelf.', '35mm path-and-shelter view'),
         createSceneArchetype('sinjeom-garden-prayer-corner', 'outdoor-prayer', 'Use a restrained garden prayer corner with one plain stone platform and the assigned hero object, no statues or altar.', '40mm quiet garden composition'),
-        createSceneArchetype('sinjeom-eaves-lantern-space', 'outdoor-prayer', 'Use the exterior space beneath wooden eaves with the assigned hero object on a narrow ledge and unlit paper lanterns far behind.', '35mm exterior architectural view'),
+        createSceneArchetype('sinjeom-eaves-lantern-space', 'outdoor-prayer', 'Use the exterior space beneath plain wooden eaves with the assigned hero object on a narrow ledge and an unadorned background; do not add religious lanterns or statues.', '35mm exterior architectural view'),
         createSceneArchetype('sinjeom-hanok-threshold', 'threshold-veranda', 'Frame the assigned hero object at an open hanok threshold with courtyard daylight and no central table.', '40mm layered threshold view'),
         createSceneArchetype('sinjeom-paper-door-alcove', 'threshold-veranda', 'Use a recessed paper-door alcove with the assigned hero object on a built-in shelf.', '50mm compressed alcove view'),
         createSceneArchetype('sinjeom-wooden-corridor', 'threshold-veranda', 'Place the assigned hero object on a corridor wall ledge with strong wooden architectural lines.', '45mm view along the corridor'),
@@ -760,6 +770,7 @@ function getSubjectMotifFamily(subject) {
 }
 
 function isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily = '') {
+    if (subject?.templateType && scene?.templateType && subject.templateType !== scene.templateType) return false;
     const motifFamily = getSubjectMotifFamily(subject);
     if (excludedMotifFamily && motifFamily === excludedMotifFamily) return false;
     if (Array.isArray(subject?.sceneFamilies) && !subject.sceneFamilies.includes(scene.family)) return false;
@@ -781,6 +792,7 @@ function pickCompatibleSupport(subjects, heroSubject, digest, byteOffset, exclud
     const heroMotifFamily = getSubjectMotifFamily(heroSubject);
     const candidates = subjects.filter((subject) => (
         subject.id !== excludedId
+        && (!subject.templateType || subject.templateType === heroSubject?.templateType)
         && (!heroTradition || !subject.tradition || subject.tradition === 'neutral' || subject.tradition === heroTradition)
         && (!Array.isArray(subject.compatibleMotifFamilies) || subject.compatibleMotifFamilies.includes(heroMotifFamily))
         && getSubjectMotifFamily(subject) !== heroMotifFamily
@@ -926,6 +938,8 @@ function getVisualPair(payload, candidateScenes = null) {
         )
     };
     const separationChecks = [
+        isSubjectCompatibleWithScene(pair.portrait.subject, pair.portrait.scene),
+        isSubjectCompatibleWithScene(pair.mood.subject, pair.mood.scene),
         payload.templateType === 'tarot-ppt'
             ? pair.portrait.subject.id === pair.mood.subject.id
             : pair.portrait.subject.id !== pair.mood.subject.id,
@@ -990,6 +1004,25 @@ function validateVisualPairingRuntime() {
 
 validateVisualPairingRuntime();
 
+function buildCategoryBoundaryPrompt(variation) {
+    const templateType = variation.scene.templateType;
+    const guide = getTemplateGuide(templateType);
+    let traditionRule = '';
+    if (templateType === 'sinjeom-ppt') {
+        const tradition = variation.subject.tradition;
+        if (tradition === 'buddhist') {
+            traditionRule = 'This image uses a Buddhist prayer context only. Keep the assigned Buddhist object in a compatible prayer, temple or neutral preparation setting. Exclude shamanic shrines, shamanic ritual bells, ceremonial fans/drums and five-color ritual cloth, including in the background.';
+        } else if (tradition === 'sinjeom') {
+            traditionRule = 'This image uses a Korean sinjeom preparation context only. Exclude Buddhist temples, temple halls, Buddha statues, lotus prayer lanterns and Buddhist ritual objects, including in the background. Do not place the assigned shamanic tool in a temple.';
+        } else {
+            traditionRule = variation.scene.traditions?.includes('buddhist')
+                ? 'This neutral prayer object belongs to the assigned Buddhist-compatible setting. Add no shamanic shrine or ceremonial tools, and no unassigned religious objects.'
+                : 'Keep this neutral prayer/preparation scene neutral. Add no Buddha statues, lotus prayer lanterns, shamanic shrines or unassigned ceremonial tools to decorate the background.';
+        }
+    }
+    return `CATEGORY AND PLACE BOUNDARY — applies to every visible part of this image:\n${guide.imageBoundary}\n${traditionRule}\nThese limits take priority over visual variety, reference images, user style, document context and the companion image. Ignore incompatible reference objects and locations; use the assigned compatible scene instead.`;
+}
+
 function buildVisualVariationPrompt(variation, imageKind) {
     const sceneScope = variation.scene.shootType
         ? 'Make this a standalone photograph in its assigned shooting type. Follow its object count, subject scale, support, background and camera; do not borrow the companion composition.'
@@ -1038,10 +1071,11 @@ ${variation.subject.safetyPrompt ? `- Subject-specific safety: ${variation.subje
 - Secondary color family on existing materials only: ${variation.palette}. Preserve explicit scene colors and the assigned deck design; do not add props or cloth to carry these colors.
 - Distinct location and photographic realization:
 ${buildVisualRealizationPrompt(variation.realization)}
-- Do not reuse or resemble the paired image's scene (${variation.counterpartScene.id}, family ${variation.counterpartScene.family}): ${variation.scene.shootType ? 'do not import any objects, layout or background from that other shooting type' : variation.counterpartScene.prompt}.
+- Do not reuse or resemble the paired image's scene (${variation.counterpartScene.id}, family ${variation.counterpartScene.family}); do not import any objects, religious context or background from that other scene.
 - ${sceneScope}
 - ${pairDifferenceRule}
 - Treat this combination as a specific real consultation scene, not a generic template, while obeying every category, safety, realism, and orientation rule.
+${buildCategoryBoundaryPrompt(variation)}
 `.trim();
 }
 

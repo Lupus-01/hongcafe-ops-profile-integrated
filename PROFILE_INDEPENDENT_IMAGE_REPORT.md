@@ -1,6 +1,6 @@
 # 프로필 이미지 독립 구도 개선
 
-기준: 2026-09-08, main / 046376f. 사용자 승인 후 로컬 구현 및 모의 검증을 수행했다. 이 변경의 커밋·푸시·운영 반영·PM2 조작·유료 AI 호출은 수행하지 않았다.
+기준: 2026-09-08. 독립 구도 변경은 사용자 요청에 따라 로컬 커밋 `dc2833c`(개선: 프로필 이미지 독립 구도와 참고 이미지 영향 분리)로 저장했다. 이후 승인된 분야·장소 혼합 방지 보강을 구현했으며 이 후속 변경은 아직 커밋하지 않았다. 푸시·운영 반영·PM2 조작·유료 AI 호출은 수행하지 않았다.
 
 ## 변경 동작
 
@@ -11,6 +11,17 @@
 참고 이미지에서는 호환되는 사물 계열과 재질만 참고한다. 구도·배경·천 색·촬영 거리·조명은 배정된 장면이 우선한다. 공통 참고 이미지 규칙과 일반/고급 품질 지침은 사주·신점에도 적용된다. 사주·신점 장면 목록과 소재 호환 제한은 유지한다.
 
 새 버전은 `profile-visual-v14-independent-shots`, 참고 정책은 `profile-reference-v3-material-only`다. 글 v9, 16:9, 인물 배제, 프론트엔드·CSS·라우팅·10초 AI 간격·과금 보호 흐름은 유지한다. 패키지 의존성이나 환경 변수 변경은 없다.
+
+## 후속 보강: 분야별 장소와 소재 경계
+
+- 타로: 일반 타로 상담 공간·카드 보관·촬영 배경을 사용하고, 절·법당·불상·연등·신당·종교 제단·무속 도구·사주 분석표를 전경과 배경 모두에서 제외한다.
+- 사주: 명리·만세력 자료와 분석·보관 공간을 사용하고, 타로 카드·종교 공간·무속 의례 도구를 제외한다. 한옥 재질이 있다는 이유로 종교 배경을 추가하지 않는다.
+- 신점: 타로·사주 자료를 제외하고, 불교 소재에는 불교 또는 중립 준비 공간, 무속 소재에는 해당 준비 공간을 배정한다. 중립 소재는 배정된 장소에 맞추며 다른 전통의 장식물을 추가하지 않는다.
+- 참고 이미지·사용자 스타일·문서 내용에 다른 분야의 장소나 사물이 있어도 위 제한이 우선한다. 두 이미지 사이에서도 상대 이미지의 종교 배경을 가져오지 않는다.
+- `server.mjs`: 소재와 장면에 분야를 명시해 교차 배정을 거부한다. 신점 확장 장면의 불교 공간에 전통 호환 제한을 추가하고, 일반 처마 배경에 종교 연등을 넣던 문구를 제거했다. 최종 이미지 지침에 분야·장소 경계를 공통 삽입한다.
+- `profile-sinjeom-visual.test.mjs`: 분야 간 조합 전수 검사, 신점 내부 호환성 검사, 일반/고급 두 품질과 대표/무드 최종 프롬프트에 충돌하는 참고 입력을 넣는 검사를 추가했다.
+- 이미 완료된 결과의 재사용은 유지한다. 구형 미완료 작업에 현재 제한을 위반하는 소재·장소 조합이 저장돼 있다면, 그 조합을 그대로 생성하지 않고 호환 검사에서 거부할 수 있다.
+- 프롬프트와 배정 규칙의 검증이며, 생성 모델이 항상 지침을 지킨다는 보장은 아니다. 실제 이미지 확인은 별도 유료 표본 승인 후 진행한다.
 
 ## 수정 파일
 
@@ -34,7 +45,7 @@
 ## 검증 결과와 한계
 
 - `npm run check`: 통과.
-- `npm test`: 107/107 통과.
+- `npm test`: 후속 보강 포함 109/109 통과.
 - `npm run test:diversity`: 저장·재개 검사 1/1 통과. 24,000건 검사는 반복하지 않았다.
 - `git diff --check` 및 전체 코드 diff 검토 완료.
 - 모의 타로 180명·360장: 6개 유형 각각 60장, 한 쌍의 구조 조건 모두 충족. 이 표본에서는 최근 4개 이미지와 유형 반복 0건.
@@ -49,9 +60,9 @@
 
 ## Git 상태와 반영 명령 — 아래는 안내용, 미실행
 
-기준 HEAD는 046376f. 추적 파일 12개 수정, 이 보고서 신규 1개다. 기존 미추적 `t`, `ers...`는 보존하며 커밋 대상에서 제외한다.
+현재 HEAD는 dc2833c이며 로컬 origin/main 참조보다 1개 커밋 앞서 있다. 후속 변경은 `server.mjs`, `profile-sinjeom-visual.test.mjs`, 이 보고서의 추적 파일 3개 수정이다. 기존 미추적 `t`, `ers...`는 보존하며 커밋 대상에서 제외한다.
 
-권장 커밋 메시지: `개선: 프로필 이미지 독립 구도와 참고 이미지 영향 분리`
+후속 변경 권장 커밋 메시지: `수정: 프로필 이미지 분야별 장소와 소재 혼합 방지`
 
 로컬 검사는 위 결과로 완료했다. 추가 수정이 없다면 긴 검사를 반복할 필요는 없다. 변경 목록과 staged diff를 확인한 뒤 커밋한다. 아래 각 단계가 실패하면 다음 단계로 넘어가지 않는다.
 
@@ -59,11 +70,11 @@
 git diff --check
 git diff --stat
 git diff
-git add -- PROFILE_INDEPENDENT_IMAGE_REPORT.md profile-maker-api/server.mjs profile-maker-api/profile-scene-catalog.mjs profile-maker-api/profile-visual-engine.mjs profile-maker-api/profile-generation-history.mjs profile-maker-api/profile-diversity-runtime.mjs profile-maker-api/profile-visual-engine.test.mjs profile-maker-api/profile-version-replay.test.mjs profile-maker-api/profile-generation-history.test.mjs profile-maker-api/profile-campaign-api.test.mjs profile-maker-api/profile-expansion.test.mjs profile-maker-api/profile-copy.test.mjs profile-maker-api/profile-sinjeom-visual.test.mjs
+git add -- PROFILE_INDEPENDENT_IMAGE_REPORT.md profile-maker-api/server.mjs profile-maker-api/profile-sinjeom-visual.test.mjs
 git diff --cached --check
 git diff --cached --stat
 git diff --cached
-git commit -m "개선: 프로필 이미지 독립 구도와 참고 이미지 영향 분리"
+git commit -m "수정: 프로필 이미지 분야별 장소와 소재 혼합 방지"
 git push origin main
 git log -1 --oneline
 git status --short --branch
