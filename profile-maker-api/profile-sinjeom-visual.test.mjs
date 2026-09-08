@@ -60,5 +60,5 @@ test('sinjeom motif rotation uses recent history and migrates legacy subject IDs
     assert.match(serverSource, /getSubjectMotifFamily\(pair\.portrait\.subject\) !== getSubjectMotifFamily\(pair\.mood\.subject\)/);
     assert.match(historySource, /'paper-lotus-lantern': 'lantern'/);
     assert.match(historySource, /motifFamilyId: String\(guide\.motifFamilyId \|\| LEGACY_VISUAL_MOTIF_FAMILIES\[subjectId\]/);
-    assert.match(visualEngineSource, /profile-visual-v12-macro-balance/);
+    assert.match(visualEngineSource, /profile-visual-v13-expanded-scenes/);
 });

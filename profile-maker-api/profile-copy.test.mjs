@@ -17,12 +17,12 @@ test('profile headline prompts allow complete titles that naturally wrap to two 
 });
 
 test('category copy prompts create a new fingerprint while preserving safe legacy image reuse', () => {
-    assert.match(serverSource, /const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v8-source-first';/);
+    assert.match(serverSource, /const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v9-expanded-editorial';/);
     assert.match(serverSource, /profileTextPromptVersion: String\(payload\.profileTextPromptVersion \|\| 'legacy'\)/);
     const versionAssignments = serverSource.match(/payload\.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;/g) || [];
     assert.equal(versionAssignments.length, 2);
     assert.match(serverSource, /profileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION/);
-    assert.match(serverSource, /PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = \['profile-copy-v7-concrete-editorial-direction', 'profile-copy-v6-cross-campaign-history'/);
+    assert.match(serverSource, /PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = \['profile-copy-v8-source-first', 'profile-copy-v7-concrete-editorial-direction', 'profile-copy-v6-cross-campaign-history'/);
     assert.match(serverSource, /reuseCompletedProfileImageStages\(record, reusableLegacyJob\)/);
 });
 

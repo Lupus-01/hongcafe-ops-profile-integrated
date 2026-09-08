@@ -9,16 +9,16 @@ import {
     selectProfileCopyVariant
 } from './profile-copy-engine.mjs';
 
-test('copy engine exposes the full combinatorial group space and twenty styles', () => {
-    assert.equal(COPY_GROUP_COUNT_PER_CATEGORY, 1474560);
-    assert.equal(COPY_EXPRESSION_STYLE_COUNT, 20);
-    assert.equal(COPY_VARIANT_COUNT_TOTAL, 88473600);
+test('copy engine exposes the full combinatorial group space and 32 styles', () => {
+    assert.equal(COPY_GROUP_COUNT_PER_CATEGORY, 11796480);
+    assert.equal(COPY_EXPRESSION_STYLE_COUNT, 32);
+    assert.equal(COPY_VARIANT_COUNT_TOTAL, 1132462080);
 });
 
 test('400 assignments per category rotate concrete editorial treatments without changing source topic', () => {
     for (const templateType of ['tarot-ppt', 'saju-ppt', 'sinjeom-ppt']) {
         const history = [];
-        const counts = Array(8).fill(0);
+        const counts = Array(16).fill(0);
         const titleRules = new Set();
         for (let generationSequence = 0; generationSequence < 400; generationSequence += 1) {
             const variant = selectProfileCopyVariant({ templateType, sourceText: '관계', identity: 'same', generationSequence, recent: history });
@@ -32,8 +32,8 @@ test('400 assignments per category rotate concrete editorial treatments without 
             assert.match(direction, /고유 사실을 창작하지 않는다/);
             history.unshift(variant);
         }
-        assert.equal(titleRules.size, 8);
-        assert.ok(counts.every((count) => count >= 30 && count <= 70), `${templateType}: ${counts}`);
+        assert.equal(titleRules.size, 16);
+        assert.ok(counts.every((count) => count >= 10 && count <= 45), `${templateType}: ${counts}`);
     }
 });
 

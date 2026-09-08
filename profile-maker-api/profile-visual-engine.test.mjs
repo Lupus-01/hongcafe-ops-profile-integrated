@@ -1,3 +1,4 @@
+import { createIncrementalIndex, increment } from './profile-assignment-index.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
@@ -39,7 +40,7 @@ test('visual scoring penalizes recent composition/exposure and palette/tone comb
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
     const scoring = source.slice(source.indexOf('function toVisualHistoryEntry('), source.indexOf('function assignNovelVisualVariant('));
     const { scoreVisualPair, createVisualUsageIndex } = vm.runInNewContext(`${scoring}\n({ scoreVisualPair, createVisualUsageIndex })`, {
-        getSubjectMotifFamily: (subject) => subject.motifFamilyId || subject.id
+        createIncrementalIndex, increment, getSubjectMotifFamily: (subject) => subject.motifFamilyId || subject.id
     });
     const realization = getVisualRealizationPair({ templateType: 'saju-ppt', stableIdentity: 'score', nonce: '1' }).portrait;
     const variation = { realization, subject: { id: 'book' }, scene: { id: 'scene', family: 'archive', venueId: 'venue' }, paletteId: 'palette-1', visualGroupId: 'new' };
@@ -62,7 +63,7 @@ test('structured image groups exceed the text variation count even for a fixed t
         palettes: 8,
         fixedHeroSubject: true
     });
-    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v12-macro-balance');
+    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v13-expanded-scenes');
     assert.equal(VISUAL_REALIZATION_COUNT_PER_BASE, 61440000);
     assert.ok(fixedTarot > textVariationCount);
 });

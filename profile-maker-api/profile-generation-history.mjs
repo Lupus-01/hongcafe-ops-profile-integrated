@@ -16,6 +16,18 @@ const PROFILE_TEXT_FIELDS = [
     'closingBody'
 ];
 
+// Repeated four-character shingles across profiles share their digest. Bounded memory.
+const shingleHashes = new Map();
+function shingleHash(value) {
+    let result = shingleHashes.get(value);
+    if (!result) {
+        result = hash(value).slice(0, 16);
+        if (shingleHashes.size >= 32768) shingleHashes.delete(shingleHashes.keys().next().value);
+        shingleHashes.set(value, result);
+    }
+    return result;
+}
+
 const LEGACY_VISUAL_MOTIF_FAMILIES = {
     'ritual-fan': 'fan',
     'brass-bell': 'bell',
@@ -55,7 +67,7 @@ export function createProfileSimilaritySignature(profile, shingleSize = 4) {
     const shingles = new Set();
     const size = Math.max(Number(shingleSize) || 4, 2);
     for (let index = 0; index <= normalized.length - size; index += 1) {
-        shingles.add(hash(normalized.slice(index, index + size)).slice(0, 16));
+        shingles.add(shingleHash(normalized.slice(index, index + size)));
     }
     return {
         exactHash: hash(normalized),
@@ -138,6 +150,7 @@ export class FileProfileGenerationHistory {
         this.similarityThreshold = similarityThreshold;
         fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
         this.records = new Map();
+        this.assignmentCache = new Map();
         this.load();
         this.importAvailableJobs();
     }
@@ -169,11 +182,22 @@ export class FileProfileGenerationHistory {
     importAvailableJobs() {
         if (!this.sourceJobDirectory || !fs.existsSync(this.sourceJobDirectory)) return 0;
         let imported = 0;
+        let scanned = 0;
+        let skipped = 0;
+        const started = Date.now();
+        // Resolve sanitized directory names from stored campaign IDs before reading image-heavy JSON.
+        const readyPaths = new Set([...this.records.values()]
+            .filter(record => record.jobId && record.profileSignature && record.fieldSignatures)
+            .map(record => String(record.campaignId).replace(/[^a-zA-Z0-9._-]/g, '_') + '/' + record.jobId + '.json'));
+        console.log('[generation-history] import started');
         for (const campaignEntry of fs.readdirSync(this.sourceJobDirectory, { withFileTypes: true })) {
             if (!campaignEntry.isDirectory() || campaignEntry.name.startsWith('.')) continue;
             const campaignDirectory = path.join(this.sourceJobDirectory, campaignEntry.name);
             for (const entry of fs.readdirSync(campaignDirectory, { withFileTypes: true })) {
                 if (!entry.isFile() || !/^[a-f0-9]{32}\.json$/.test(entry.name)) continue;
+                scanned += 1;
+                if (readyPaths.has(campaignEntry.name + '/' + entry.name)) { skipped += 1; continue; }
+                if (scanned % 100 === 0) console.log('[generation-history] scanned=' + scanned + ' imported=' + imported + ' skipped=' + skipped);
                 try {
                     const job = JSON.parse(fs.readFileSync(path.join(campaignDirectory, entry.name), 'utf8'));
                     const known = this.records.get(`${job.campaignId || 'legacy'}:${job.id}`);
@@ -199,22 +223,30 @@ export class FileProfileGenerationHistory {
                 }
             }
         }
-        if (imported) this.write();
+        if (imported) { this.assignmentCache.clear(); this.write(); }
+        console.log('[generation-history] import complete scanned=' + scanned + ' imported=' + imported + ' skipped=' + skipped + ' durationMs=' + (Date.now() - started));
         return imported;
     }
 
+    getAssignmentCache(templateType) {
+        let cached = this.assignmentCache.get(templateType);
+        if (!cached) {
+            const records = [...this.records.values()]
+                .filter(record => record.templateType === templateType)
+                .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''));
+            cached = { copies: records.filter(record => record.copyVariant).map(record => record.copyVariant),
+                visuals: records.flatMap(record => record.visuals || []), newest: records[0]?.createdAt || '' };
+            this.assignmentCache.set(templateType, cached);
+        }
+        return cached;
+    }
+
     getCopyAssignments(templateType) {
-        return [...this.records.values()]
-            .filter((record) => record.templateType === templateType && record.copyVariant)
-            .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))
-            .map((record) => record.copyVariant);
+        return this.getAssignmentCache(templateType).copies;
     }
 
     getVisualAssignments(templateType) {
-        return [...this.records.values()]
-            .filter((record) => record.templateType === templateType)
-            .sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))
-            .flatMap((record) => record.visuals || []);
+        return this.getAssignmentCache(templateType).visuals;
     }
 
     reserve({ id, campaignId, jobId = '', templateType, copyVariant, visuals = [], createdAt = new Date().toISOString() }) {
@@ -231,8 +263,18 @@ export class FileProfileGenerationHistory {
             visuals: visuals.map((visual) => normalizeVisual(visual.kind, visual)),
             source: existing.source || 'reservation'
         });
+        const cached = this.assignmentCache.get(templateType);
+        const record = this.records.get(id);
+        if (cached && !existing.id && (!cached.newest || Date.parse(createdAt) > Date.parse(cached.newest))) {
+            if (record.copyVariant) cached.copies.unshift(record.copyVariant);
+            cached.visuals.unshift(...record.visuals);
+            cached.newest = createdAt;
+        } else {
+            this.assignmentCache.delete(templateType);
+        }
+        if (existing.templateType && existing.templateType !== templateType) this.assignmentCache.delete(existing.templateType);
         this.write();
-        return this.records.get(id);
+        return record;
     }
 
     complete(id, { profile, imageGuide = null, imageSignatures = {} } = {}) {
@@ -277,9 +319,18 @@ export class FileProfileGenerationHistory {
         if (profile) record.fieldSignatures = fieldSignatures;
         record.imageSignatures = { ...record.imageSignatures, ...imageSignatures };
         if (imageGuide) {
+            const previousVisuals = record.visuals;
             record.visuals = ['portrait', 'mood']
                 .filter((kind) => imageGuide[kind])
                 .map((kind) => normalizeVisual(kind, imageGuide[kind]));
+            const assignmentOnly = visuals => JSON.stringify(visuals.map(({ promptHash, ...assignment }) => assignment));
+            if (assignmentOnly(record.visuals) !== assignmentOnly(previousVisuals)) {
+                this.assignmentCache.delete(record.templateType);
+            } else {
+                // Prompt hash is not an allocation dimension. Keep cached assignment references stable.
+                record.visuals.forEach((visual, index) => Object.assign(previousVisuals[index], visual));
+                record.visuals = previousVisuals;
+            }
         }
         record.updatedAt = new Date().toISOString();
         record.source = 'completed';

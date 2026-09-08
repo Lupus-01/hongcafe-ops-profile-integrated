@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v12-macro-balance';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v13-expanded-scenes';
 
 function getPhotographicDirection(scene) {
     const camera = String(scene?.camera || '');

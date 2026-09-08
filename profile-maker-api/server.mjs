@@ -1,3 +1,5 @@
+import { createAdditionalSceneArchetypes } from './profile-scene-catalog.mjs';
+import { createIncrementalIndex, increment } from './profile-assignment-index.mjs';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -358,6 +360,10 @@ const BASE_SCENE_ARCHETYPES = {
     ]
 };
 
+for (const [category, scenes] of Object.entries(createAdditionalSceneArchetypes(createSceneArchetype))) {
+    BASE_SCENE_ARCHETYPES[category].push(...scenes);
+}
+
 const SCENE_SITE_VARIANTS = [
     {
         id: 'quiet-original',
@@ -514,9 +520,9 @@ const REFERENCE_IMAGE_REQUIREMENTS = `
 `.trim();
 
 const VISUAL_VARIATION_VERSION = PROFILE_VISUAL_VARIATION_VERSION;
-const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v8-source-first';
+const PROFILE_TEXT_PROMPT_VERSION = 'profile-copy-v9-expanded-editorial';
 const REFERENCE_INFLUENCE_VERSION = 'profile-reference-v2-strong-priority';
-const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v7-concrete-editorial-direction', 'profile-copy-v6-cross-campaign-history', 'profile-copy-v5-generation-sequence', 'profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
+const PREVIOUS_PROFILE_TEXT_PROMPT_VERSIONS = ['profile-copy-v8-source-first', 'profile-copy-v7-concrete-editorial-direction', 'profile-copy-v6-cross-campaign-history', 'profile-copy-v5-generation-sequence', 'profile-copy-v4-category-language-separation', 'profile-copy-v3-category-combinations', 'profile-copy-v2-two-line-headline', 'legacy'];
 const TAROT_VISUAL_PALETTES = [
     'matte black velvet, warm card paper, and a restrained amber candle accent',
     'charcoal reading cloth, muted plum card backs, and a small antique-brass accent',
@@ -798,7 +804,7 @@ function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, {
     return pickVisualOption(candidates, digest, byteOffset);
 }
 
-function getVisualPair(payload) {
+function getVisualPair(payload, candidateScenes = null) {
     const guide = getTemplateGuide(payload.templateType);
     const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support');
     const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support');
@@ -821,16 +827,23 @@ function getVisualPair(payload) {
     const selectedTarotSubjectIndex = tarotCardType?.subjectId
         ? heroSubjects.findIndex((subject) => subject.id === tarotCardType.subjectId)
         : -1;
-    const portraitScene = pickVisualOption(archetypes, pairDigest, 2);
+    const selectedScenes = payload.visualSceneIds;
+    const portraitScene = selectedScenes
+        ? archetypes.find(scene => scene.id === selectedScenes.portrait)
+        : pickVisualOption(candidateScenes || archetypes, pairDigest, 2);
+    if (!portraitScene) throw new Error('[visual-config] Unknown persisted portrait scene.');
     const allowPairedTabletop = payload.templateType === 'tarot-ppt';
     const portraitSubject = selectedTarotSubjectIndex >= 0
         ? heroSubjects[selectedTarotSubjectIndex]
         : pickCompatibleSubject(heroSubjects, portraitScene, pairDigest, 0);
-    const moodScene = pickCompatibleScene(archetypes, portraitScene, pairDigest, 3, {
+    const moodScene = selectedScenes
+        ? archetypes.find(scene => scene.id === selectedScenes.mood)
+        : pickCompatibleScene(candidateScenes || archetypes, portraitScene, pairDigest, 3, {
         allowSharedTabletop: allowPairedTabletop,
         heroSubjects,
         excludedMotifFamily: allowPairedTabletop ? '' : getSubjectMotifFamily(portraitSubject)
     });
+    if (!moodScene) throw new Error('[visual-config] Unknown persisted mood scene.');
     const moodSubject = allowPairedTabletop
         ? portraitSubject
         : pickCompatibleSubject(heroSubjects, moodScene, pairDigest, 1, getSubjectMotifFamily(portraitSubject));
@@ -2094,42 +2107,28 @@ const VISUAL_HISTORY_WEIGHTS = {
         subjectId: 20
 };
 
-function createVisualUsageIndex(previousVisuals) {
-    const frequencies = Object.fromEntries(Object.keys(VISUAL_HISTORY_WEIGHTS).map((key) => [key, new Map()]));
-    const combinations = new Map();
-    const visualGroupIds = new Set();
-    const recentMotifFamilies = new Set(
-        previousVisuals.slice(0, 8).map((visual) => visual.motifFamilyId).filter(Boolean)
-    );
-    const recentPhotographicCombinations = new Set(
-        previousVisuals.slice(0, 8)
-            .filter((visual) => visual.photographicDirectionId && visual.exposureId)
-            .map((visual) => `${visual.photographicDirectionId}:${visual.exposureId}`)
-    );
-    const recentColorCombinations = new Set(
-        previousVisuals.slice(0, 8)
-            .filter((visual) => visual.paletteId && visual.toneId)
-            .map((visual) => `${visual.paletteId}:${visual.toneId}`)
-    );
-    for (const previous of previousVisuals) {
+const getVisualUsageTotals = createIncrementalIndex(
+    () => ({ frequencies: Object.fromEntries(Object.keys(VISUAL_HISTORY_WEIGHTS).map(key => [key, new Map()])), combinations: new Map(), visualGroupIds: new Set(), macroCounts: new Map(), sceneCounts: new Map() }),
+    (index, previous) => {
         const kind = previous.kind || '*';
         for (const key of Object.keys(VISUAL_HISTORY_WEIGHTS)) {
-            const value = previous[key];
-            if (!value) continue;
-            const indexKey = `${kind}:${value}`;
-            frequencies[key].set(indexKey, (frequencies[key].get(indexKey) || 0) + 1);
+            if (previous[key]) increment(index.frequencies[key], kind + ':' + previous[key]);
         }
-        const combination = `${kind}:${previous.subjectId || ''}:${previous.sceneId || ''}:${previous.placementId || ''}`;
-        combinations.set(combination, (combinations.get(combination) || 0) + 1);
-        if (previous.visualGroupId) visualGroupIds.add(previous.visualGroupId);
+        increment(index.combinations, [kind, previous.subjectId || '', previous.sceneId || '', previous.placementId || ''].join(':'));
+        if (previous.visualGroupId) index.visualGroupIds.add(previous.visualGroupId);
+        if (previous.sceneId) increment(index.sceneCounts, previous.sceneId);
+        if (previous.sceneFamily && previous.photographicDirectionId) increment(index.macroCounts,
+            [previous.motifFamilyId || previous.subjectId, previous.sceneFamily, previous.photographicDirectionId].join(':'));
     }
-    const macroCounts = new Map();
-    for (const entry of previousVisuals) {
-        if (!entry.sceneFamily || !entry.photographicDirectionId) continue;
-        const key = `${entry.motifFamilyId || entry.subjectId}:${entry.sceneFamily}:${entry.photographicDirectionId}`;
-        macroCounts.set(key, (macroCounts.get(key) || 0) + 1);
-    }
-    return { frequencies, combinations, visualGroupIds, recentMotifFamilies, recentPhotographicCombinations, recentColorCombinations, macroCounts };
+);
+
+function createVisualUsageIndex(previousVisuals) {
+    return {
+        ...getVisualUsageTotals(previousVisuals),
+        recentMotifFamilies: new Set(previousVisuals.slice(0, 8).map(entry => entry.motifFamilyId).filter(Boolean)),
+        recentPhotographicCombinations: new Set(previousVisuals.slice(0, 8).filter(entry => entry.photographicDirectionId && entry.exposureId).map(entry => entry.photographicDirectionId + ':' + entry.exposureId)),
+        recentColorCombinations: new Set(previousVisuals.slice(0, 8).filter(entry => entry.paletteId && entry.toneId).map(entry => entry.paletteId + ':' + entry.toneId))
+    };
 }
 
 function scoreVisualMacroPair(pair, usageIndex) {
@@ -2165,31 +2164,40 @@ function assignNovelVisualVariant(payload) {
     const previousVisuals = profileGenerationHistory.getVisualAssignments(payload.templateType);
     const usageIndex = createVisualUsageIndex(previousVisuals);
     const baseNonce = payload.visualNonce;
+    // Prioritize underused scenes within EVERY family to retain compatible pair choices.
+    const families = new Map();
+    for (const scene of SCENE_ARCHETYPES[payload.templateType]) {
+        if (!families.has(scene.family)) families.set(scene.family, []);
+        families.get(scene.family).push(scene);
+    }
+    const candidateScenes = [...families.values()].flatMap(scenes => scenes
+        .sort((left, right) => (usageIndex.sceneCounts.get(left.id) || 0) - (usageIndex.sceneCounts.get(right.id) || 0))
+        .slice(0, 12));
+    delete payload.visualSceneIds;
     let best = null;
     let candidateCount = 0;
     for (let attempt = 0; attempt < 128; attempt += 1) {
-        const candidateNonce = attempt === 0
-            ? baseNonce
-            : crypto.createHash('sha256').update(`${baseNonce}\0${attempt}`).digest('hex').slice(0, 16);
+        if (attempt >= 32 && best && best.differentDirection && !best.reused) break;
+        const candidateNonce = attempt === 0 ? baseNonce
+            : crypto.createHash('sha256').update(baseNonce + '\0' + attempt).digest('hex').slice(0, 16);
         payload.visualNonce = candidateNonce;
-        const pair = getVisualPair(payload);
+        const pair = getVisualPair(payload, candidateScenes);
         const reuseScore = scoreVisualPair(pair, usageIndex);
         const macroScore = scoreVisualMacroPair(pair, usageIndex);
+        const reused = [pair.portrait, pair.mood].some(entry => usageIndex.visualGroupIds.has(entry.visualGroupId));
+        const differentDirection = pair.portrait.realization.photographicDirection.id !== pair.mood.realization.photographicDirection.id;
+        const rank = [Number(reused), Number(!differentDirection), macroScore, reuseScore];
         candidateCount += 1;
-        if (!best || macroScore < best.macroScore || (macroScore === best.macroScore && reuseScore < best.reuseScore)) {
-            best = { nonce: candidateNonce, pair, reuseScore, macroScore };
+        if (!best || rank.some((value, index) => value < best.rank[index] && rank.slice(0, index).every((prior, i) => prior === best.rank[i]))) {
+            best = { nonce: candidateNonce, pair, reuseScore, macroScore, reused, differentDirection, rank };
         }
-        if (macroScore === 0 && reuseScore === 0) break;
     }
+    // Persist the selected scene IDs; later prompt generation must use the identical pair.
     payload.visualNonce = best.nonce;
+    payload.visualSceneIds = { portrait: best.pair.portrait.scene.id, mood: best.pair.mood.scene.id };
     payload.visualNovelty = {
-        priorVisualCount: previousVisuals.length,
-        candidateCount,
-        reuseScore: best.reuseScore,
-        macroScore: best.macroScore,
-        reusedVisualGroup: [best.pair.portrait, best.pair.mood].some((variation) => (
-            usageIndex.visualGroupIds.has(variation.visualGroupId)
-        ))
+        priorVisualCount: previousVisuals.length, candidateCount,
+        reuseScore: best.reuseScore, macroScore: best.macroScore, reusedVisualGroup: best.reused
     };
 }
 
@@ -2444,13 +2452,15 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
         : '';
     const reusableLegacyJob = reusableLegacyJobId ? profileJobStore.read(reusableLegacyJobId) : null;
     // 동일 입력의 이전 버전 결과도 그대로 돌려준다. 배포만으로 유료 재생성을 시작하지 않는다.
-    const previousFingerprint = createProfileJobFingerprint({
-        kind,
-        ...fingerprintInput,
-        profileTextPromptVersion: 'profile-copy-v7-concrete-editorial-direction',
-        visualVariationVersion: fingerprintInput.generateImageRequested ? 'profile-visual-v11-photographic-direction' : 'none'
-    });
-    const aliasedJobId = profileJobFingerprintAliases.get(fingerprint) || profileJobFingerprintAliases.get(previousFingerprint);
+    const previousFingerprints = [
+        ['profile-copy-v8-source-first', 'profile-visual-v12-macro-balance'],
+        ['profile-copy-v7-concrete-editorial-direction', 'profile-visual-v11-photographic-direction']
+    ].map(([profileTextPromptVersion, visualVariationVersion]) => createProfileJobFingerprint({
+        kind, ...fingerprintInput, profileTextPromptVersion,
+        visualVariationVersion: fingerprintInput.generateImageRequested ? visualVariationVersion : 'none'
+    }));
+    const aliasedJobId = [fingerprint, ...previousFingerprints]
+        .map(key => profileJobFingerprintAliases.get(key)).find(Boolean);
     const aliasedJob = aliasedJobId ? profileJobStore.read(aliasedJobId) : null;
     if (aliasedJob) {
         res.setHeader('Idempotency-Replayed', 'true');

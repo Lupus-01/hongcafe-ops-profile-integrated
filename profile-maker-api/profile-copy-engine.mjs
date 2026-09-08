@@ -1,3 +1,5 @@
+import { extendCopyOptions, EXTRA_STYLE_RULES } from './profile-copy-options.mjs';
+import { createIncrementalIndex, increment } from './profile-assignment-index.mjs';
 import crypto from 'node:crypto';
 import { sanitizeImagePromptContext } from './profile-image-context.mjs';
 
@@ -130,8 +132,21 @@ const CATEGORY_LANGUAGE = {
     }
 };
 
+
+extendCopyOptions({ structures: STRUCTURES, openings: OPENINGS, closings: CLOSINGS, styles: STYLES, treatments: EDITORIAL_TREATMENTS });
+const getCopyUsageIndex = createIncrementalIndex(
+    () => ({ exact: new Set(), frequencies: Object.fromEntries(['signature', 'styleId', 'lensIndex', 'structureIndex', 'emphasisIndex', 'openingIndex', 'closingIndex'].map(key => [key, new Map()])) }),
+    (index, item) => {
+        if (item?.groupId) index.exact.add(item.groupId);
+        for (const [key, counts] of Object.entries(index.frequencies)) {
+            const value = item?.[key];
+            if (value !== undefined && value !== null && value !== '') increment(counts, value);
+        }
+    }
+);
+
 export const COPY_EXPRESSION_STYLE_COUNT = STYLES.length;
-export const COPY_GROUP_COUNT_PER_CATEGORY = 16 * 12 * 12 * 10 * 8 * 8;
+export const COPY_GROUP_COUNT_PER_CATEGORY = TOPICS['tarot-ppt'].length * LENSES['tarot-ppt'].length * STRUCTURES.length * EMPHASES.length * OPENINGS.length * CLOSINGS.length;
 export const COPY_GROUP_COUNT_TOTAL = COPY_GROUP_COUNT_PER_CATEGORY * Object.keys(TOPICS).length;
 export const COPY_VARIANT_COUNT_TOTAL = COPY_GROUP_COUNT_TOTAL * COPY_EXPRESSION_STYLE_COUNT;
 
@@ -187,27 +202,14 @@ export function selectProfileCopyVariant({ templateType, sourceText = '', identi
         : 0;
     const baseDigest = digestFor(`${topicDigest.toString('hex')}\0${normalizedGenerationSequence}`);
     const sourceFocus = selectProfileSourceFocus(sourceText, normalizedGenerationSequence);
-    const recentExact = new Set(recent.map((item) => item?.groupId).filter(Boolean));
+    const { exact: recentExact, frequencies } = getCopyUsageIndex(recent);
     const recentSignatures = new Set(recent.slice(0, 10).map((item) => item?.signature).filter(Boolean));
     const recentStyleIds = new Set(recent.slice(0, 10).map((item) => item?.styleId).filter(Boolean));
     const recentOpeningIndices = new Set(recent.slice(0, 3).map((item) => item?.openingIndex).filter(Number.isInteger));
-    const frequency = (key) => recent.reduce((counts, item) => {
-        const value = item?.[key];
-        if (value !== undefined && value !== null && value !== '') counts.set(value, (counts.get(value) || 0) + 1);
-        return counts;
-    }, new Map());
-    const frequencies = {
-        signature: frequency('signature'),
-        styleId: frequency('styleId'),
-        lensIndex: frequency('lensIndex'),
-        structureIndex: frequency('structureIndex'),
-        emphasisIndex: frequency('emphasisIndex'),
-        openingIndex: frequency('openingIndex'),
-        closingIndex: frequency('closingIndex')
-    };
     let best = null;
 
     for (let attempt = 0; attempt < 2048; attempt += 1) {
+        if (attempt >= 128 && best) break;
         const digest = digestFor(`${baseDigest.toString('hex')}\0${attempt}`);
         const lensIndex = digest.readUInt32BE(0) % LENSES[resolvedType].length;
         const structureIndex = digest.readUInt32BE(4) % STRUCTURES.length;
@@ -277,6 +279,7 @@ export function buildProfileCopyDirection(copyVariant) {
         `도입 방식: ${categoryLanguage.openingBasis}에서 ${OPENINGS[copyVariant?.openingIndex ?? 0]} 방식으로 시작한다.`,
         `마무리 방식: ${categoryLanguage.closingBasis}을 중심으로 ${CLOSINGS[copyVariant?.closingIndex ?? 0]} 방식으로 끝맺는다.`,
         `표현 방식: ${STYLES[copyVariant?.styleIndex ?? 0]}을 유지하되 ${categoryLanguage.styleBasis}를 사용한다.`,
+        ...(copyVariant?.styleIndex >= 20 ? [`추가 표현 규칙: ${EXTRA_STYLE_RULES[copyVariant.styleIndex - 20]}`] : []),
         `이번 편집 방식: ${treatment[0]}. 아래 구체적인 작성 규칙을 추상적인 문체 이름보다 우선한다.`,
         `제목 작성 규칙: ${treatment[1]} 제목에 흐름·방향·해답을 관성적으로 나열하지 않는다.`,
         `본문 역할 분담: ${treatment[2]}`,

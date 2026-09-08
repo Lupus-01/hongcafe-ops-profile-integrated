@@ -176,29 +176,29 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.geminiMinRequestIntervalMs, 10000);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v2-strong-priority');
-    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v12-macro-balance');
-    assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v8-source-first');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v13-expanded-scenes');
+    assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v9-expanded-editorial');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         groupsPerImage: {
-            'tarot-ppt': '2064384000000',
-            'saju-ppt': '1769472000000',
-            'sinjeom-ppt': '50960793600000'
+            'tarot-ppt': '8257536000000',
+            'saju-ppt': '7077888000000',
+            'sinjeom-ppt': '127401984000000'
         },
-        fixedTarotDeckGroupsPerImage: '147456000000'
+        fixedTarotDeckGroupsPerImage: '589824000000'
     });
     assert.deepEqual(initialHealth.profileCopyConfiguration, {
         categories: 3,
-        groupsPerCategory: 1474560,
-        groupsTotal: 4423680,
-        expressionStyles: 20,
-        variantsTotal: 88473600
+        groupsPerCategory: 11796480,
+        groupsTotal: 35389440,
+        expressionStyles: 32,
+        variantsTotal: 1132462080
     });
     assert.equal(initialHealth.pairedSceneSubjects['sinjeom-ppt'], 30);
     assert.equal(initialHealth.pairedHeroSubjects['sinjeom-ppt'], 18);
     assert.equal(initialHealth.pairedHeroMotifFamilies['sinjeom-ppt'], 14);
-    assert.equal(initialHealth.baseSceneArchetypeCounts['sinjeom-ppt'], 48);
-    assert.equal(initialHealth.sceneArchetypeCounts['sinjeom-ppt'], 480);
+    assert.equal(initialHealth.baseSceneArchetypeCounts['sinjeom-ppt'], 120);
+    assert.equal(initialHealth.sceneArchetypeCounts['sinjeom-ppt'], 1200);
 
     const duplicateSubmissions = await Promise.all(
         Array.from({ length: 20 }, (_, index) => submitProfile(baseUrl, 'same consultant', `duplicate-${index}`))
