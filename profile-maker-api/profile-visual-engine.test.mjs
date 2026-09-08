@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { createOfflineVisualRuntime } from './profile-diversity-runtime.mjs';
 import {
     buildVisualRealizationPrompt,
     calculateStructuredImageGroupCount,
@@ -10,6 +11,69 @@ import {
     PROFILE_VISUAL_VARIATION_VERSION,
     VISUAL_REALIZATION_COUNT_PER_BASE
 } from './profile-visual-engine.mjs';
+
+test('new tarot assignments rotate six photographic subjects and separate each pair structurally', (t) => {
+    const history = [];
+    const runtime = createOfflineVisualRuntime(() => history);
+    const counts = new Map();
+    let recentRepeats = 0;
+    for (let sample = 0; sample < 180; sample += 1) {
+        const payload = { templateType: 'tarot-ppt', tarotCardType: 'universal-waite', visualIdentity: `independent-${sample}`, visualNonce: String(sample) };
+        runtime.assignNovelVisualVariant(payload);
+        const pair = runtime.getVisualPair(payload);
+        const a = pair.portrait.scene;
+        const b = pair.mood.scene;
+        assert.ok(a.shootType && b.shootType);
+        assert.notEqual(a.shootType, b.shootType);
+        assert.ok(['distance', 'support', 'background'].filter(key => a[key] !== b[key]).length >= 2);
+        assert.equal(pair.portrait.subject.id, 'classic-symbolic');
+        assert.equal(pair.mood.subject.id, 'classic-symbolic');
+        assert.equal(pair.portrait.scene.id, payload.visualSceneIds.portrait);
+        const recent = new Set(history.slice(0, 4).map(entry => entry.shootType));
+        for (const kind of ['portrait', 'mood']) {
+            const entry = runtime.toVisualHistoryEntry(kind, pair[kind]);
+            if (recent.has(entry.shootType)) recentRepeats += 1;
+            counts.set(entry.shootType, (counts.get(entry.shootType) || 0) + 1);
+        }
+        history.unshift(runtime.toVisualHistoryEntry('portrait', pair.portrait), runtime.toVisualHistoryEntry('mood', pair.mood));
+    }
+    assert.equal(counts.size, 6);
+    for (const count of counts.values()) assert.ok(count >= 45 && count <= 75, JSON.stringify([...counts]));
+    assert.ok(recentRepeats <= 36, `Recent structural repeats: ${recentRepeats}/360`);
+    t.diagnostic(`180 profiles / 360 images: ${JSON.stringify(Object.fromEntries(counts))}; recent repeats=${recentRepeats}`);
+});
+
+test('independent prompts preserve each scene instead of imposing tables or reference layouts', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const scenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.shootType);
+    for (const scene of scenes) {
+        const other = scenes.find(candidate => candidate.shootType !== scene.shootType
+            && ['distance', 'support', 'background'].filter(key => candidate[key] !== scene[key]).length >= 2);
+        const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'prompt-check', visualSceneIds: { portrait: scene.id, mood: other.id } });
+        const prompt = runtime.buildVisualVariationPrompt(pair.portrait, 'portrait');
+        assert.match(prompt, /standalone photograph/);
+        assert.match(prompt, /assigned composition takes priority/);
+        assert.doesNotMatch(prompt, /reading cloth is expected|consultation-table photograph|Optional supporting accessory|primary evidence/);
+        assert.ok(prompt.includes(scene.camera));
+        if (scene.shootType === 'consultation-space') assert.match(prompt, /about 10 percent/);
+        if (scene.shootType === 'single-card') assert.match(prompt, /exactly one complete face-up card/);
+        if (scene.shootType === 'card-shadow') assert.match(prompt, /Lighting: follow the assigned directional side light/);
+    }
+    const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
+    const referenceSource = source.slice(source.indexOf('function buildReferenceAssignmentPrompt('), source.indexOf('function buildImageContents('));
+    const referencePrompt = vm.runInNewContext(`(${referenceSource})`);
+    for (const kind of ['portrait', 'mood']) assert.match(referencePrompt(3, kind), /take priority over references/);
+});
+
+test('persisted legacy tarot scene IDs remain readable', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const oldScenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => !scene.shootType);
+    const first = oldScenes[0];
+    const second = oldScenes.find(scene => scene.family !== first.family);
+    const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'legacy', visualSceneIds: { portrait: first.id, mood: second.id } });
+    assert.equal(pair.portrait.scene.id, first.id);
+    assert.equal(pair.mood.scene.id, second.id);
+});
 
 test('400 realizations retain scene-compatible composition and varied exposure for each camera mode', () => {
     const scenes = [
@@ -63,7 +127,7 @@ test('structured image groups exceed the text variation count even for a fixed t
         palettes: 8,
         fixedHeroSubject: true
     });
-    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v13-expanded-scenes');
+    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v14-independent-shots');
     assert.equal(VISUAL_REALIZATION_COUNT_PER_BASE, 61440000);
     assert.ok(fixedTarot > textVariationCount);
 });
@@ -119,8 +183,8 @@ test('category-specific location and placement language stays visibly separate',
     }));
     assert.match(prompts['tarot-ppt'], /card|deck|reading/i);
     assert.match(prompts['saju-ppt'], /saju|analysis|manse|four-pillars/i);
-    assert.match(prompts['sinjeom-ppt'], /prayer|ceremonial|spiritual/i);
-    assert.match(prompts['tarot-ppt'], /reference images are attached[\s\S]*primary evidence/i);
+    assert.match(prompts['sinjeom-ppt'], /Category identity: sinjeom-ppt/);
+    assert.match(prompts['tarot-ppt'], /reference images are attached[\s\S]*assigned composition[\s\S]*take priority/i);
     assert.equal(new Set(Object.values(prompts)).size, 3);
 });
 

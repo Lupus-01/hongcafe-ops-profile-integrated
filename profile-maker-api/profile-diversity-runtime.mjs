@@ -4,7 +4,7 @@ import { createIncrementalIndex, increment } from './profile-assignment-index.mj
 import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
-import { getVisualRealizationPair, PROFILE_VISUAL_VARIATION_VERSION } from './profile-visual-engine.mjs';
+import { buildVisualRealizationPrompt, getVisualRealizationPair, PROFILE_VISUAL_VARIATION_VERSION } from './profile-visual-engine.mjs';
 
 export function createOfflineVisualRuntime(getHistory) {
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
@@ -19,8 +19,9 @@ export function createOfflineVisualRuntime(getHistory) {
         ${between('const TEMPLATE_GUIDES =', 'const IMAGE_QUALITY_PROFILES =')}
         function getTemplateGuide(type) { return TEMPLATE_GUIDES[type]; }
         ${between('function createVisualIdentity(', 'function buildVisualVariationPrompt(')}
+        ${between('function buildVisualVariationPrompt(', 'function getPositiveIntegerEnv(')}
         ${assignment}
-        ({ assignNovelVisualVariant, getVisualPair, toVisualHistoryEntry, TAROT_CARD_TYPES, SCENE_ARCHETYPES, BASE_SCENE_ARCHETYPES, TEMPLATE_GUIDES, isSubjectCompatibleWithScene })
-    `, { crypto, PROFILE_VISUAL_VARIATION_VERSION, getVisualRealizationPair, createAdditionalSceneArchetypes, createIncrementalIndex, increment,
+        ({ assignNovelVisualVariant, getVisualPair, buildVisualVariationPrompt, toVisualHistoryEntry, TAROT_CARD_TYPES, SCENE_ARCHETYPES, BASE_SCENE_ARCHETYPES, TEMPLATE_GUIDES, isSubjectCompatibleWithScene })
+    `, { crypto, PROFILE_VISUAL_VARIATION_VERSION, getVisualRealizationPair, buildVisualRealizationPrompt, createAdditionalSceneArchetypes, createIncrementalIndex, increment,
         profileGenerationHistory: { getVisualAssignments: getHistory } });
 }

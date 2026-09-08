@@ -8,14 +8,15 @@ import { createOfflineVisualRuntime } from './profile-diversity-runtime.mjs';
 import { FileProfileGenerationHistory } from './profile-generation-history.mjs';
 import { selectProfileCopyVariant, buildProfileCopyDirection } from './profile-copy-engine.mjs';
 
-test('expanded catalog has 120 distinct base scenes per category and compatible heroes for every scene', () => {
+test('catalog retains legacy scenes and adds independent tarot subjects with compatible heroes', () => {
     const runtime = createOfflineVisualRuntime(() => []);
     for (const category of ['tarot-ppt', 'saju-ppt', 'sinjeom-ppt']) {
         const bases = runtime.BASE_SCENE_ARCHETYPES[category];
-        assert.equal(bases.length, 120);
-        assert.equal(new Set(bases.map(scene => scene.id)).size, 120);
-        assert.equal(new Set(bases.map(scene => scene.prompt)).size, 120);
-        assert.equal(runtime.SCENE_ARCHETYPES[category].length, 1200);
+        const count = category === 'tarot-ppt' ? 150 : 120;
+        assert.equal(bases.length, count);
+        assert.equal(new Set(bases.map(scene => scene.id)).size, count);
+        assert.equal(new Set(bases.map(scene => scene.prompt)).size, count);
+        assert.equal(runtime.SCENE_ARCHETYPES[category].length, count * 10);
         const heroes = runtime.TEMPLATE_GUIDES[category].visualSubjects.filter(subject => subject.role !== 'support');
         for (const scene of runtime.SCENE_ARCHETYPES[category]) {
             assert.ok(heroes.some(hero => runtime.isSubjectCompatibleWithScene(hero, scene)), scene.id);

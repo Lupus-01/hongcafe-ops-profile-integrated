@@ -26,10 +26,10 @@ test('category copy prompts create a new fingerprint while preserving safe legac
     assert.match(serverSource, /reuseCompletedProfileImageStages\(record, reusableLegacyJob\)/);
 });
 
-test('all text generation paths use copy variants and strong reference context', () => {
+test('text generation retains copy variants and references while image references use material cues', () => {
     const directionCalls = serverSource.match(/buildProfileCopyDirection\(payload\.copyVariant\)/g) || [];
     assert.equal(directionCalls.length, 3);
-    assert.match(serverSource, /All \$\{referenceImageCount\} uploaded references are primary visual evidence/);
+    assert.match(serverSource, /All \$\{referenceImageCount\} uploaded references are material references only/);
     assert.match(serverSource, /return referenceImages;/);
     assert.match(serverSource, /payload\.referenceText = sanitizeProfileReferenceText/);
 });

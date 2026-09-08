@@ -75,10 +75,49 @@ const LAYOUTS = {
 };
 
 export function createAdditionalSceneArchetypes(createScene) {
-    return Object.fromEntries(Object.entries(SETTINGS).map(([category, settings]) => [category,
+    const scenes = Object.fromEntries(Object.entries(SETTINGS).map(([category, settings]) => [category,
         settings.flatMap(([placeId, place]) => LAYOUTS[category].map(([layoutId, family, layout, camera, tabletop, options = {}]) =>
             createScene(`${category}-expanded-${placeId}-${layoutId}`, family,
                 `Use ${place}. ${layout} Preserve category identity and the assigned hero; no people or readable private information.`,
                 camera, tabletop, options)))
     ]));
+    scenes['tarot-ppt'].push(...createIndependentTarotScenes(createScene));
+    return scenes;
+}
+
+// Separate photographic subjects, not room/cloth permutations. Legacy IDs above
+// remain readable for persisted jobs but are excluded from new tarot assignments.
+function createIndependentTarotScenes(createScene) {
+    const groups = [
+        ['single-card', 'close', 'card-rail', 'plain-backdrop', 'eye-level', 'close-detail', false,
+            '70mm level frontal close photograph',
+            'Show exactly one complete face-up card from the assigned family in a discreet fitted rail. The card occupies about half the frame; no deck stack, spread, cloth, table or room view.',
+            ['an off-center card against matte ivory paper', 'a centered card against a muted terracotta panel', 'a card on the right against a plain cool-gray panel', 'a card against a softly curved beige paper backdrop', 'a card against a quiet charcoal panel']],
+        ['deck-texture', 'tight-detail', 'fitted-cradle', 'soft-field', 'surface-level', 'close-detail', false,
+            '85mm low side close photograph at deck-edge height',
+            'Photograph the complete squared assigned deck in a fitted cradle. Paper layers and the single top card back dominate the frame; no face-up spread, cloth, table, shelf or room view. Keep the complete deck outline visible.',
+            ['the long paper edge running horizontally', 'a corner showing two perpendicular paper edges', 'the short edge facing the camera', 'a diagonal deck with its back pattern clearly visible', 'a slightly tilted cradle revealing back print and paper layers']],
+        ['deck-storage', 'medium', 'storage-compartment', 'cabinet-grid', 'eye-level', 'environmental', false,
+            '50mm level straight-on medium photograph',
+            'Photograph preparation and storage of the assigned deck, with one visible sample face identifying its family. Storage structure is the main composition. No reading spread, cloth-covered surface or consultation table.',
+            ['one open cubby surrounded by closed cabinet doors', 'a fitted vertical deck compartment with a plain sliding lid', 'an open rigid card case standing securely inside a wall niche', 'two separated shelf compartments with the assigned deck in only one', 'a shallow wall cabinet with its door open to the side']],
+        ['consultation-space', 'wide', 'wall-shelf', 'room-architecture', 'standing-level', 'wide-environment', false,
+            '32mm level architectural wide photograph with broad practical focus',
+            'Let the unoccupied consultation space occupy most of the frame. One assigned deck and one identifiable sample card on a wall shelf are small category cues, about 10 percent of the frame. Do not zoom into them or add a card spread, reading cloth or central table.',
+            ['two empty chairs separated by generous floor space and a recessed shelf', 'a long empty bench with a side wall shelf and an offset doorway', 'a compact consultation booth with a tall plain partition', 'an open consultation alcove framed by a broad doorway', 'a room corner with an empty armchair and a narrow vertical shelving recess']],
+        ['card-shadow', 'medium', 'stone-plinth', 'shadow-wall', 'eye-level', 'environmental', false,
+            '55mm level side-front photograph with lateral negative space',
+            'Show one complete assigned card securely supported upright on a small stone plinth. Its physically plausible cast shadow and a broad blank wall dominate; the card occupies about one fifth of the frame. Use directional side light and readable shadows. No deck spread, cloth, table or additional props.',
+            ['a long shadow extending left across a pale wall', 'a short defined shadow to the right on warm plaster', 'a diagonal shadow across the meeting of two plain walls', 'a broad shaded wall with a narrow band of side light', 'a low shadow across a wall and the top of the plinth']],
+        ['reading-spread', 'medium', 'reading-table', 'flat-surface', 'overhead', 'environmental', true,
+            '45mm true overhead photograph with only the working surface as background',
+            'Show a practical reading using only the assigned card family. Preserve the complete cards, natural spacing and assigned arrangement. No room horizon or extra decorations.',
+            ['three face-up cards in a row on bare pale wood', 'four face-up cards in a loose square on matte charcoal', 'five face-up cards in a shallow arc on a small muted turquoise mat', 'three separated face-up cards in a triangle on plain cream paper', 'one face-up card beside a compact fan of card backs on bare walnut']]
+    ];
+    return groups.flatMap(([shootType, distance, support, background, cameraHeight, shotMode, tabletop, camera, direction, arrangements]) =>
+        arrangements.map((arrangement, index) => createScene(
+            `tarot-independent-${shootType}-${index + 1}`, shootType,
+            `${direction} Specific composition: ${arrangement}. No people, hands or readable text.`, camera, tabletop,
+            { shootType, distance, support, background, cameraHeight, shotMode }
+        )));
 }

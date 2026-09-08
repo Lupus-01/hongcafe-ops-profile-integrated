@@ -19,6 +19,20 @@ function createProfile(headline, body) {
     };
 }
 
+test('independent photographic structure survives reservation, completion and reload', (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-structure-history-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const filePath = path.join(directory, 'history.json');
+    const history = new FileProfileGenerationHistory({ filePath });
+    const structure = { shootType: 'single-card', distance: 'close', support: 'card-rail', background: 'plain-backdrop', cameraHeight: 'eye-level' };
+    const guide = { ...structure, visualGroupId: 'independent-card', sceneId: 'tarot-independent-single-card-1' };
+    history.reserve({ id: 'new-shot', campaignId: 'test', templateType: 'tarot-ppt', visuals: [{ kind: 'portrait', ...guide }] });
+    for (const [key, value] of Object.entries(structure)) assert.equal(history.getVisualAssignments('tarot-ppt')[0][key], value);
+    history.complete('new-shot', { profile: {}, imageGuide: { portrait: guide } });
+    const reloaded = new FileProfileGenerationHistory({ filePath });
+    for (const [key, value] of Object.entries(structure)) assert.equal(reloaded.getVisualAssignments('tarot-ppt')[0][key], value);
+});
+
 test('profile similarity detects repeated copy without storing the original text', (t) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-generation-history-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

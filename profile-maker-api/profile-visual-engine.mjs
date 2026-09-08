@@ -1,8 +1,11 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v13-expanded-scenes';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v14-independent-shots';
 
 function getPhotographicDirection(scene) {
+    if (scene?.shootType) {
+        return { id: scene.shootType, prompt: `Use the assigned ${scene.shootType} composition at ${scene.distance} distance, ${scene.cameraHeight} camera height, with ${scene.support} support and ${scene.background} background. Preserve the assigned subject scale and object count.` };
+    }
     const camera = String(scene?.camera || '');
     if (/overhead/i.test(camera) || scene?.family === 'overhead-spread') {
         return { id: 'ordered-overhead', prompt: 'Make the existing object arrangement and clear gaps the dominant visual structure. Preserve the assigned overhead angle and complete objects. Use the existing surface as the background; do not add a room horizon or foreground architecture.' };
@@ -237,6 +240,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
     const placementOptions = CATEGORY_PLACEMENT_OPTIONS[templateType] || CATEGORY_PLACEMENT_OPTIONS['sinjeom-ppt'];
     const selected = {
         templateType,
+        shootType: scene?.shootType || '',
         photographicDirection: getPhotographicDirection(scene),
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
@@ -259,6 +263,11 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
         selected.focus.id,
         selected.depth.id
     ].join(':');
+    if (scene?.shootType) {
+        selected.id = [templateType, scene.shootType,
+            scene.shootType === 'card-shadow' ? 'scene-side-light' : selected.lighting.id,
+            selected.tone.id].join(':');
+    }
     return selected;
 }
 
@@ -270,6 +279,19 @@ export function getVisualRealizationPair({ templateType, stableIdentity, nonce, 
 
 export function buildVisualRealizationPrompt(realization) {
     const direction = realization.photographicDirection;
+    if (realization.shootType) {
+        return [
+            `Category identity: ${realization.templateType}; preserve the assigned card family at the scene's subject scale.`,
+            `Primary photographic direction (${direction.id}): ${direction.prompt}`,
+            realization.shootType === 'card-shadow'
+                ? 'Lighting: follow the assigned directional side light and physically plausible cast shadow exactly.'
+                : `Lighting realization: ${realization.lighting.prompt}`,
+            `Secondary tonal treatment: ${realization.tone.prompt} Keep the scene's explicit surface and background colors.`,
+            'Show believable print, paper edges and contact shadows only on materials already present in the assigned scene.',
+            'Do not introduce a room, window, cloth, spread or extra furniture to satisfy secondary styling. Do not enlarge the small deck cue in a wide room.',
+            'When reference images are attached, use only compatible object-family and material cues. The assigned composition takes priority.'
+        ].join('\n');
+    }
     return [
         `Category identity: ${realization.templateType}. Keep every location and placement specific to this consultation category.`,
         'Visual hierarchy: establish the assigned main subject, scene layout and camera distance first. Color, texture and tiny props are secondary; they must not substitute for a visibly different composition.',
@@ -288,7 +310,7 @@ export function buildVisualRealizationPrompt(realization) {
             `Depth realization: ${realization.depth.prompt}`
         ] : []),
         'These are secondary realization constraints. They must preserve the assigned hero subject, scene family, environment, support method, spread or object arrangement, and camera distance.',
-        'When reference images are attached, their safe compatible palette, material, lighting, and spatial traits remain the primary evidence; adapt these realization choices around those traits instead of overriding them.'
+        'When reference images are attached, use only compatible object-family and material cues. The assigned composition, camera, support, background and lighting take priority.'
     ].join('\n');
 }
 
@@ -302,6 +324,10 @@ export const VISUAL_REALIZATION_COUNT_PER_BASE = (
     * CATEGORY_PLACEMENT_COUNT
     * ENVIRONMENT_LOCATION_COUNT
 );
+
+export function countIndependentRealizations(scene) {
+    return TONE_OPTIONS.length * (scene.shootType === 'card-shadow' ? 1 : LIGHTING_OPTIONS.length);
+}
 
 export function calculateStructuredImageGroupCount({ heroSubjects, supportSubjects = 0, scenes, palettes, fixedHeroSubject = false }) {
     const heroCount = fixedHeroSubject ? 1 : Math.max(Number(heroSubjects) || 0, 0);
