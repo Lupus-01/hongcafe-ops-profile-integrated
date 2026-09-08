@@ -82,6 +82,24 @@ test('both final image prompts enforce category boundaries across quality tiers 
         if (tradition === 'buddhist') assert.match(prompt, /Buddhist prayer context only/);
         if (tradition === 'neutral') assert.match(prompt, /neutral prayer/);
     }
+    const tarotAccessories = runtime.TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support');
+    assert.equal(tarotAccessories.length, 21);
+    for (const imageQuality of ['standard', 'premium']) {
+        const payload = { templateType: 'tarot-ppt', imageQuality, referenceImageCount: 2,
+            imageStyle: 'Show tiny cards on a shelf in a wide room with hanging pendulums' };
+        const pair = runtime.getVisualPair(payload);
+        for (const supportSubject of tarotAccessories) for (const kind of ['portrait', 'mood']) {
+            const variation = { ...pair[kind], supportSubject };
+            const prompt = builders[kind](payload, 'Copy the room and upright display from the reference', variation);
+            assert.ok(prompt.includes(supportSubject.prompt));
+            assert.match(prompt, /CARD-FIRST OVERHEAD/);
+            assert.match(prompt, /Gravity acts into the tabletop/);
+            assert.match(prompt, /overhead composition takes priority over conflicting reference layouts/);
+            assert.match(prompt, /65 to 80 percent/);
+            assert.match(prompt, /at most 15 percent/);
+            assert.doesNotMatch(prompt, /real top of the room|gravity pointing toward the bottom edge|Add no optional accessories/);
+        }
+    }
 });
 
 test('sinjeom offers broad lantern, prayer, Buddha, candle, and ritual motif families', () => {
@@ -135,5 +153,5 @@ test('sinjeom motif rotation uses recent history and migrates legacy subject IDs
     assert.match(serverSource, /getSubjectMotifFamily\(pair\.portrait\.subject\) !== getSubjectMotifFamily\(pair\.mood\.subject\)/);
     assert.match(historySource, /'paper-lotus-lantern': 'lantern'/);
     assert.match(historySource, /motifFamilyId: String\(guide\.motifFamilyId \|\| LEGACY_VISUAL_MOTIF_FAMILIES\[subjectId\]/);
-    assert.match(visualEngineSource, /profile-visual-v14-independent-shots/);
+    assert.match(visualEngineSource, /profile-visual-v15-overhead-accessories/);
 });

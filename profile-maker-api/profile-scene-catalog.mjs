@@ -82,6 +82,7 @@ export function createAdditionalSceneArchetypes(createScene) {
                 camera, tabletop, options)))
     ]));
     scenes['tarot-ppt'].push(...createIndependentTarotScenes(createScene));
+    scenes['tarot-ppt'].push(...createOverheadTarotScenes(createScene));
     return scenes;
 }
 
@@ -120,4 +121,30 @@ function createIndependentTarotScenes(createScene) {
             `${direction} Specific composition: ${arrangement}. No people, hands or readable text.`, camera, tabletop,
             { shootType, distance, support, background, cameraHeight, shotMode }
         )));
+}
+
+// v15: cards remain the main subject; diversity comes from layouts and accessories.
+function createOverheadTarotScenes(createScene) {
+    const layouts = [
+        ['three-card-row', 'three complete face-up cards in a straight horizontal row'],
+        ['four-card-grid', 'four complete face-up cards in a balanced two-by-two grid'],
+        ['five-card-arc', 'five complete face-up cards in a shallow arc with no overlapping faces'],
+        ['three-card-triangle', 'three complete face-up cards in a spacious triangle'],
+        ['five-card-cross', 'five complete face-up cards in a cross, with clear gaps between all cards'],
+        ['stepped-row', 'four complete face-up cards in a gently stepped horizontal row']
+    ];
+    const surfaces = [
+        ['linen', 'a plain natural linen reading cloth'],
+        ['walnut', 'a bare matte walnut tabletop'],
+        ['velvet', 'a plain muted velvet reading mat'],
+        ['felt', 'a plain soft felt reading mat'],
+        ['oak', 'a bare pale oak tabletop']
+    ];
+    return layouts.flatMap(([layoutId, layout]) => surfaces.map(([surfaceId, surface]) => createScene(
+        `tarot-overhead-${layoutId}-${surfaceId}`, layoutId,
+        `Arrange ${layout} on ${surface}. CARD-FIRST OVERHEAD: the card arrangement spans about 65 to 80 percent of the frame width and is the dominant subject. Show every complete rectangular card face with consistent size, distinct printed artwork, intact corners and natural gaps. Keep the assigned accessory set in the outer margin, visibly smaller than the spread, never covering cards. Show only the flat working surface; no chairs, shelf, room horizon, upright display cards or architectural view. No people, hands or readable text.`,
+        '50mm true overhead photograph, camera directly above and parallel to the tabletop, looking vertically down at 90 degrees; broad sharp focus across all card faces and accessories',
+        true,
+        { shootType: layoutId, distance: 'medium', support: surfaceId, background: 'flat-surface', cameraHeight: 'overhead', shotMode: 'environmental', tabletopAccessories: true }
+    )));
 }

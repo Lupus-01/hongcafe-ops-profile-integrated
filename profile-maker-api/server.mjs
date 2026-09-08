@@ -129,8 +129,10 @@ const TEMPLATE_GUIDES = {
         cardFallbackBody: '타로는 현재 감정의 위치와 관계의 변화를 상징으로 읽어내는 상담입니다. 막연한 예측보다 지금 선택해야 할 방향과 마음의 흐름을 차분하게 정리합니다.',
         closingFallbackTitle: '흐릿한 마음에 선명한 방향을 더합니다',
         closingFallbackBody: '복잡하게 얽힌 고민도 하나씩 펼쳐보면 지금 필요한 선택이 보입니다. 부담 없이 마음을 정리할 수 있도록 섬세한 리딩으로 돕겠습니다.',
-        imageMood: 'Create a believable tarot or oracle photograph following the assigned photographic subject: a single card, deck texture, storage, consultation space, cast shadow, or actual reading spread. The scene determines card count, support and subject scale. A wide room uses a small identifiable deck cue; a detail uses the assigned card face, back or paper edge. Do not turn every scene into cards spread on a table. Keep the assigned card family coherent in size, border, back design and original illustration language. Titles must remain unreadable. Do not reproduce a commercial deck, trademark, logo, recognizable copyrighted card artwork, fake packaging, saju charts, ritual bells, talismans or fantasy decorations.',
-        moodScene: 'Create an independent tarot or oracle photograph in its assigned shooting type, with its own subject scale, support and background. Cards may be a small category cue in an architectural view or the main subject in a close view. A reading spread, cloth, window or table is permitted only when explicitly requested by this scene. Keep the assigned deck family recognizable without imposing one common room, palette or arrangement. No floating cards, supernatural effects, crowded altar or unrelated ritual objects.',
+        imageMood: 'Create a card-first tarot reading photograph viewed vertically from above. Complete face-up cards dominate the frame on a flat reading surface, with only the assigned small accessory set in the margin. Preserve consistent card dimensions, clear spacing, intact corners and the same original deck illustration language. Titles must remain unreadable. No tiny cards on shelves, room views, floating objects, fused cards, copied commercial artwork, religious altars or unrelated ritual tools.',
+        moodScene: 'Create a complementary card-first tarot reading photograph, also viewed vertically from above. Vary the card layout, assigned accessory set, surface and color from the portrait while keeping the same selected deck family. The full card faces remain large and sharp. No room architecture, chairs, upright cards, supernatural effects or unassigned decorations.',
+        legacyImageMood: 'Create a believable tarot or oracle photograph following the assigned photographic subject: a single card, deck texture, storage, consultation space, cast shadow, or actual reading spread. The scene determines card count, support and subject scale. A wide room uses a small identifiable deck cue; a detail uses the assigned card face, back or paper edge. Do not turn every scene into cards spread on a table. Keep the assigned card family coherent in size, border, back design and original illustration language. Titles must remain unreadable. Do not reproduce a commercial deck, trademark, logo, recognizable copyrighted card artwork, fake packaging, saju charts, ritual bells, talismans or fantasy decorations.',
+        legacyMoodScene: 'Create an independent tarot or oracle photograph in its assigned shooting type, with its own subject scale, support and background. Cards may be a small category cue in an architectural view or the main subject in a close view. A reading spread, cloth, window or table is permitted only when explicitly requested by this scene. Keep the assigned deck family recognizable without imposing one common room, palette or arrangement. No floating cards, supernatural effects, crowded altar or unrelated ritual objects.',
         visualSubjects: [
             { id: 'classic-symbolic', prompt: 'an original classic symbolic tarot deck with restrained primary colors and traditional figurative archetypes, inspired by early public-domain tarot conventions without copying any named commercial deck' },
             { id: 'marseille-geometry', prompt: 'an original Marseille-influenced tarot deck with bold flat geometry, limited mineral colors, and clearly different card backs' },
@@ -145,7 +147,28 @@ const TEMPLATE_GUIDES = {
             { id: 'dream-archetype', prompt: 'a dream-archetype deck with quiet surreal metaphors rendered as believable printed illustrations, not a fantasy scene' },
             { id: 'color-symbolic', prompt: 'an original color-psychology tarot deck where each card uses a distinct controlled color field, simple geometric symbolism, and clean contemporary borders without copying a published color tarot deck' },
             { id: 'iching-symbolic', prompt: 'an original I Ching influenced divination deck using accurate solid and broken trigram line structures, restrained ink-wash landscapes, and no readable Chinese characters or copied commercial artwork' },
-            { id: 'minimal-monochrome', prompt: 'a minimalist monochrome tarot deck with fine ink linework, generous blank space, and a distinctly modern back pattern' }
+            { id: 'minimal-monochrome', prompt: 'a minimalist monochrome tarot deck with fine ink linework, generous blank space, and a distinctly modern back pattern' },
+            { id: 'clear-quartz-pendulum', role: 'support', motifFamilyId: 'pendulum', prompt: 'one clear quartz pendulum with a single attached fine chain laid in a loose curve flat on the surface' },
+            { id: 'amethyst-pendulum', role: 'support', motifFamilyId: 'pendulum', prompt: 'one amethyst pendulum with a single attached silver-tone chain resting flat with its tip separated from the cards' },
+            { id: 'brass-pendulum', role: 'support', motifFamilyId: 'pendulum', prompt: 'one small brass cone pendulum with its attached chain fully resting on the surface' },
+            { id: 'silver-pendulum', role: 'support', motifFamilyId: 'pendulum', prompt: 'one polished silver-tone pendulum with a single attached chain laid flat in an open loop' },
+            { id: 'astrology-dice', role: 'support', motifFamilyId: 'astrology-dice', prompt: 'one set of three small twelve-sided astrology dice: one zodiac-sign die, one planet-symbol die, and one house-number die; physically plausible separate polyhedra, one simple marking per visible face, no extra floating symbols' },
+            { id: 'moon-phase-disc', role: 'support', motifFamilyId: 'celestial-board', prompt: 'one small flat moon-phase reference disc with restrained moon silhouettes and no readable text' },
+            { id: 'constellation-coaster', role: 'support', motifFamilyId: 'celestial-board', prompt: 'one small flat constellation-pattern coaster with simple star dots and fine connecting lines, no glowing effects or readable text' },
+            { id: 'velvet-deck-pouch', role: 'support', motifFamilyId: 'deck-storage', prompt: 'one small unbranded velvet card pouch lying flat with its drawstring naturally resting beside it' },
+            { id: 'linen-deck-pouch', role: 'support', motifFamilyId: 'deck-storage', prompt: 'one small unbranded linen card pouch lying flat with a simple closed drawstring' },
+            { id: 'wooden-deck-box', role: 'support', motifFamilyId: 'deck-storage', prompt: 'one shallow open wooden card box, empty, with its lid lying flat beside it' },
+            { id: 'leather-deck-case', role: 'support', motifFamilyId: 'deck-storage', prompt: 'one compact closed unbranded leather deck case lying flat' },
+            { id: 'flat-card-rest', role: 'support', motifFamilyId: 'card-rest', prompt: 'one small empty low wooden card rest lying horizontally in the outer margin, no upright cards' },
+            { id: 'reading-notebook-pen', role: 'support', motifFamilyId: 'writing', prompt: 'one small open blank reading notebook with one capped pen beside it; no legible writing or personal information' },
+            { id: 'memo-pencil', role: 'support', motifFamilyId: 'writing', prompt: 'one small stack of blank memo paper with one sharpened pencil resting beside it' },
+            { id: 'reading-journal', role: 'support', motifFamilyId: 'writing', prompt: 'one small closed unbranded reading journal with a plain ribbon bookmark resting flat' },
+            { id: 'clear-quartz-point', role: 'support', motifFamilyId: 'crystal', prompt: 'one modest clear quartz point resting horizontally on the surface, no glow or magical effects' },
+            { id: 'amethyst-stone', role: 'support', motifFamilyId: 'crystal', prompt: 'one small intact natural amethyst cluster with realistic mineral texture, no glow' },
+            { id: 'rose-quartz-stone', role: 'support', motifFamilyId: 'crystal', prompt: 'one small smooth rose-quartz tumbled stone resting naturally on the surface' },
+            { id: 'crystal-tray', role: 'support', motifFamilyId: 'crystal', prompt: 'one shallow small ceramic tray holding two modest polished stones, with realistic scale and no glow' },
+            { id: 'deck-wrap', role: 'support', motifFamilyId: 'deck-storage', prompt: 'one neatly folded plain silk deck wrap with a simple ribbon, no religious or ceremonial markings' },
+            { id: 'brass-bookmark', role: 'support', motifFamilyId: 'writing', prompt: 'one small flat brass moon-shaped bookmark beside one blank note card, no readable text' }
         ]
     },
     'saju-ppt': {
@@ -524,6 +547,14 @@ const UPRIGHT_ORIENTATION_REQUIREMENTS = `
 - Before finalizing, inspect the complete frame for orientation. Correct the scene if a viewer would need to rotate the image to understand the environment or hero object.
 `.trim();
 
+const OVERHEAD_ORIENTATION_REQUIREMENTS = `
+- Keep the output canvas landscape 16:9 while the camera looks vertically down at the flat tabletop at 90 degrees, with zero camera roll.
+- The card tops point toward the top edge of the image. The card faces remain parallel to the camera sensor, fully visible, rectangular and sharply focused.
+- Gravity acts into the tabletop, not toward an image edge. All accessories rest on the surface with natural contact shadows; no hanging pendulum or suspended dice.
+- No room horizon, chairs, shelving, walls, furniture legs or upright card display. Do not change the camera axis to satisfy room-orientation or secondary styling instructions.
+- This overhead composition takes priority over conflicting reference layouts, user style and document context; retain the assigned accessory set only.
+`.trim();
+
 const REFERENCE_IMAGE_REQUIREMENTS = `
 - Use attached reference images only as compatible evidence for object family, print character and material texture.
 - The assigned shooting type, object count, subject scale, camera, support, background and lighting take priority. Do not inherit the reference composition, dominant cloth color, table, room or arrangement.
@@ -650,9 +681,10 @@ const VISUAL_VARIATION_OPTIONS = {
 };
 
 function getVisualCombinationConfigurationSummary() {
-    const fixedTarotGroups = SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.shootType)
+    const fixedTarotGroups = SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.tabletopAccessories)
         .reduce((total, scene) => total + BigInt(countIndependentRealizations(scene)), 0n)
-        * BigInt(TAROT_VISUAL_PALETTES.length);
+        * BigInt(TAROT_VISUAL_PALETTES.length)
+        * BigInt(TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support').length);
     const groupsPerImage = Object.fromEntries(Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => {
         const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support').length;
         if (templateType === 'tarot-ppt') return [templateType, (fixedTarotGroups * BigInt(heroSubjects)).toString()];
@@ -669,7 +701,7 @@ function getVisualCombinationConfigurationSummary() {
     }));
     return {
         realizationCombinationsPerBase: String(VISUAL_REALIZATION_COUNT_PER_BASE),
-        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/deck choices only',
+        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/deck/accessory choices only',
         groupsPerImage,
         fixedTarotDeckGroupsPerImage: fixedTarotGroups.toString()
     };
@@ -800,6 +832,16 @@ function pickCompatibleSupport(subjects, heroSubject, digest, byteOffset, exclud
     return candidates.length ? pickVisualOption(candidates, digest, byteOffset) : null;
 }
 
+function areSceneCompositionsCompatible(firstScene, secondScene) {
+    if (firstScene.tabletopAccessories || secondScene.tabletopAccessories) {
+        return Boolean(firstScene.tabletopAccessories && secondScene.tabletopAccessories
+            && firstScene.shootType !== secondScene.shootType
+            && firstScene.support !== secondScene.support);
+    }
+    return !firstScene.shootType || (firstScene.shootType !== secondScene.shootType
+        && ['distance', 'support', 'background'].filter(key => firstScene[key] !== secondScene[key]).length >= 2);
+}
+
 function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, {
     allowSharedTabletop = false,
     heroSubjects = [],
@@ -810,8 +852,7 @@ function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, {
         && scene.venueId !== firstScene.venueId
         && scene.baseVenueId !== firstScene.baseVenueId
         && scene.family !== firstScene.family
-        && (!firstScene.shootType || (scene.shootType !== firstScene.shootType
-            && ['distance', 'support', 'background'].filter(key => scene[key] !== firstScene[key]).length >= 2))
+        && areSceneCompositionsCompatible(firstScene, scene)
         && (allowSharedTabletop || !(scene.tabletop && firstScene.tabletop))
         && (!heroSubjects.length || heroSubjects.some((subject) => (
             isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily)
@@ -829,7 +870,7 @@ function getVisualPair(payload, candidateScenes = null) {
     const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support');
     // Keep old IDs available only when restoring an already assigned job.
     const archetypes = SCENE_ARCHETYPES[payload.templateType].filter(scene =>
-        payload.visualSceneIds || payload.templateType !== 'tarot-ppt' || scene.shootType);
+        payload.visualSceneIds || payload.templateType !== 'tarot-ppt' || scene.tabletopAccessories);
     const stableIdentity = payload.visualIdentity || createVisualIdentity([
         payload.templateType,
         payload.name,
@@ -873,8 +914,11 @@ function getVisualPair(payload, candidateScenes = null) {
         : VISUAL_VARIATION_OPTIONS.palettes;
     const portraitPaletteIndex = pairDigest[7] % paletteOptions.length;
     const moodPaletteIndex = getDifferentOptionIndex(paletteOptions, portraitPaletteIndex, pairDigest, 4);
-    const portraitSupport = pickCompatibleSupport(supportSubjects, portraitSubject, pairDigest, 5);
-    const moodSupport = pickCompatibleSupport(supportSubjects, moodSubject, pairDigest, 6, portraitSupport?.id || '');
+    const availableSupports = payload.templateType === 'tarot-ppt' && !portraitScene.tabletopAccessories ? [] : supportSubjects;
+    const portraitSupport = pickCompatibleSupport(availableSupports, portraitSubject, pairDigest, 5);
+    const moodSupport = pickCompatibleSupport(
+        portraitScene.tabletopAccessories ? availableSupports.filter(subject => subject.motifFamilyId !== portraitSupport?.motifFamilyId) : availableSupports,
+        moodSubject, pairDigest, 6, portraitSupport?.id || '');
     const realizationPair = getVisualRealizationPair({
         templateType: payload.templateType,
         stableIdentity,
@@ -950,8 +994,9 @@ function getVisualPair(payload, candidateScenes = null) {
         pair.portrait.scene.venueId !== pair.mood.scene.venueId,
         pair.portrait.scene.baseVenueId !== pair.mood.scene.baseVenueId,
         pair.portrait.scene.family !== pair.mood.scene.family,
-        !pair.portrait.scene.shootType || (pair.portrait.scene.shootType !== pair.mood.scene.shootType
-            && ['distance', 'support', 'background'].filter(key => pair.portrait.scene[key] !== pair.mood.scene[key]).length >= 2),
+        areSceneCompositionsCompatible(pair.portrait.scene, pair.mood.scene),
+        !pair.portrait.scene.tabletopAccessories || Boolean(portraitSupport && moodSupport
+            && portraitSupport.motifFamilyId !== moodSupport.motifFamilyId),
         pair.portrait.palette !== pair.mood.palette,
         pair.portrait.realization.location.id !== pair.mood.realization.location.id,
         pair.portrait.realization.environmentLocation.id !== pair.mood.realization.environmentLocation.id,
@@ -1042,7 +1087,9 @@ function buildVisualVariationPrompt(variation, imageKind) {
         : (variation.scene.tabletop
             ? 'This is the only image in the pair allowed to use a conventional work surface. Make that surface secondary to the scene.'
             : 'Do not introduce a conventional desk, consultation table, office tabletop, or gray cloth-covered work surface anywhere in this image.');
-    const supportRule = variation.scene.shootType
+    const supportRule = variation.scene.tabletopAccessories
+        ? `Required secondary accessory set: ${variation.supportSubject.prompt}. Use only this assigned set beside the card spread, occupying at most 15 percent of the frame. No extra accessories. Keep every card unobstructed. Pendulum chains and weights must rest fully on the surface; dice must be separate solid objects and must not merge into cards.`
+        : variation.scene.shootType
         ? 'Only show objects explicitly requested by the assigned scene. Add no optional accessories.'
         : variation.supportSubject
         ? `Optional supporting accessory only: ${variation.supportSubject.prompt}. It must remain visually secondary and cannot replace the assigned hero subject.`
@@ -1051,7 +1098,9 @@ function buildVisualVariationPrompt(variation, imageKind) {
     const pairSubjectRule = usesSameHeroFamily
         ? `DECK CONSISTENCY: the paired image uses this same card family. Preserve the identical card size, border system, back design, palette, paper stock, and illustration language, while showing different individual cards and a different arrangement.`
         : `HARD PAIR SEPARATION: do not show, imitate, or substitute the other image's hero subject: ${variation.counterpartSubject.prompt}.`;
-    const pairDifferenceRule = usesSameHeroFamily
+    const pairDifferenceRule = variation.scene.tabletopAccessories
+        ? 'Both photographs must retain the same true overhead camera axis and card-first scale. Differentiate the spread geometry, accessory family, surface material, palette and lighting. Do not introduce room architecture or change to a side view for variety.'
+        : usesSameHeroFamily
         ? 'The two images must look like different photographs of the same owned deck, not alternate angles of one room. Use different cards, arrangement, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.'
         : 'The two images must not look like alternate camera angles of one room. Use different hero objects, scene topology, camera distance, support method, lighting context, background architecture, and spatial layout.';
     return `
@@ -1776,10 +1825,10 @@ function buildPortraitImagePrompt(payload, extraPrompt = '', visualVariation = g
     const safeExtraPrompt = sanitizeExtraPrompt(extraPrompt);
     const safeImageStyle = sanitizeExtraPrompt(payload.imageStyle, 200);
     return `
-Create one 16:9 image for a Korean ${guide.labelEn} consultant profile page as ${qualityProfile.captureStyle}. Preserve category identity at the subject scale assigned by the scene, including a small identifiable category cue when the architecture is the main subject.
+Create one 16:9 image for a Korean ${guide.labelEn} consultant profile page as ${qualityProfile.captureStyle}. ${visualVariation.scene.tabletopAccessories ? 'Keep the large face-up card spread as the main subject in a true overhead photograph.' : 'Preserve category identity at the subject scale assigned by the scene, including a small identifiable category cue when the architecture is the main subject.'}
 
 The physical scene to photograph:
-${guide.imageMood}
+${!visualVariation.scene.tabletopAccessories && guide.legacyImageMood ? guide.legacyImageMood : guide.imageMood}
 
 Photography direction:
 - keep every required category object fully inside the frame and easy to identify
@@ -1799,7 +1848,7 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'portrait')}
 Upright orientation and gravity requirements:
-${UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'portrait')}
 Quality-specific optimization for the selected ${imageQuality} tier:
@@ -1833,7 +1882,7 @@ function buildMoodImagePrompt(payload, extraPrompt = '', visualVariation = getVi
 Create one 16:9 image of a Korean ${guide.labelEn} consultation-related scene as ${qualityProfile.captureStyle}. The category identity is the highest priority: the assigned working environment, physical surface, and camera distance must clearly show the required ${guide.labelEn} hero object and must not become a generic office or decorative room.
 
 The category and environment rules:
-${guide.moodScene}
+${!visualVariation.scene.tabletopAccessories && guide.legacyMoodScene ? guide.legacyMoodScene : guide.moodScene}
 
 Photography direction:
 - follow the assigned scene family, physical surface, object arrangement, and camera treatment exactly
@@ -1853,12 +1902,12 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'mood')}
 Upright orientation and gravity requirements:
-${UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'mood')}
 Quality-specific optimization for the selected ${imageQuality} tier:
 ${qualityProfile.prompt}
-- The environment must be readable immediately without rotating the image: gravity downward, architecture upright when present, and zero sideways roll.
+${visualVariation.scene.tabletopAccessories ? '- Keep all card faces oriented toward the top of the frame, with gravity acting into the tabletop and no camera roll.' : '- The environment must be readable immediately without rotating the image: gravity downward, architecture upright when present, and zero sideways roll.'}
 - Make this the complementary scene in its assigned shot mode, visibly different from the signature scene while keeping the category-defining object recognizable.
 `.trim();
 }
@@ -1903,6 +1952,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: portraitVariation.subject.id,
             sceneFamily: portraitVariation.scene.family,
             shootType: portraitVariation.scene.shootType || '',
+            accessoryId: portraitVariation.scene.tabletopAccessories ? portraitVariation.supportSubject?.id || '' : '',
+            accessoryFamily: portraitVariation.scene.tabletopAccessories ? portraitVariation.supportSubject?.motifFamilyId || '' : '',
             distance: portraitVariation.scene.distance || '',
             support: portraitVariation.scene.support || '',
             background: portraitVariation.scene.background || '',
@@ -1935,6 +1986,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             subjectId: moodVariation.subject.id,
             sceneFamily: moodVariation.scene.family,
             shootType: moodVariation.scene.shootType || '',
+            accessoryId: moodVariation.scene.tabletopAccessories ? moodVariation.supportSubject?.id || '' : '',
+            accessoryFamily: moodVariation.scene.tabletopAccessories ? moodVariation.supportSubject?.motifFamilyId || '' : '',
             distance: moodVariation.scene.distance || '',
             support: moodVariation.scene.support || '',
             background: moodVariation.scene.background || '',
@@ -2143,6 +2196,8 @@ function toVisualHistoryEntry(kind, variation) {
         motifFamilyId: getSubjectMotifFamily(variation.subject),
         sceneFamily: variation.scene.family,
         shootType: variation.scene.shootType || '',
+        accessoryId: variation.scene.tabletopAccessories ? variation.supportSubject?.id || '' : '',
+        accessoryFamily: variation.scene.tabletopAccessories ? variation.supportSubject?.motifFamilyId || '' : '',
         distance: variation.scene.distance || '',
         support: variation.scene.support || '',
         background: variation.scene.background || '',
@@ -2165,6 +2220,8 @@ function toVisualHistoryEntry(kind, variation) {
 
 const VISUAL_HISTORY_WEIGHTS = {
         shootType: 2000,
+        accessoryId: 2200,
+        accessoryFamily: 1400,
         distance: 700,
         support: 900,
         background: 900,
@@ -2206,6 +2263,7 @@ const getVisualUsageTotals = createIncrementalIndex(
 function createVisualUsageIndex(previousVisuals) {
     return {
         ...getVisualUsageTotals(previousVisuals),
+        recentAccessoryFamilies: new Set(previousVisuals.slice(0, 4).map(entry => entry.accessoryFamily).filter(Boolean)),
         recentShootTypes: new Set(previousVisuals.slice(0, 4).map(entry => entry.shootType).filter(Boolean)),
         recentMotifFamilies: new Set(previousVisuals.slice(0, 8).map(entry => entry.motifFamilyId).filter(Boolean)),
         recentPhotographicCombinations: new Set(previousVisuals.slice(0, 8).filter(entry => entry.photographicDirectionId && entry.exposureId).map(entry => entry.photographicDirectionId + ':' + entry.exposureId)),
@@ -2249,7 +2307,7 @@ function assignNovelVisualVariant(payload) {
     // Prioritize underused scenes within EVERY family to retain compatible pair choices.
     const families = new Map();
     for (const scene of SCENE_ARCHETYPES[payload.templateType]) {
-        if (payload.templateType === 'tarot-ppt' && !scene.shootType) continue;
+        if (payload.templateType === 'tarot-ppt' && !scene.tabletopAccessories) continue;
         if (!families.has(scene.family)) families.set(scene.family, []);
         families.get(scene.family).push(scene);
     }
@@ -2273,7 +2331,13 @@ function assignNovelVisualVariant(payload) {
         const recentStructureCount = shootTypes.filter(type => usageIndex.recentShootTypes.has(type)).length;
         const structureCount = shootTypes.reduce((sum, type) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
             total + (usageIndex.frequencies.shootType.get(`${kind}:${type}`) || 0), 0), 0);
-        const rank = [Number(reused), recentStructureCount, structureCount, Number(!differentDirection), macroScore, reuseScore];
+        const accessories = [pair.portrait.supportSubject, pair.mood.supportSubject].filter(Boolean);
+        const recentAccessoryCount = pair.portrait.scene.tabletopAccessories
+            ? accessories.filter(subject => usageIndex.recentAccessoryFamilies.has(subject.motifFamilyId)).length : 0;
+        const accessoryCount = pair.portrait.scene.tabletopAccessories
+            ? accessories.reduce((sum, subject) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
+                total + (usageIndex.frequencies.accessoryId.get(kind + ':' + subject.id) || 0), 0), 0) : 0;
+        const rank = [Number(reused), recentStructureCount, recentAccessoryCount, accessoryCount, structureCount, Number(!differentDirection), macroScore, reuseScore];
         candidateCount += 1;
         if (!best || rank.some((value, index) => value < best.rank[index] && rank.slice(0, index).every((prior, i) => prior === best.rank[i]))) {
             best = { nonce: candidateNonce, pair, reuseScore, macroScore, reused, differentDirection, recentStructureCount, rank };
@@ -2540,6 +2604,7 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
     const reusableLegacyJob = reusableLegacyJobId ? profileJobStore.read(reusableLegacyJobId) : null;
     // 동일 입력의 이전 버전 결과도 그대로 돌려준다. 배포만으로 유료 재생성을 시작하지 않는다.
     const previousFingerprints = [
+        ['profile-copy-v9-expanded-editorial', 'profile-visual-v14-independent-shots', 'profile-reference-v3-material-only'],
         ['profile-copy-v9-expanded-editorial', 'profile-visual-v13-expanded-scenes', 'profile-reference-v2-strong-priority'],
         ['profile-copy-v8-source-first', 'profile-visual-v12-macro-balance', 'profile-reference-v2-strong-priority'],
         ['profile-copy-v7-concrete-editorial-direction', 'profile-visual-v11-photographic-direction', 'profile-reference-v2-strong-priority']
@@ -2703,8 +2768,9 @@ app.get('/api/health', (req, res) => {
             Object.entries(BASE_SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
         ),
         sceneSiteVariantCount: SCENE_SITE_VARIANTS.length,
-        tarotIndependentShootingTypes: [...new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].map(scene => scene.shootType).filter(Boolean))],
-        tarotActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.shootType).length,
+        tarotIndependentShootingTypes: [...new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.tabletopAccessories).map(scene => scene.shootType).filter(Boolean))],
+        tarotActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.tabletopAccessories).length,
+        tarotAccessoryCount: TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support').length,
         sceneArchetypeCounts: Object.fromEntries(
             Object.entries(SCENE_ARCHETYPES).map(([templateType, archetypes]) => [templateType, archetypes.length])
         ),

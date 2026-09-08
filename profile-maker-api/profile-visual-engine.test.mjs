@@ -12,10 +12,11 @@ import {
     VISUAL_REALIZATION_COUNT_PER_BASE
 } from './profile-visual-engine.mjs';
 
-test('new tarot assignments rotate six photographic subjects and separate each pair structurally', (t) => {
+test('new tarot assignments rotate six overhead layouts and separate each pair structurally', (t) => {
     const history = [];
     const runtime = createOfflineVisualRuntime(() => history);
     const counts = new Map();
+    const accessories = new Set();
     let recentRepeats = 0;
     for (let sample = 0; sample < 180; sample += 1) {
         const payload = { templateType: 'tarot-ppt', tarotCardType: 'universal-waite', visualIdentity: `independent-${sample}`, visualNonce: String(sample) };
@@ -25,7 +26,13 @@ test('new tarot assignments rotate six photographic subjects and separate each p
         const b = pair.mood.scene;
         assert.ok(a.shootType && b.shootType);
         assert.notEqual(a.shootType, b.shootType);
-        assert.ok(['distance', 'support', 'background'].filter(key => a[key] !== b[key]).length >= 2);
+        assert.notEqual(a.support, b.support);
+        assert.equal(a.cameraHeight, 'overhead');
+        assert.equal(b.cameraHeight, 'overhead');
+        assert.ok(a.tabletopAccessories && b.tabletopAccessories);
+        assert.notEqual(pair.portrait.supportSubject.motifFamilyId, pair.mood.supportSubject.motifFamilyId);
+        accessories.add(pair.portrait.supportSubject.id);
+        accessories.add(pair.mood.supportSubject.id);
         assert.equal(pair.portrait.subject.id, 'classic-symbolic');
         assert.equal(pair.mood.subject.id, 'classic-symbolic');
         assert.equal(pair.portrait.scene.id, payload.visualSceneIds.portrait);
@@ -38,26 +45,29 @@ test('new tarot assignments rotate six photographic subjects and separate each p
         history.unshift(runtime.toVisualHistoryEntry('portrait', pair.portrait), runtime.toVisualHistoryEntry('mood', pair.mood));
     }
     assert.equal(counts.size, 6);
+    assert.equal(accessories.size, 21);
     for (const count of counts.values()) assert.ok(count >= 45 && count <= 75, JSON.stringify([...counts]));
     assert.ok(recentRepeats <= 36, `Recent structural repeats: ${recentRepeats}/360`);
     t.diagnostic(`180 profiles / 360 images: ${JSON.stringify(Object.fromEntries(counts))}; recent repeats=${recentRepeats}`);
 });
 
-test('independent prompts preserve each scene instead of imposing tables or reference layouts', () => {
+test('overhead prompts preserve large card faces and assigned accessories despite reference layouts', () => {
     const runtime = createOfflineVisualRuntime(() => []);
-    const scenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.shootType);
+    const scenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.tabletopAccessories);
     for (const scene of scenes) {
         const other = scenes.find(candidate => candidate.shootType !== scene.shootType
-            && ['distance', 'support', 'background'].filter(key => candidate[key] !== scene[key]).length >= 2);
+            && candidate.support !== scene.support);
         const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'prompt-check', visualSceneIds: { portrait: scene.id, mood: other.id } });
         const prompt = runtime.buildVisualVariationPrompt(pair.portrait, 'portrait');
         assert.match(prompt, /standalone photograph/);
         assert.match(prompt, /assigned composition takes priority/);
         assert.doesNotMatch(prompt, /reading cloth is expected|consultation-table photograph|Optional supporting accessory|primary evidence/);
         assert.ok(prompt.includes(scene.camera));
-        if (scene.shootType === 'consultation-space') assert.match(prompt, /about 10 percent/);
-        if (scene.shootType === 'single-card') assert.match(prompt, /exactly one complete face-up card/);
-        if (scene.shootType === 'card-shadow') assert.match(prompt, /Lighting: follow the assigned directional side light/);
+        assert.match(prompt, /CARD-FIRST OVERHEAD/);
+        assert.match(prompt, /65 to 80 percent/);
+        assert.match(prompt, /Required secondary accessory set/);
+        assert.ok(prompt.includes(pair.portrait.supportSubject.prompt));
+        assert.doesNotMatch(prompt, /Add no optional accessories|about 10 percent|Do not enlarge the small deck cue/);
     }
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
     const referenceSource = source.slice(source.indexOf('function buildReferenceAssignmentPrompt('), source.indexOf('function buildImageContents('));
@@ -73,6 +83,18 @@ test('persisted legacy tarot scene IDs remain readable', () => {
     const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'legacy', visualSceneIds: { portrait: first.id, mood: second.id } });
     assert.equal(pair.portrait.scene.id, first.id);
     assert.equal(pair.mood.scene.id, second.id);
+});
+
+test('v14 room and detail IDs remain restorable without newly assigned accessories', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'saved-v14', visualSceneIds: {
+        portrait: 'tarot-independent-consultation-space-1--quiet-original',
+        mood: 'tarot-independent-single-card-1--quiet-original'
+    } });
+    assert.equal(pair.portrait.scene.shootType, 'consultation-space');
+    assert.equal(pair.mood.scene.shootType, 'single-card');
+    assert.equal(pair.portrait.supportSubject, null);
+    assert.equal(pair.mood.supportSubject, null);
 });
 
 test('400 realizations retain scene-compatible composition and varied exposure for each camera mode', () => {
@@ -127,7 +149,7 @@ test('structured image groups exceed the text variation count even for a fixed t
         palettes: 8,
         fixedHeroSubject: true
     });
-    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v14-independent-shots');
+    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v15-overhead-accessories');
     assert.equal(VISUAL_REALIZATION_COUNT_PER_BASE, 61440000);
     assert.ok(fixedTarot > textVariationCount);
 });

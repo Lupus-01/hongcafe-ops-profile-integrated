@@ -104,6 +104,8 @@ function normalizeVisual(kind, guide = {}) {
         motifFamilyId: String(guide.motifFamilyId || LEGACY_VISUAL_MOTIF_FAMILIES[subjectId] || subjectId),
         sceneFamily: String(guide.sceneFamily || ''),
         shootType: String(guide.shootType || ''),
+        accessoryId: String(guide.accessoryId || ''),
+        accessoryFamily: String(guide.accessoryFamily || ''),
         distance: String(guide.distance || ''),
         support: String(guide.support || ''),
         background: String(guide.background || ''),
