@@ -189,12 +189,15 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'pb-history-item';
             card.innerHTML = `
                 <div class="pb-history-item-head">
-                    <strong>${item.title}</strong>
-                    <time>${item.createdAtLabel}</time>
+                    <strong></strong>
+                    <time></time>
                 </div>
-                <p>${item.summary}</p>
+                <p></p>
                 <button class="pb-action-btn secondary" type="button">다시 불러오기</button>
             `;
+            card.querySelector('strong').textContent = item.title || '';
+            card.querySelector('time').textContent = item.createdAtLabel || '';
+            card.querySelector('p').textContent = item.summary || '';
 
             card.querySelector('button')?.addEventListener('click', () => restoreProfileHistoryItem(item.id));
             historyList.appendChild(card);
@@ -362,13 +365,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <strong>이미지 생성 상태</strong>
                 <span class="pb-issue-badge ${imageMeta.hasAnyImage ? 'is-success' : 'is-warning'}">${statusLabel}</span>
             </div>
-            <p class="pb-issue-summary">${summary}</p>
+            <p class="pb-issue-summary"></p>
             <p class="pb-issue-action">${actionHint}</p>
             <div class="pb-issue-links">
                 <a href="https://ai.dev/rate-limit" target="_blank" rel="noreferrer">Google AI Studio 사용량 확인</a>
                 <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank" rel="noreferrer">Gemini API 무료 티어 한도 보기</a>
             </div>
         `;
+        panel.querySelector('.pb-issue-summary').textContent = summary;
     }
 
     function getProfileAssetImage(kind, root = canvas) {
@@ -851,16 +855,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!value) return;
             const node = element.querySelector(`[data-slot="${slot}"]`);
             if (node) {
-                node.innerHTML = slot === 'headline'
+                const text = slot === 'headline'
                     ? String(value).replace(/\s+/g, ' ').trim()
-                    : String(value).replace(/\n/g, '<br>');
+                    : String(value);
+                node.replaceChildren();
+                text.split(/\r?\n/).forEach((line, index) => {
+                    if (index) node.appendChild(document.createElement('br'));
+                    node.appendChild(document.createTextNode(line));
+                });
             }
         });
 
         if (Array.isArray(payload.bulletPoints)) {
             const list = element.querySelector('[data-slot="bulletPoints"]');
             if (list) {
-                list.innerHTML = payload.bulletPoints.map((item) => `<li contenteditable="true">${item}</li>`).join('');
+                list.replaceChildren();
+                payload.bulletPoints.forEach((item) => {
+                    const point = document.createElement('li');
+                    point.contentEditable = 'true';
+                    point.textContent = String(item);
+                    list.appendChild(point);
+                });
             }
         }
 
@@ -1574,7 +1589,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    async function waitForProfileJob(initialJob, statusUrl, statusTarget) {
+    async function waitForProfileJob(initialJob, statusUrl, statusTarget, clearPending = true) {
+        if (!initialJob?.id) throw new Error('프로필 작업 상태 응답이 올바르지 않습니다.');
         let job = initialJob;
         let consecutiveStatusErrors = 0;
         sessionStorage.setItem(PROFILE_JOB_STORAGE_KEY, JSON.stringify({
@@ -1600,6 +1616,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 job = data.job;
                 consecutiveStatusErrors = 0;
             } catch (error) {
+                if ([404, 410].includes(error.status)) {
+                    sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
+                    throw error;
+                }
                 consecutiveStatusErrors += 1;
                 if (consecutiveStatusErrors >= PROFILE_JOB_STATUS_MAX_CONSECUTIVE_ERRORS) {
                     const lookupError = new Error('프로필 제작 요청은 접수됐지만 진행 상태를 확인하지 못했습니다. 잠시 후 같은 입력으로 다시 확인해주세요. 기존 작업을 재사용하므로 중복 과금되지 않습니다.');
@@ -1614,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
+        if (clearPending) sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
         if (job.result) return { ...job.result, job };
         if (job.state === 'needs_review') {
             throw new Error(job.error || '외부 AI 응답 상태를 확인할 수 없어 자동 재시도를 중단했습니다. 관리자에게 작업 ID를 전달해주세요.');
@@ -1645,17 +1665,64 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
             return;
         }
-        if (!pending?.statusUrl) return;
+        if (!/^[a-f0-9]{32}$/.test(pending?.jobId || '')) return;
+        const statusUrl = `/api/profile-jobs/${pending.jobId}`;
 
         const statusTarget = document.getElementById(pending.statusTargetId) || aiStatus || pptStatus;
+        const wasAiDisabled = aiGenerateButton.disabled;
+        const wasPptDisabled = pptGenerateButton.disabled;
+        aiGenerateButton.disabled = true;
+        pptGenerateButton.disabled = true;
         try {
-            const response = await fetch(pending.statusUrl, { method: 'GET' });
+            const response = await fetch(statusUrl, { method: 'GET' });
             const data = await parseApiResponse(response);
-            await waitForProfileJob(data.job, pending.statusUrl, statusTarget);
-            setStatus(statusTarget, '기존 프로필 작업이 완료되었습니다. 같은 입력으로 생성 버튼을 누르면 추가 AI 호출 없이 저장된 결과를 불러옵니다.', 'success');
+            const result = await waitForProfileJob(data.job, statusUrl, statusTarget, false);
+            applyRecoveredProfile(result, statusTarget);
+            sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
+            setStatus(statusTarget, buildGenerationStatus('저장된 결과를 복원했습니다. 추가 AI 호출은 없습니다.', result.usage, result.imageMeta, result.noveltyMeta), 'success');
         } catch (error) {
+            if ([404, 410].includes(error.status)) sessionStorage.removeItem(PROFILE_JOB_STORAGE_KEY);
             setStatus(statusTarget, error.message || '기존 프로필 작업 상태를 확인하지 못했습니다.', 'error');
+        } finally {
+            aiGenerateButton.disabled = wasAiDisabled;
+            pptGenerateButton.disabled = wasPptDisabled;
         }
+    }
+
+    function applyRecoveredProfile(data, statusTarget) {
+        const saved = data.job?.presentation || {};
+        const templateType = saved.templateType || data.copyMeta?.templateType;
+        if (!Object.hasOwn(templates, templateType) || !data.profile) {
+            throw new Error('저장된 프로필의 분야 또는 결과를 확인하지 못했습니다.');
+        }
+        const imageMode = Boolean(data.imageMeta?.requested);
+        applyTheme(templates[templateType].theme);
+        const element = replaceCanvasWithElement(templateType);
+        fillPresentation(element, data.profile);
+        syncPresentationImageState(element, { textOnly: !imageMode });
+        lastProfileDownloadName = saved.nameHint || 'profile-builder';
+        activeProfileCopyMeta = data.copyMeta || null;
+        activeProfileReferenceText = saved.referenceText || '';
+        for (const input of [aiTemplate, pptTemplate]) if (input) input.value = templateType;
+        for (const input of [aiTarotCardType, pptTarotCardType]) if (input) input.value = saved.tarotCardType || 'auto';
+        for (const input of [aiReferenceText, pptReferenceText]) if (input) input.value = activeProfileReferenceText;
+        for (const input of [aiGenerateImage, pptGenerateImage]) if (input) input.checked = imageMode;
+        for (const input of [aiImageQuality, pptImageQuality]) if (input) input.value = saved.imageQuality || 'standard';
+        updateImageGenerationControls();
+        updateTarotCardTypeControls();
+        resetProfileImageAssets();
+        renderProfileImageGuide(data.imageGuide);
+        syncProfileImageAssets();
+        storeProfileHistoryItem({
+            source: data.job?.kind || 'direct', templateType, tarotCardType: saved.tarotCardType || '',
+            profile: getCurrentPresentationPayload(element.querySelector('.pb-presentation') || element),
+            nameHint: lastProfileDownloadName, imageMode, imageQuality: saved.imageQuality || 'standard',
+            copyMeta: activeProfileCopyMeta, referenceText: activeProfileReferenceText
+        });
+        const panel = data.job?.kind === 'document' ? pptImageIssue : aiImageIssue;
+        renderImageIssue(panel, data.imageMeta);
+        attachSafeFailedStageRetry(panel, data.job, statusTarget);
+        updateSlotRegenerateState();
     }
 
     function attachSafeFailedStageRetry(panel, profileJob, statusTarget) {

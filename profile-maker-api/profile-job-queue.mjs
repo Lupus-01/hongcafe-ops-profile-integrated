@@ -57,10 +57,23 @@ export class DurableProfileJobQueue {
         this.running = false;
     }
 
-    recover() {
-        for (const jobId of this.store.listJobIds()) {
-            const job = this.store.read(jobId);
+    recover(jobs = null) {
+        const store = this.store;
+        const records = jobs || (function* () {
+            for (const jobId of store.listJobIds()) yield store.read(jobId);
+        })();
+        for (const job of records) {
             if (!job) continue;
+            if (job.state === 'preparing') {
+                this.store.update(job.id, (record) => {
+                    record.state = 'failed';
+                    record.currentStage = 'failed';
+                    record.error = '작업 접수 준비 중 서버가 중단되었습니다. AI 요청은 시작하지 않았습니다. 관리자에게 작업 재개를 요청해주세요.';
+                    record.stages.text.state = 'failed';
+                    return record;
+                });
+                continue;
+            }
             const hasRunningStage = Object.values(job.stages || {}).some((stage) => stage.state === 'running');
             if (job.state === 'running' || hasRunningStage) {
                 this.store.update(job.id, (record) => {

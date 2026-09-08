@@ -127,6 +127,7 @@ async function waitForJob(baseUrl, jobId) {
 
 test('campaign API coalesces duplicates without external AI calls', async (t) => {
     const storeDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-campaign-api-'));
+    const usageFile = path.join(storeDirectory, 'usage.json');
     const port = 33000 + (process.pid % 1000);
     const baseUrl = `http://127.0.0.1:${port}`;
     const child = spawn(process.execPath, ['profile-maker-api/server.mjs'], {
@@ -151,19 +152,29 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
             GEMINI_MAX_QUEUE_DEPTH: '',
             GEMINI_MIN_REQUEST_INTERVAL_MS: '',
             PROFILE_JOB_STORE_DIR: storeDirectory,
+            PROFILE_GENERATION_HISTORY_FILE: path.join(storeDirectory, 'history.json'),
+            PROFILE_USAGE_FILE: usageFile,
+            PROFILE_JOB_RETENTION_DAYS: '45',
             AUTH_BYPASS: 'true',
             GEMINI_API_KEY: 'mock-key-that-is-never-called'
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    t.after(() => {
+    // Drain captured logs so a full pipe cannot stall the test server.
+    let serverLogs = '';
+    child.stdout.on('data', (chunk) => { serverLogs = (serverLogs + chunk).slice(-20000); });
+    child.stderr.on('data', (chunk) => { serverLogs = (serverLogs + chunk).slice(-20000); });
+    t.after(async () => {
+        const closed = new Promise((resolve) => child.once('close', resolve));
         child.kill('SIGTERM');
+        if (child.exitCode === null && child.signalCode === null) await closed;
         fs.rmSync(storeDirectory, { recursive: true, force: true });
     });
 
     const initialHealth = await waitForHealth(baseUrl);
     assert.equal(initialHealth.profileCampaignMode, true);
+    assert.equal(initialHealth.profileCampaignDailyLimitsEnforced, false);
     assert.equal(initialHealth.profileCampaignSafetyCap, 24000);
     assert.equal(initialHealth.dailyLimit, 480);
     assert.equal(initialHealth.dailyImageLimit, 480);
@@ -228,6 +239,46 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.ok([200, 202].includes(firstKeyUse.response.status));
     const conflictingKeyUse = await submitProfile(baseUrl, 'different input', 'fixed-idempotency-key');
     assert.equal(conflictingKeyUse.response.status, 409);
+    const replayWithNewKey = await submitProfile(baseUrl, 'key owner', 'replay-key');
+    assert.equal(replayWithNewKey.response.headers.get('Idempotency-Replayed'), 'true');
+    assert.equal((await submitProfile(baseUrl, 'new conflicting input', 'replay-key')).response.status, 409);
+    assert.equal((await submitProfile(baseUrl, 'same consultant', 'fixed-idempotency-key')).response.status, 409);
+    assert.equal(duplicateJob.presentation.templateType, 'tarot-ppt');
+    assert.equal(duplicateJob.presentation.nameHint, 'same consultant');
+    assert.equal(duplicateJob.input, undefined);
+    assert.equal(duplicateJob.outputs, undefined);
+
+    const healthBeforeInvalid = await (await fetch(`${baseUrl}/api/health`)).json();
+    for (const templateType of ['unsupported', '__proto__', 'constructor']) {
+        const form = createProfileForm('invalid template');
+        form.set('templateType', templateType);
+        const invalid = await fetch(`${baseUrl}/api/generate-profile`, { method: 'POST', body: form });
+        assert.equal(invalid.status, 400);
+        assert.match((await invalid.json()).error, /프로필 분야/);
+    }
+    const invalidSlot = await fetch(`${baseUrl}/api/regenerate-profile-slot`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateType: 'tarot-ppt', slotKey: '__proto__', currentProfile: {} })
+    });
+    assert.equal(invalidSlot.status, 400);
+    const invalidDocument = new FormData();
+    invalidDocument.append('pptFile', new Blob(['sample document']), 'sample.txt');
+    invalidDocument.append('templateType', 'unsupported');
+    assert.equal((await fetch(`${baseUrl}/api/generate-from-ppt`, { method: 'POST', body: invalidDocument })).status, 400);
+    const healthAfterInvalid = await (await fetch(`${baseUrl}/api/health`)).json();
+    assert.equal(healthAfterInvalid.profileCampaignJobs, healthBeforeInvalid.profileCampaignJobs);
+    assert.equal(healthAfterInvalid.usedToday, healthBeforeInvalid.usedToday);
+
+    const savedUsage = fs.readFileSync(usageFile, 'utf8');
+    fs.writeFileSync(usageFile, '{broken');
+    const corruptUsageResponse = await submitProfile(baseUrl, 'corrupt ledger input', 'corrupt-ledger-key');
+    assert.equal(corruptUsageResponse.response.status, 503);
+    assert.match(corruptUsageResponse.data.error, /사용량/);
+    fs.writeFileSync(usageFile, savedUsage);
+    const healthAfterCorrupt = await (await fetch(`${baseUrl}/api/health`)).json();
+    assert.equal(healthAfterCorrupt.profileCampaignJobs, healthBeforeInvalid.profileCampaignJobs);
+    assert.equal(healthAfterCorrupt.usedToday, healthBeforeInvalid.usedToday);
+    assert.match(serverLogs, /\[profile-startup\] readyAt=.*pid=.*totalMs=/);
 
     const uniqueSubmissions = await Promise.all(
         Array.from({ length: 5 }, (_, index) => submitProfile(baseUrl, `unique-${index}`, `unique-key-${index}`))

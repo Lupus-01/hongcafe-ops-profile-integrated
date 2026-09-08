@@ -16,6 +16,7 @@ import {
     SUPPORTED_DOCUMENT_EXTENSIONS
 } from './profile-document-parser.mjs';
 import { FileProfileJobStore, createProfileJobFingerprint } from './profile-job-store.mjs';
+import { readProfileUsage, writeProfileUsage } from './profile-usage-store.mjs';
 import { FileProfileGenerationHistory } from './profile-generation-history.mjs';
 import { createProfileImageSignatures } from './profile-image-similarity.mjs';
 import {
@@ -41,6 +42,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const profileStartupStartedAt = Date.now();
 
 const LOW_COST_TEXT_MODELS = new Set([
     'gemini-3.1-flash-lite'
@@ -89,7 +91,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const TEXT_MODEL = getAllowedModel(process.env.TEXT_MODEL, 'gemini-3.1-flash-lite', LOW_COST_TEXT_MODELS, 'TEXT_MODEL');
 const STANDARD_IMAGE_MODEL = getAllowedModel(process.env.STANDARD_IMAGE_MODEL, 'gemini-3.1-flash-lite-image', STANDARD_IMAGE_MODELS, 'STANDARD_IMAGE_MODEL');
 const PREMIUM_IMAGE_MODEL = getAllowedModel(process.env.PREMIUM_IMAGE_MODEL, 'gemini-3-pro-image', PREMIUM_IMAGE_MODELS, 'PREMIUM_IMAGE_MODEL');
-const usageFilePath = path.join(__dirname, '.profile-usage.json');
+const usageFilePath = path.resolve(process.env.PROFILE_USAGE_FILE || path.join(__dirname, '.profile-usage.json'));
 let geminiQueue = Promise.resolve();
 let lastGeminiRequestAt = 0;
 let geminiQueueDepth = 0;
@@ -1274,15 +1276,11 @@ function getKstTimestamp() {
 }
 
 function loadUsage() {
-    try {
-        return JSON.parse(fs.readFileSync(usageFilePath, 'utf8'));
-    } catch {
-        return {};
-    }
+    return readProfileUsage(usageFilePath);
 }
 
 function saveUsage(usage) {
-    fs.writeFileSync(usageFilePath, JSON.stringify(usage, null, 2), 'utf8');
+    writeProfileUsage(usageFilePath, usage);
 }
 
 function getUsageState() {
@@ -1386,6 +1384,12 @@ function getDocumentImageContextText(documentInfo) {
 
 function getTemplateGuide(templateType) {
     return TEMPLATE_GUIDES[templateType] || TEMPLATE_GUIDES['sinjeom-ppt'];
+}
+
+function validateProfileTemplate(templateType) {
+    if (typeof templateType !== 'string' || !Object.hasOwn(TEMPLATE_GUIDES, templateType)) {
+        throw createHttpError(400, '지원하지 않는 프로필 분야입니다. 타로, 사주, 신점 중 하나를 선택해주세요.');
+    }
 }
 
 function normalizeTarotCardType(templateType, value) {
@@ -2040,17 +2044,23 @@ function getReadableImageError(error) {
     return 'AI 이미지 생성에 실패했습니다. 프로필 빌더에서 직접 이미지를 업로드해주세요.';
 }
 
+validateProductionSecurity();
+const profileStoreStartedAt = Date.now();
 const profileJobStore = new FileProfileJobStore({
     directory: PROFILE_JOB_STORE_DIR,
     campaignId: PROFILE_CAMPAIGN_ID,
     safetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
-    retentionDays: PROFILE_JOB_RETENTION_DAYS
+    retentionDays: PROFILE_JOB_RETENTION_DAYS,
+    fingerprintForJob: getAutomaticStoredJobFingerprint
 });
+console.log(`[profile-startup] jobs=${profileJobStore.startupJobs.length} storeLoadMs=${Date.now() - profileStoreStartedAt}`);
+const profileHistoryStartedAt = Date.now();
 const profileGenerationHistory = new FileProfileGenerationHistory({
     filePath: PROFILE_GENERATION_HISTORY_FILE,
     sourceJobDirectory: PROFILE_JOB_STORE_DIR,
     similarityThreshold: PROFILE_COPY_SIMILARITY_THRESHOLD
 });
+console.log(`[profile-startup] historyLoadMs=${Date.now() - profileHistoryStartedAt}`);
 
 function assignProfileCopyVariant(payload, sourceText) {
     const recent = profileGenerationHistory.getCopyAssignments(payload.templateType);
@@ -2275,6 +2285,7 @@ function getDocumentProfileFingerprintInput(payload, parsedDocument, referenceIm
 }
 
 function getAutomaticStoredJobFingerprint(job) {
+    if (job?.automaticFingerprint) return job.automaticFingerprint;
     const input = job?.input;
     if (!input?.payload) return '';
     const fingerprintInput = job.kind === 'document'
@@ -2293,11 +2304,10 @@ function getAutomaticStoredJobFingerprint(job) {
 }
 
 const profileJobFingerprintAliases = new Map();
-for (const storedJobId of profileJobStore.listJobIds()) {
-    const storedJob = profileJobStore.read(storedJobId);
-    const automaticFingerprint = getAutomaticStoredJobFingerprint(storedJob);
+for (const storedJob of profileJobStore.startupJobs) {
+    const automaticFingerprint = storedJob.automaticFingerprint;
     if (automaticFingerprint && !profileJobFingerprintAliases.has(automaticFingerprint)) {
-        profileJobFingerprintAliases.set(automaticFingerprint, storedJobId);
+        profileJobFingerprintAliases.set(automaticFingerprint, storedJob.id);
     }
 }
 
@@ -2461,22 +2471,18 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
     }));
     const aliasedJobId = [fingerprint, ...previousFingerprints]
         .map(key => profileJobFingerprintAliases.get(key)).find(Boolean);
-    const aliasedJob = aliasedJobId ? profileJobStore.read(aliasedJobId) : null;
-    if (aliasedJob) {
-        res.setHeader('Idempotency-Replayed', 'true');
-        const terminal = ['completed', 'partial', 'failed', 'needs_review'].includes(aliasedJob.state);
-        res.status(terminal ? 200 : 202).json({
-            job: profileJobStore.toPublicJob(aliasedJob),
-            statusUrl: `/api/profile-jobs/${aliasedJob.id}`
-        });
-        return aliasedJob;
-    }
+    // Check readable usage before persisting new work; a corrupt ledger must never
+    // leave a queued job that could start on the next server restart.
+    if (!aliasedJobId) loadUsage();
     const created = profileJobStore.createOrGet({
         fingerprint,
         kind,
         input,
         userId: req.profileUserId || 'unknown',
-        requestKey: requestKey || getProfileJobRequestKey(req)
+        requestKey: requestKey || getProfileJobRequestKey(req),
+        reusableJobId: aliasedJobId || '',
+        compatibleFingerprints: previousFingerprints,
+        initialState: 'preparing'
     });
     profileJobFingerprintAliases.set(fingerprint, created.job.id);
 
@@ -2487,7 +2493,27 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
                 reuseCompletedProfileImageStages(record, reusableLegacyJob)
             ));
         }
-        const usage = reserveProfileUsage(req, res, { campaignJob: true });
+        let usage;
+        try {
+            usage = reserveProfileUsage(req, res, { campaignJob: true });
+            if (usage) {
+                reserveGenerationHistory(
+                    `${PROFILE_CAMPAIGN_ID}:${created.job.id}`,
+                    input.payload,
+                    created.job.id,
+                    input.generateImageRequested
+                );
+            }
+        } catch (error) {
+            profileJobStore.update(created.job.id, (record) => {
+                record.state = 'failed';
+                record.currentStage = 'failed';
+                record.stages.text.state = 'failed';
+                record.error = '작업 준비 기록을 저장하지 못했습니다. AI 요청은 시작하지 않았습니다.';
+                return record;
+            });
+            throw error;
+        }
         if (!usage) {
             profileJobStore.update(created.job.id, (record) => {
                 record.state = 'failed';
@@ -2499,14 +2525,10 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
         }
         profileJobStore.update(created.job.id, (record) => {
             record.input.usage = usage;
+            record.state = 'queued';
+            record.currentStage = 'queued';
             return record;
         });
-        reserveGenerationHistory(
-            `${PROFILE_CAMPAIGN_ID}:${created.job.id}`,
-            input.payload,
-            created.job.id,
-            input.generateImageRequested
-        );
         profileJobQueue.enqueue(created.job.id);
     }
 
@@ -2519,7 +2541,10 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
     return job;
 }
 
-profileJobQueue.recover();
+const profileRecoveryStartedAt = Date.now();
+profileJobQueue.recover(profileJobStore.startupJobs);
+profileJobStore.startupJobs = [];
+console.log(`[profile-startup] recoveryMs=${Date.now() - profileRecoveryStartedAt}`);
 
 app.get('/api/health', (req, res) => {
     const remoteAddress = req.socket.remoteAddress || '';
@@ -2536,6 +2561,7 @@ app.get('/api/health', (req, res) => {
         profileCampaignMode: PROFILE_CAMPAIGN_MODE,
         profileCampaignId: PROFILE_CAMPAIGN_ID,
         profileCampaignSafetyCap: PROFILE_CAMPAIGN_SAFETY_CAP,
+        profileCampaignDailyLimitsEnforced: !PROFILE_CAMPAIGN_MODE,
         profileCampaignJobs: profileJobStore.count(),
         profileGenerationHistoryRecords: profileGenerationHistory.count(),
         profileCopySimilarityThreshold: PROFILE_COPY_SIMILARITY_THRESHOLD,
@@ -2616,6 +2642,7 @@ app.get('/api/profile-jobs/:jobId', ...protectedApiMiddleware, (req, res) => {
     try {
         const job = profileJobStore.read(req.params.jobId);
         if (!job) return res.status(404).json({ error: 'Profile job was not found.' });
+        profileJobStore.assertReusable(job);
         return res.json({ job: profileJobStore.toPublicJob(job) });
     } catch (error) {
         return sendGenerationError(res, error, 'Profile job lookup failed.');
@@ -2626,6 +2653,8 @@ app.post('/api/profile-jobs/:jobId/retry-failed', ...protectedApiMiddleware, (re
     try {
         const job = profileJobStore.read(req.params.jobId);
         if (!job) return res.status(404).json({ error: 'Profile job was not found.' });
+        profileJobStore.assertReusable(job);
+        loadUsage();
         if (job.state === 'needs_review' || Object.values(job.stages || {}).some((stage) => stage.state === 'unknown')) {
             return res.status(409).json({
                 error: 'This job has an ambiguous external request. Automatic retry is blocked to prevent duplicate billing.'
@@ -2677,6 +2706,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
 
     let referenceImages;
     try {
+        validateProfileTemplate(payload.templateType);
         payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
@@ -2688,40 +2718,40 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
     } catch (error) {
         return sendGenerationError(res, error, '이미지 품질 또는 참고 이미지 설정이 올바르지 않습니다.');
     }
-    const generateImageRequested = payload.generateImage === true || String(payload.generateImage).toLowerCase() === 'true';
-    assignVisualIdentity(payload, [
-        payload.templateType,
-        payload.name,
-        payload.specialty,
-        payload.tone,
-        payload.career,
-        payload.tarotCardType,
-        getReferenceFingerprint(referenceImages)
-    ]);
-    assignProfileCopyVariant(payload, [payload.specialty, payload.tone, payload.career, payload.referenceText].join('\n'));
-    if (generateImageRequested) assignNovelVisualVariant(payload);
-    const fingerprintPayload = getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested);
-
-    if (!validateApiKey(res)) return;
-    if (PROFILE_CAMPAIGN_MODE) {
-        try {
-            submitProfileJob(req, res, {
-                kind: 'direct',
-                fingerprintInput: fingerprintPayload,
-                input: { payload, referenceImages, generateImageRequested }
-            });
-        } catch (error) {
-            console.error(error);
-            if (!res.headersSent) sendGenerationError(res, error, 'Profile job submission failed.');
-        }
-        return;
-    }
-    const usage = reserveProfileUsage(req, res);
-    if (!usage) return;
-    const generationHistoryId = `${PROFILE_CAMPAIGN_ID}:direct:${crypto.randomUUID()}`;
-    reserveGenerationHistory(generationHistoryId, payload, '', generateImageRequested);
-
     try {
+        const generateImageRequested = payload.generateImage === true || String(payload.generateImage).toLowerCase() === 'true';
+        assignVisualIdentity(payload, [
+            payload.templateType,
+            payload.name,
+            payload.specialty,
+            payload.tone,
+            payload.career,
+            payload.tarotCardType,
+            getReferenceFingerprint(referenceImages)
+        ]);
+        assignProfileCopyVariant(payload, [payload.specialty, payload.tone, payload.career, payload.referenceText].join('\n'));
+        if (generateImageRequested) assignNovelVisualVariant(payload);
+        const fingerprintPayload = getDirectProfileFingerprintInput(payload, referenceImages, generateImageRequested);
+
+        if (!validateApiKey(res)) return;
+        if (PROFILE_CAMPAIGN_MODE) {
+            try {
+                submitProfileJob(req, res, {
+                    kind: 'direct',
+                    fingerprintInput: fingerprintPayload,
+                    input: { payload, referenceImages, generateImageRequested }
+                });
+            } catch (error) {
+                console.error(error);
+                if (!res.headersSent) sendGenerationError(res, error, 'Profile job submission failed.');
+            }
+            return;
+        }
+        const usage = reserveProfileUsage(req, res);
+        if (!usage) return;
+        const generationHistoryId = `${PROFILE_CAMPAIGN_ID}:direct:${crypto.randomUUID()}`;
+        reserveGenerationHistory(generationHistoryId, payload, '', generateImageRequested);
+
         const profile = await generateProfileTextFromInput(payload);
         let profileImage = '';
         let moodImage = '';
@@ -2811,6 +2841,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
 
     let referenceImages;
     try {
+        validateProfileTemplate(payload.templateType);
         payload.tarotCardType = normalizeTarotCardType(payload.templateType, payload.tarotCardType);
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
@@ -2824,13 +2855,13 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
     }
 
     if (!validateApiKey(res)) return;
-    let usage = null;
-    if (!PROFILE_CAMPAIGN_MODE) {
-        usage = reserveProfileUsage(req, res);
-        if (!usage) return;
-    }
-
     try {
+        let usage = null;
+        if (!PROFILE_CAMPAIGN_MODE) {
+            usage = reserveProfileUsage(req, res);
+            if (!usage) return;
+        }
+
         const parsedDocument = parseDocumentFiles(files);
         const documentMeta = buildDocumentSourceMeta(parsedDocument);
 
@@ -2912,16 +2943,20 @@ app.post('/api/regenerate-profile-slot', ...protectedApiMiddleware, async (req, 
     if (!payload.templateType || !payload.slotKey || !payload.currentProfile) {
         return res.status(400).json({ error: 'templateType, slotKey, currentProfile 값이 필요합니다.' });
     }
-    payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
-    if (!payload.copyVariant) {
-        assignProfileCopyVariant(payload, `${JSON.stringify(payload.currentProfile)}\n${payload.referenceText}`);
-    }
-
-    if (!validateApiKey(res)) return;
-    const usage = reserveProfileUsage(req, res);
-    if (!usage) return;
-
     try {
+        validateProfileTemplate(payload.templateType);
+        if (!['headline', 'intro', 'bulletPoints', 'closing'].includes(payload.slotKey)) {
+            throw createHttpError(400, '지원하지 않는 재생성 슬롯입니다.');
+        }
+        payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
+        if (!payload.copyVariant) {
+            assignProfileCopyVariant(payload, `${JSON.stringify(payload.currentProfile)}\n${payload.referenceText}`);
+        }
+
+        if (!validateApiKey(res)) return;
+        const usage = reserveProfileUsage(req, res);
+        if (!usage) return;
+
         const regenerated = await regenerateProfileSlot(payload);
         res.json({
             profile: regenerated,
@@ -2938,10 +2973,9 @@ app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, '..', 'profile-maker', 'index.html'));
 });
 
-validateProductionSecurity();
-
 app.listen(PORT, HOST, () => {
     console.log(`Profile builder server running on http://${HOST}:${PORT}`);
+    console.log(`[profile-startup] readyAt=${getKstTimestamp()} pid=${process.pid} totalMs=${Date.now() - profileStartupStartedAt}`);
 });
 
 function validateProductionSecurity() {
