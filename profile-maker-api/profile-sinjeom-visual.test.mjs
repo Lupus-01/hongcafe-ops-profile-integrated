@@ -92,12 +92,12 @@ test('both final image prompts enforce category boundaries across quality tiers 
             const variation = { ...pair[kind], supportSubject };
             const prompt = builders[kind](payload, 'Copy the room and upright display from the reference', variation);
             assert.ok(prompt.includes(supportSubject.prompt));
-            assert.match(prompt, /CARD-FIRST OVERHEAD/);
-            assert.match(prompt, /Gravity acts into the tabletop/);
-            assert.match(prompt, /overhead composition takes priority over conflicting reference layouts/);
-            assert.match(prompt, /65 to 80 percent/);
+            assert.match(prompt, /OBLIQUE READING TABLE/);
+            assert.match(prompt, /40 to 60 degrees/);
+            assert.match(prompt, /oblique composition takes priority over conflicting reference layouts/);
+            assert.match(prompt, /35 to 55 percent/);
             assert.match(prompt, /at most 15 percent/);
-            assert.doesNotMatch(prompt, /real top of the room|gravity pointing toward the bottom edge|Add no optional accessories/);
+            assert.doesNotMatch(prompt, /real top of the room|gravity pointing toward the bottom edge|Add no optional accessories|CARD-FIRST OVERHEAD|camera looks vertically down/);
         }
     }
 });
@@ -153,5 +153,5 @@ test('sinjeom motif rotation uses recent history and migrates legacy subject IDs
     assert.match(serverSource, /getSubjectMotifFamily\(pair\.portrait\.subject\) !== getSubjectMotifFamily\(pair\.mood\.subject\)/);
     assert.match(historySource, /'paper-lotus-lantern': 'lantern'/);
     assert.match(historySource, /motifFamilyId: String\(guide\.motifFamilyId \|\| LEGACY_VISUAL_MOTIF_FAMILIES\[subjectId\]/);
-    assert.match(visualEngineSource, /profile-visual-v15-overhead-accessories/);
+    assert.match(visualEngineSource, /profile-visual-v16-oblique-tables/);
 });

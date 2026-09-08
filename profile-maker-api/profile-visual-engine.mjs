@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v15-overhead-accessories';
+export const PROFILE_VISUAL_VARIATION_VERSION = 'profile-visual-v16-oblique-tables';
 
 function getPhotographicDirection(scene) {
     if (scene?.shootType) {
@@ -242,6 +242,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
         templateType,
         shootType: scene?.shootType || '',
         tabletopAccessories: Boolean(scene?.tabletopAccessories),
+        obliqueTabletop: Boolean(scene?.obliqueTabletop),
         photographicDirection: getPhotographicDirection(scene),
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
@@ -289,7 +290,9 @@ export function buildVisualRealizationPrompt(realization) {
                 : `Lighting realization: ${realization.lighting.prompt}`,
             `Secondary tonal treatment: ${realization.tone.prompt} Keep the scene's explicit surface and background colors.`,
             'Show believable print, paper edges and contact shadows only on materials already present in the assigned scene.',
-            realization.tabletopAccessories
+            realization.obliqueTabletop
+                ? 'Preserve the assigned high three-quarter view, visible table edge, reading cloth and restrained window or wall context. Keep all card faces and the existing accessory set in focus with natural perspective; no vertical flat lay, distant shelf cards or extra objects.'
+                : realization.tabletopAccessories
                 ? 'Keep the assigned card spread and accessory set sharp and fully on the flat surface. Preserve the true overhead camera and large card scale; no room, horizon, upright display or extra objects.'
                 : 'Do not introduce a room, window, cloth, spread or extra furniture to satisfy secondary styling. Do not enlarge the small deck cue in a wide room.',
             'When reference images are attached, use only compatible object-family and material cues. The assigned composition takes priority.'

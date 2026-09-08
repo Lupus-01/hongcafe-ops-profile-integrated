@@ -187,7 +187,7 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.geminiMinRequestIntervalMs, 10000);
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v3-material-only');
-    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v15-overhead-accessories');
+    assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v16-oblique-tables');
     assert.equal(initialHealth.tarotIndependentShootingTypes.length, 6);
     assert.equal(initialHealth.tarotActiveBaseSceneCount, 30);
     assert.equal(initialHealth.tarotAccessoryCount, 21);

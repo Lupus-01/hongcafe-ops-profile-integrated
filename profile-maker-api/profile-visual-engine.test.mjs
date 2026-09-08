@@ -12,7 +12,7 @@ import {
     VISUAL_REALIZATION_COUNT_PER_BASE
 } from './profile-visual-engine.mjs';
 
-test('new tarot assignments rotate six overhead layouts and separate each pair structurally', (t) => {
+test('new tarot assignments rotate six oblique table layouts and separate each pair structurally', (t) => {
     const history = [];
     const runtime = createOfflineVisualRuntime(() => history);
     const counts = new Map();
@@ -27,9 +27,10 @@ test('new tarot assignments rotate six overhead layouts and separate each pair s
         assert.ok(a.shootType && b.shootType);
         assert.notEqual(a.shootType, b.shootType);
         assert.notEqual(a.support, b.support);
-        assert.equal(a.cameraHeight, 'overhead');
-        assert.equal(b.cameraHeight, 'overhead');
+        assert.equal(a.cameraHeight, 'high-oblique');
+        assert.equal(b.cameraHeight, 'high-oblique');
         assert.ok(a.tabletopAccessories && b.tabletopAccessories);
+        assert.ok(a.obliqueTabletop && b.obliqueTabletop);
         assert.notEqual(pair.portrait.supportSubject.motifFamilyId, pair.mood.supportSubject.motifFamilyId);
         accessories.add(pair.portrait.supportSubject.id);
         accessories.add(pair.mood.supportSubject.id);
@@ -51,9 +52,9 @@ test('new tarot assignments rotate six overhead layouts and separate each pair s
     t.diagnostic(`180 profiles / 360 images: ${JSON.stringify(Object.fromEntries(counts))}; recent repeats=${recentRepeats}`);
 });
 
-test('overhead prompts preserve large card faces and assigned accessories despite reference layouts', () => {
+test('oblique prompts preserve identifiable card faces and assigned accessories despite reference layouts', () => {
     const runtime = createOfflineVisualRuntime(() => []);
-    const scenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.tabletopAccessories);
+    const scenes = runtime.SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.obliqueTabletop);
     for (const scene of scenes) {
         const other = scenes.find(candidate => candidate.shootType !== scene.shootType
             && candidate.support !== scene.support);
@@ -63,11 +64,11 @@ test('overhead prompts preserve large card faces and assigned accessories despit
         assert.match(prompt, /assigned composition takes priority/);
         assert.doesNotMatch(prompt, /reading cloth is expected|consultation-table photograph|Optional supporting accessory|primary evidence/);
         assert.ok(prompt.includes(scene.camera));
-        assert.match(prompt, /CARD-FIRST OVERHEAD/);
-        assert.match(prompt, /65 to 80 percent/);
+        assert.match(prompt, /OBLIQUE READING TABLE/);
+        assert.match(prompt, /35 to 55 percent/);
         assert.match(prompt, /Required secondary accessory set/);
         assert.ok(prompt.includes(pair.portrait.supportSubject.prompt));
-        assert.doesNotMatch(prompt, /Add no optional accessories|about 10 percent|Do not enlarge the small deck cue/);
+        assert.doesNotMatch(prompt, /Add no optional accessories|about 10 percent|Do not enlarge the small deck cue|Preserve the true overhead|CARD-FIRST OVERHEAD/);
     }
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
     const referenceSource = source.slice(source.indexOf('function buildReferenceAssignmentPrompt('), source.indexOf('function buildImageContents('));
@@ -95,6 +96,26 @@ test('v14 room and detail IDs remain restorable without newly assigned accessori
     assert.equal(pair.mood.scene.shootType, 'single-card');
     assert.equal(pair.portrait.supportSubject, null);
     assert.equal(pair.mood.supportSubject, null);
+});
+
+test('saved v15 scenes keep overhead prompts and accessories while new scenes are oblique', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const payload = { templateType: 'tarot-ppt', visualIdentity: 'saved-v15', visualNonce: 'persisted', visualSceneIds: {
+        portrait: 'tarot-overhead-three-card-row-linen--quiet-original',
+        mood: 'tarot-overhead-four-card-grid-walnut--quiet-original'
+    } };
+    const pair = runtime.getVisualPair(payload);
+    const restored = runtime.getVisualPair(JSON.parse(JSON.stringify(payload)));
+    for (const kind of ['portrait', 'mood']) {
+        assert.equal(pair[kind].scene.cameraHeight, 'overhead');
+        assert.ok(pair[kind].supportSubject);
+        assert.equal(restored[kind].supportSubject.id, pair[kind].supportSubject.id);
+        const prompt = runtime.buildVisualVariationPrompt(pair[kind], kind);
+        assert.match(prompt, /CARD-FIRST OVERHEAD/);
+        assert.doesNotMatch(prompt, /OBLIQUE READING TABLE/);
+    }
+    const fresh = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'new-v16' });
+    for (const kind of ['portrait', 'mood']) assert.equal(fresh[kind].scene.cameraHeight, 'high-oblique');
 });
 
 test('400 realizations retain scene-compatible composition and varied exposure for each camera mode', () => {
@@ -149,7 +170,7 @@ test('structured image groups exceed the text variation count even for a fixed t
         palettes: 8,
         fixedHeroSubject: true
     });
-    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v15-overhead-accessories');
+    assert.equal(PROFILE_VISUAL_VARIATION_VERSION, 'profile-visual-v16-oblique-tables');
     assert.equal(VISUAL_REALIZATION_COUNT_PER_BASE, 61440000);
     assert.ok(fixedTarot > textVariationCount);
 });

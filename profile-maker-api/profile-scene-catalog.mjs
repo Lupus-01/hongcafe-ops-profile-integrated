@@ -83,6 +83,7 @@ export function createAdditionalSceneArchetypes(createScene) {
     ]));
     scenes['tarot-ppt'].push(...createIndependentTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createOverheadTarotScenes(createScene));
+    scenes['tarot-ppt'].push(...createObliqueTarotScenes(createScene));
     return scenes;
 }
 
@@ -147,4 +148,26 @@ function createOverheadTarotScenes(createScene) {
         true,
         { shootType: layoutId, distance: 'medium', support: surfaceId, background: 'flat-surface', cameraHeight: 'overhead', shotMode: 'environmental', tabletopAccessories: true }
     )));
+}
+
+// Keep v15 IDs and prompts intact for saved jobs; new requests use these v16 scenes.
+function createObliqueTarotScenes(createScene) {
+    const settings = [
+        ['round-window', 'a small pale round wooden table beside a window, with a round charcoal reading mat', 'window and a narrow strip of floor', '45 degrees'],
+        ['square-wall', 'a compact square wooden table beside a warm plaster wall, with a dark velvet reading cloth', 'plaster wall and the near table edge', '55 degrees'],
+        ['round-curtain', 'a round walnut consultation table beside a softly lit curtain, with a black linen reading cloth draped slightly over the near edge', 'curtain and a small part of the table pedestal', '40 degrees'],
+        ['oak-corner', 'a small rectangular oak table in a quiet room corner, with a muted cream linen reading mat', 'two plain wall surfaces and the table edge', '60 degrees'],
+        ['oval-alcove', 'a small oval wooden table in a daylight alcove, with a deep navy felt reading mat', 'a plain window recess and a little floor', '50 degrees']
+    ];
+    return createOverheadTarotScenes(createScene).map((scene, index) => {
+        const [placeId, setting, background, angle] = settings[index % settings.length];
+        const arrangement = scene.prompt.slice(0, scene.prompt.indexOf(' on '));
+        return createScene(
+            `tarot-oblique-${scene.shootType}-${placeId}`, scene.shootType,
+            `${arrangement} on the reading mat of ${setting}. OBLIQUE READING TABLE: show the tabletop as the main setting, including its curved or straight edge, thickness and a little supporting structure. The table occupies about 60 to 75 percent of the frame; the card arrangement spans about 35 to 55 percent of the frame width. Keep every face-up card identifiable, complete, separate and naturally foreshortened by perspective. Include only ${background} as secondary context. Keep the existing assigned accessory set small beside the cards, never covering them. Natural window light and soft contact shadows; no tiny cards on a distant shelf, room-dominant wide shot, extra cups, candles or unassigned decorations. No people, hands or readable text.`,
+            `40mm high three-quarter photograph looking down at ${angle} above the horizontal tabletop, from outside the near table edge; zero camera roll, natural perspective and broad focus across cards and accessories; never a vertical 90-degree flat lay`,
+            true,
+            { shootType: scene.shootType, distance: 'medium-environment', support: placeId, background, cameraHeight: 'high-oblique', shotMode: 'environmental', tabletopAccessories: true, obliqueTabletop: true }
+        );
+    });
 }
