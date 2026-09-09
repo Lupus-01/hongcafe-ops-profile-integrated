@@ -25,6 +25,7 @@ test('independent photographic structure survives reservation, completion and re
     const filePath = path.join(directory, 'history.json');
     const history = new FileProfileGenerationHistory({ filePath });
     const structure = { shootingGroup: 'overhead', cardLayout: 'three-card-row', tableShape: 'outside-crop', clothColor: 'burgundy', tarotDiversityPolicyVersion: 'tarot-diversity-v1-shots-cloth', shootType: 'overhead', distance: 'medium', support: 'linen', background: 'flat-surface', cameraHeight: 'overhead', accessoryId: 'brass-pendulum', accessoryFamily: 'pendulum' };
+    Object.assign(structure, { packLayoutId: 'standing-fan', packStructureId: 'tuck', packDesignId: 'classic-symbolic-art-2' });
     const guide = { ...structure, visualGroupId: 'independent-card', sceneId: 'tarot-diverse-overhead-round-three-card-triangle--quiet-original' };
     history.reserve({ id: 'new-shot', campaignId: 'test', templateType: 'tarot-ppt', visuals: [{ kind: 'portrait', ...guide }] });
     for (const [key, value] of Object.entries(structure)) assert.equal(history.getVisualAssignments('tarot-ppt')[0][key], value);

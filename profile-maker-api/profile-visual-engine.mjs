@@ -244,6 +244,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
         tabletopAccessories: Boolean(scene?.tabletopAccessories),
         obliqueTabletop: Boolean(scene?.obliqueTabletop),
         diverseTarot: Boolean(scene?.diverseTarot),
+        packLayoutId: scene?.packLayoutId || '',
         photographicDirection: getPhotographicDirection(scene),
         location: pickOption(locationOptions, digest, 0, excluded?.location?.id),
         environmentLocation: pickOption(environmentLocationOptions, digest, 28, excluded?.environmentLocation?.id),
@@ -291,6 +292,7 @@ export function buildVisualRealizationPrompt(realization) {
                 : `Lighting realization: ${realization.lighting.prompt}`,
             `Secondary tonal treatment: ${realization.tone.prompt} Keep the scene's explicit surface and background colors.`,
             'Show believable print, paper edges and contact shadows only on materials already present in the assigned scene.',
+            ...(realization.packLayoutId ? ['Keep the illustrated paper packages, matching real cards and required accessories together on the decorated working reading desk. Preserve the assigned opening mechanism and camera; no wooden storage replacement, empty organizer or isolated package on a blank studio backdrop.'] : []),
             realization.diverseTarot
                 ? 'Preserve the assigned camera, card scale and crop exactly. Keep the PRIMARY CLOTH COLOR recognizable despite secondary lighting and tone. Keep the assigned accessory set small and sharp in the cloth margin. Do not add room context beyond the assigned crop or copy the companion camera.'
                 : realization.obliqueTabletop

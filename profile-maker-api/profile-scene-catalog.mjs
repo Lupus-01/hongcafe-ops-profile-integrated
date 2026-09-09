@@ -85,7 +85,75 @@ export function createAdditionalSceneArchetypes(createScene) {
     scenes['tarot-ppt'].push(...createOverheadTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createObliqueTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createDiverseTarotScenes(createScene));
+    scenes['tarot-ppt'].push(...createPackTarotScenes(createScene));
     return scenes;
+}
+
+// Original print directions, keyed by the existing selected deck family. Never
+// substitute a published package or mix the active deck with another family.
+const PACK_ART = {
+    'classic-symbolic': ['cream woodcut-style symbols with a red frame', 'navy symbolic medallion with restrained mineral colors', 'ochre paper with separate narrative illustration panels'],
+    'marseille-geometry': ['primary-color flat geometric frame', 'ivory ground with geometric ornamental bands', 'bold ink outlines around a yellow central illustration'],
+    'modern-oracle': ['pastel abstract collage', 'teal negative space around one abstract emblem', 'overlapping coral and muted blue color planes'],
+    botanical: ['pressed-flower specimen composition', 'night-brown garden illustration', 'cream herb atlas with fine botanical borders'],
+    celestial: ['navy moon above a printed forest silhouette', 'lavender constellation geometry', 'silver-gray printed moon-phase bands'],
+    'time-wheel': ['four-season circular illustration', 'vintage clock diagram without numbers', 'winding path through seasonal panels'],
+    'art-nouveau': ['sage floral arch', 'rose-colored flowing botanical frame', 'ivory and violet iris ornament'],
+    'european-narrative': ['small garden painting in a broad frame', 'vintage secular street illustration', 'interior still-life painting in an oval frame'],
+    'animal-symbol': ['wolf and leaf emblem', 'blue songbird with curling plant ornament', 'fox and autumn botanical engraving'],
+    'seasonal-watercolor': ['spring blossoms with pale watercolor washes', 'summer garden watercolor collage', 'winter forest with generous paper margins'],
+    'dream-archetype': ['overlapping quiet landscape silhouettes', 'abstract stair shapes and muted color planes', 'quiet landscape within a simple window-shaped printed frame'],
+    'color-symbolic': ['colored petal shapes on black', 'color-plane mosaic on ivory', 'controlled color bands on navy'],
+    'iching-symbolic': ['ink landscape with accurate solid and broken trigram lines', 'wide ivory margins around accurate trigram lines', 'pale ink landscape with one small red geometric accent'],
+    'minimal-monochrome': ['fine-line central emblem', 'black and white divided planes', 'small abstract symbol within generous blank margins']
+};
+
+const PACK_STRUCTURES = {
+    tuck: 'a printed folding paperboard tuck box with a fitted tuck flap and visible fold seams',
+    lift: 'a thick printed paperboard two-piece lift-off-lid box with a fitted inner tray',
+    sleeve: 'a printed paperboard sliding sleeve with one fitted paper drawer',
+    book: 'a book-opening rigid paperboard case with a paper hinge and fitted deck cavity, no metal hardware',
+    magnetic: 'a rigid printed paperboard flip-lid case with concealed magnetic closure, no visible metal',
+    compact: 'a compact printed paperboard deck case with a snug folding flap'
+};
+
+// Exactly 18 physical layouts. Three art variants per layout are NOT 54
+// independent camera compositions. Each layout fixes a compatible structure.
+const PACK_LAYOUTS = [
+    ['standing-fan', 'tuck', 'Stand one closed pack behind a broad fan of matching card backs and two separate complete face-up cards.', 'high-oblique', '45mm at 45 degrees above the table'],
+    ['standing-row', 'compact', 'Stand one closed pack beside three separate complete face-up cards in a straight row.', 'high-oblique', '50mm at 40 degrees above the table'],
+    ['flat-deck', 'compact', 'Lay one closed pack flat beside its squared deck and one complete face-up card.', 'overhead', '50mm true vertical overhead'],
+    ['open-lid', 'lift', 'Show one open box containing its deck, with the detached illustrated lid beside it and two complete face-up cards in front.', 'high-oblique', '55mm at 45 degrees above the table'],
+    ['emerging-deck', 'tuck', 'Lay one pack down with its tuck flap open and its squared deck partly slid out onto the cloth, beside two complete face-up cards.', 'low-oblique', '65mm at 25 degrees above the table'],
+    ['sliding-tray', 'sleeve', 'Slide the deck-filled paper drawer halfway out of its sleeve; place three separate complete face-up cards across the foreground.', 'high-oblique', '55mm at 40 degrees above the table'],
+    ['open-book', 'book', 'Open the paper-hinged cover to the left, showing a fitted deck on the right and two complete face-up cards below.', 'high-oblique', '50mm at 50 degrees above the table'],
+    ['flat-diagonal', 'magnetic', 'Lay one closed illustrated case face-up with two complete face-up cards diagonally beside it, leaving distinct gaps.', 'overhead', '55mm true vertical overhead'],
+    ['two-staggered', 'tuck', 'Stand two matching closed packs at staggered depths, one showing its front and one its side; put three complete face-up cards in front.', 'high-oblique', '50mm at 35 degrees above the table'],
+    ['two-stacked', 'lift', 'Stack two matching closed packs horizontally beside the squared active deck and one complete face-up card.', 'low-oblique', '60mm at 25 degrees above the table'],
+    ['standing-flat', 'compact', 'Place one matching closed pack upright and another flat, with the active deck between them and two complete face-up cards in front.', 'high-oblique', '50mm at 40 degrees above the table'],
+    ['cover-detail', 'lift', 'Show the front, side and closed lid seam of one pack beside two complete face-up cards and the squared deck; retain a visible cloth margin.', 'low-oblique', '65mm close at 30 degrees above the table'],
+    ['prepared-reading', 'magnetic', 'Open the flip lid behind its deck-filled case, with three complete face-up cards in a loose triangle on the cloth in front.', 'high-oblique', '45mm at 45 degrees above the table'],
+    ['spine-leading', 'tuck', 'Place one closed pack with its illustrated narrow side toward the foreground and its front still visible, leading into four complete face-up cards in a stepped row.', 'high-oblique', '55mm at 40 degrees above the table'],
+    ['cover-and-backs', 'compact', 'Lay one pack front-up beside a compact fan of matching card backs and one separate complete face-up card.', 'overhead', '50mm true vertical overhead'],
+    ['lid-triangle', 'lift', 'Arrange the detached illustrated lid, deck-filled base and one complete face-up card as three separated points of a triangle.', 'overhead', '55mm true vertical overhead'],
+    ['book-overhead', 'book', 'Open one book-style case flat with its decorated inner cover on the left, deck cavity on the right and three complete face-up cards below.', 'overhead', '45mm true vertical overhead'],
+    ['horizontal-pair', 'sleeve', 'Place a closed illustrated sleeve pack beside its matching squared active deck, with two complete face-up cards in a separate front row.', 'low-oblique', '60mm at 20 degrees above the table']
+];
+
+function createPackTarotScenes(createScene) {
+    return PACK_LAYOUTS.flatMap(([layout, structure, arrangement, cameraHeight, camera]) =>
+        [0, 1, 2].map(variant => createScene(
+            `tarot-pack-${layout}-art-${variant + 1}`, `deck-pack-${layout}`,
+            `A thoughtfully arranged working desk owned by an experienced tarot reader. REQUIRED TOGETHER: illustrated paper card packaging, its matching real deck, complete face-up cards, the independently assigned reading cloth, and the assigned small accessory set. ${arrangement} Package structure: ${PACK_STRUCTURES[structure]}. All boxes use printed paperboard, never wood, bare storage bins or metal tins. Never show an empty wooden organizer alone or a package-only product photograph. Keep package artwork and real cards jointly prominent across 65 to 80 percent of the frame width, with tactile cloth visible around them. Place the assigned accessory set neatly at the side, never on top of cards. Use a secular consultation desk with ${cameraHeight === 'overhead' ? 'only cloth visible beyond the assigned objects; no horizon or room' : 'a small near table edge and a restrained softly focused plain wall or curtain; no room-dominant view'}. Every face-up card is complete and separate; only the explicitly assigned fan of card backs may overlap. Keep squared decks coherent and boxes structurally separate from cards. No people, hands, extra decorations or readable text.`,
+            `${camera}; zero roll, physically natural perspective, sharp printed covers and complete cards`, true,
+            { shootingGroup: 'deck-pack', shootType: 'deck-pack', cardLayout: layout,
+                packLayoutId: layout, packStructureId: structure, packArtVariant: variant + 1,
+                packDesigns: Object.fromEntries(Object.entries(PACK_ART).map(([id, designs]) => [id, designs[variant]])),
+                distance: 'desk-detail', cameraHeight, support: 'reading-desk',
+                tableShape: cameraHeight === 'overhead' ? 'outside-crop' : 'desk-edge',
+                background: cameraHeight === 'overhead' ? 'cloth-only' : 'plain-wall-or-curtain',
+                shotMode: 'environmental', tabletopAccessories: true, diverseTarot: true }
+        )));
 }
 
 // Additive policy: persisted v14-v16 definitions above remain unchanged.

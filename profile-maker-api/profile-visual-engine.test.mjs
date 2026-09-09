@@ -18,6 +18,9 @@ test('new tarot assignments balance shooting groups and cloth colors with distin
     const counts = new Map();
     const colors = new Map();
     const accessories = new Set();
+    const packLayouts = new Set();
+    const packDesigns = new Set();
+    const recentPacks = [];
     let recentRepeats = 0;
     for (let sample = 0; sample < 180; sample += 1) {
         const payload = { templateType: 'tarot-ppt', tarotCardType: 'universal-waite', visualIdentity: 'diverse-' + sample, visualNonce: String(sample) };
@@ -30,6 +33,14 @@ test('new tarot assignments balance shooting groups and cloth colors with distin
         const recent = new Set(history.slice(0, 12).map(entry => [entry.shootingGroup, entry.clothColor, entry.background].join(':')));
         for (const kind of ['portrait', 'mood']) {
             const entry = runtime.toVisualHistoryEntry(kind, pair[kind]);
+            if (entry.packLayoutId) {
+                packLayouts.add(entry.packLayoutId);
+                packDesigns.add(entry.packDesignId);
+                const combination = `${entry.packLayoutId}:${entry.packDesignId}`;
+                assert.ok(!recentPacks.slice(0, 6).includes(combination), 'recent pack composition repeated');
+                recentPacks.unshift(combination);
+                assert.equal(restored[kind].scene.packArtVariant, pair[kind].scene.packArtVariant);
+            }
             assert.ok(pair[kind].scene.diverseTarot);
             assert.equal(pair[kind].subject.id, 'classic-symbolic');
             assert.equal(restored[kind].clothColor, pair[kind].clothColor);
@@ -41,14 +52,50 @@ test('new tarot assignments balance shooting groups and cloth colors with distin
         }
         history.unshift(runtime.toVisualHistoryEntry('portrait', pair.portrait), runtime.toVisualHistoryEntry('mood', pair.mood));
     }
-    for (const [group, target] of Object.entries({ oblique: 108, closeup: 108, overhead: 90, 'deck-detail': 54 })) {
+    for (const [group, target] of Object.entries({ oblique: 90, closeup: 90, overhead: 72, 'deck-detail': 54, 'deck-pack': 54 })) {
         assert.ok(Math.abs(counts.get(group) - target) <= 2, JSON.stringify([...counts]));
     }
     assert.equal(accessories.size, 21);
+    assert.equal(packLayouts.size, 18);
+    assert.equal(packDesigns.size, 3);
     assert.equal(colors.size, 10);
     assert.ok(Math.max(...colors.values()) - Math.min(...colors.values()) <= 8, JSON.stringify([...colors]));
     assert.ok(recentRepeats <= 10, 'recent visible combination repeats: ' + recentRepeats);
-    t.diagnostic(JSON.stringify({ groups: Object.fromEntries(counts), colors: Object.fromEntries(colors), recentRepeats }));
+    t.diagnostic(JSON.stringify({ groups: Object.fromEntries(counts), colors: Object.fromEntries(colors), recentRepeats, packLayouts: packLayouts.size, packDesigns: packDesigns.size }));
+});
+
+test('all 756 package design-layout choices preserve deck identity and a furnished reading desk', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const bases = runtime.BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.packLayoutId);
+    assert.equal(bases.length, 54);
+    assert.equal(new Set(bases.map(scene => scene.packLayoutId)).size, 18);
+    assert.equal(new Set(bases.map(scene => scene.packStructureId)).size, 6);
+    const subjects = runtime.TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role !== 'support');
+    const companion = runtime.SCENE_ARCHETYPES['tarot-ppt'].find(scene => scene.shootingGroup === 'overhead');
+    const designs = new Set();
+    let checked = 0;
+    for (const base of bases) {
+        const scene = runtime.SCENE_ARCHETYPES['tarot-ppt'].find(candidate => candidate.baseVenueId === base.id);
+        assert.ok(scene, base.id);
+        const pair = runtime.getVisualPair({ templateType: 'tarot-ppt', visualIdentity: 'pack-check', visualSceneIds: { portrait: scene.id, mood: companion.id } });
+        assert.ok(!['wooden-deck-box', 'flat-card-rest'].includes(pair.portrait.supportSubject.id));
+        for (const subject of subjects) {
+            const variation = { ...pair.portrait, subject, counterpartSubject: subject };
+            const prompt = runtime.buildVisualVariationPrompt(variation, 'portrait');
+            assert.ok(prompt.includes(base.packDesigns[subject.id]));
+            assert.ok(prompt.includes(subject.prompt));
+            assert.match(prompt, /REQUIRED TOGETHER: illustrated paper card packaging/);
+            assert.match(prompt, /never wood, bare storage bins or metal tins/);
+            assert.match(prompt, /Required secondary accessory set/);
+            assert.match(prompt, /Exclude Buddhist temples/);
+            assert.match(prompt, /No actual product names, authors, logos, copied commercial artwork/);
+            assert.match(prompt, /printed illustrations only/);
+            designs.add(`${subject.id}-art-${base.packArtVariant}`);
+            checked += 1;
+        }
+    }
+    assert.equal(designs.size, 42);
+    assert.equal(checked, 756);
 });
 
 test('oblique prompts preserve identifiable card faces and assigned accessories despite reference layouts', () => {
@@ -146,7 +193,7 @@ test('visual scoring penalizes recent composition/exposure and palette/tone comb
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
     const scoring = source.slice(source.indexOf('function toVisualHistoryEntry('), source.indexOf('function assignNovelVisualVariant('));
     const { scoreVisualPair, createVisualUsageIndex } = vm.runInNewContext(`${scoring}\n({ scoreVisualPair, createVisualUsageIndex })`, {
-        createIncrementalIndex, increment, getSubjectMotifFamily: (subject) => subject.motifFamilyId || subject.id
+        createIncrementalIndex, increment, SCENE_ARCHETYPES: { 'tarot-ppt': [] }, getSubjectMotifFamily: (subject) => subject.motifFamilyId || subject.id
     });
     const realization = getVisualRealizationPair({ templateType: 'saju-ppt', stableIdentity: 'score', nonce: '1' }).portrait;
     const variation = { realization, subject: { id: 'book' }, scene: { id: 'scene', family: 'archive', venueId: 'venue' }, paletteId: 'palette-1', visualGroupId: 'new' };

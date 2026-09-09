@@ -84,7 +84,7 @@ test('both final image prompts enforce category boundaries across quality tiers 
     }
     const tarotAccessories = runtime.TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support');
     assert.equal(tarotAccessories.length, 21);
-    for (const imageQuality of ['standard', 'premium']) for (const shootingGroup of ['oblique', 'closeup', 'overhead', 'deck-detail']) {
+    for (const imageQuality of ['standard', 'premium']) for (const shootingGroup of ['oblique', 'closeup', 'overhead', 'deck-detail', 'deck-pack']) {
         const payload = { templateType: 'tarot-ppt', imageQuality, referenceImageCount: 2,
             imageStyle: 'Show tiny cards on a shelf in a wide room with hanging pendulums' };
         payload.visualSceneIds = {
@@ -93,6 +93,7 @@ test('both final image prompts enforce category boundaries across quality tiers 
         };
         const pair = runtime.getVisualPair(payload);
         for (const supportSubject of tarotAccessories) for (const kind of ['portrait', 'mood']) {
+            if (pair[kind].scene.packLayoutId && ['wooden-deck-box', 'flat-card-rest'].includes(supportSubject.id)) continue;
             const variation = { ...pair[kind], supportSubject };
             const prompt = builders[kind](payload, 'Copy the room and upright display from the reference', variation);
             assert.ok(prompt.includes(supportSubject.prompt));
@@ -101,7 +102,17 @@ test('both final image prompts enforce category boundaries across quality tiers 
             assert.match(prompt, /assigned composition takes priority over conflicting reference layouts/);
             assert.match(prompt, /at most 15 percent/);
             assert.doesNotMatch(prompt, /Both photographs use high three-quarter|Both photographs must retain|CARD-FIRST OVERHEAD|Preserve the true overhead camera|Do not enlarge the small deck cue/);
-            if (variation.scene.shootingGroup !== 'oblique') {
+            if (variation.scene.packLayoutId) {
+                assert.match(prompt, /ORIGINAL PRINTED PACKAGE DESIGN/);
+                assert.match(prompt, /on tarot cards and their assigned printed paper packages are allowed/);
+                assert.match(prompt, /only as clearly printed two-dimensional card and package artwork/);
+                assert.match(prompt, /Exclude photographic hands, fingers/);
+                assert.match(prompt, /REQUIRED TOGETHER: illustrated paper card packaging/);
+                assert.match(prompt, /never an empty box alone/);
+                assert.match(prompt, /No actual product names, authors, logos, copied commercial artwork/);
+                assert.match(prompt, /Exclude Buddhist temples/);
+                assert.ok(prompt.includes(variation.scene.packDesigns[variation.subject.id]));
+            } else if (variation.scene.shootingGroup !== 'oblique') {
                 assert.match(prompt, /exclude table edges,.*room, windows and walls/);
                 assert.doesNotMatch(prompt, /visible table edge|restrained window or wall context|40 to 60 degrees/);
             }

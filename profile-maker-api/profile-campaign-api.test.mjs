@@ -188,22 +188,23 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileAiMockMode, true);
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v3-material-only');
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v16-oblique-tables');
-    assert.equal(initialHealth.tarotIndependentShootingTypes.length, 4);
-    assert.equal(initialHealth.tarotActiveBaseSceneCount, 60);
+    assert.equal(initialHealth.tarotIndependentShootingTypes.length, 5);
+    assert.equal(initialHealth.tarotActiveBaseSceneCount, 114);
     assert.equal(initialHealth.tarotAccessoryCount, 21);
-    assert.equal(initialHealth.tarotDiversityPolicyVersion, 'tarot-diversity-v1-shots-cloth');
+    assert.equal(initialHealth.tarotDiversityPolicyVersion, 'tarot-diversity-v2-printed-packs');
     assert.equal(initialHealth.tarotClothColors.length, 10);
-    assert.deepEqual(initialHealth.tarotShootingGroupWeights, { oblique: 30, closeup: 30, overhead: 25, 'deck-detail': 15 });
+    assert.deepEqual(initialHealth.tarotShootingGroupWeights, { oblique: 25, closeup: 25, overhead: 20, 'deck-detail': 15, 'deck-pack': 15 });
+    assert.deepEqual(initialHealth.tarotPackCatalog, { layoutCount: 18, structureCount: 6, designCount: 42, compatibleDesignLayoutCount: 756, countBasis: 'compatible-design-layout-configurations-not-independent-photographs' });
     assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v9-expanded-editorial');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
         groupsPerImage: {
-            'tarot-ppt': '1693440000',
+            'tarot-ppt': '3072384000',
             'saju-ppt': '7077888000000',
             'sinjeom-ppt': '127401984000000'
         },
-        fixedTarotDeckGroupsPerImage: '120960000'
+        fixedTarotDeckGroupsPerImage: '219456000'
     });
     assert.deepEqual(initialHealth.profileCopyConfiguration, {
         categories: 3,
