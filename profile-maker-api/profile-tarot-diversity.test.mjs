@@ -11,12 +11,16 @@ test('2000 tarot consultants rotate physical layouts independently of covers and
     let history = [];
     let runtime = createOfflineVisualRuntime(() => history);
     const layouts = new Map();
-    const expectedSizes = { oblique: 3, closeup: 3, overhead: 3, 'deck-detail': 3, 'deck-pack': 18 };
+    const expectedSizes = { oblique: 5, closeup: 5, overhead: 7, 'deck-detail': 4, 'deck-pack': 21 };
     const recent = new Map();
     const groups = new Map();
     const designs = new Map();
     const structures = new Map();
     const colors = new Set();
+    const lightCounts = new Map();
+    const surfaceCounts = new Map();
+    const recentLightSurfaces = [];
+    let lightSurfaceRepeats = 0;
     for (let sample = 0; sample < 2000; sample += 1) {
         // Half use the same selected deck; the remainder vary the existing categories.
         const types = Object.keys(runtime.TAROT_CARD_TYPES);
@@ -55,6 +59,16 @@ test('2000 tarot consultants rotate physical layouts independently of covers and
                 structures.set(entry.packStructureId, (structures.get(entry.packStructureId) || 0) + 1);
             }
             colors.add(entry.clothColor);
+            if (entry.surfaceId) {
+                lightCounts.set(entry.lightingId, (lightCounts.get(entry.lightingId) || 0) + 1);
+                surfaceCounts.set(entry.surfaceId, (surfaceCounts.get(entry.surfaceId) || 0) + 1);
+                const combination = `${entry.lightingId}:${entry.surfaceId}`;
+                if (recentLightSurfaces.slice(0, 8).includes(combination)) lightSurfaceRepeats += 1;
+                recentLightSurfaces.unshift(combination);
+                const restored = runtime.getVisualPair(JSON.parse(JSON.stringify(payload)))[kind];
+                assert.equal(restored.realization.surface.id, entry.surfaceId);
+                assert.equal(restored.realization.lighting.id, entry.lightingId);
+            }
             entries.push(entry);
         }
         history.unshift(...entries);
@@ -71,6 +85,9 @@ test('2000 tarot consultants rotate physical layouts independently of covers and
     assert.equal(colors.size, 10);
     assert.equal(structures.size, 6);
     assert.equal(groups.get('deck-pack'), 600);
+    assert.equal(lightCounts.size, 6);
+    assert.equal(surfaceCounts.size, 6);
+    t.diagnostic(JSON.stringify({ editorialLightingUsage: Object.fromEntries(lightCounts), surfaceUsage: Object.fromEntries(surfaceCounts), recentEightLightSurfaceRepeats: lightSurfaceRepeats }));
     t.diagnostic(JSON.stringify({ groups: Object.fromEntries(groups), layoutUsage: spread, packDesignsUsed: designs.size,
         packStructures: Object.fromEntries(structures), prematureLayoutRepeats: 0, externalAiCalls: 0 }));
 });

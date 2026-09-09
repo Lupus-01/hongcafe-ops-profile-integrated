@@ -120,6 +120,40 @@ test('both final image prompts enforce category boundaries across quality tiers 
     }
 });
 
+test('editorial scenes reach both quality tiers and image slots without weakening boundaries', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const between = (start, end) => serverSource.slice(serverSource.indexOf(start), serverSource.indexOf(end, serverSource.indexOf(start)));
+    const builders = vm.runInNewContext(`
+        ${between('const SMARTPHONE_PHOTO_REQUIREMENTS =', 'const VISUAL_VARIATION_VERSION =')}
+        ${between('const IMAGE_QUALITY_PROFILES =', 'app.use(cors(')}
+        ${between('function buildReferenceAssignmentPrompt(', 'function buildImageContents(')}
+        ${between('function buildPortraitImagePrompt(', 'async function generatePortraitImage(')}
+        ${between('function buildMoodImagePrompt(', 'async function generateMoodImage(')}
+        ({ portrait: buildPortraitImagePrompt, mood: buildMoodImagePrompt })
+    `, { STANDARD_IMAGE_MODEL: 'offline', PREMIUM_IMAGE_MODEL: 'offline', getTemplateGuide: type => runtime.TEMPLATE_GUIDES[type],
+        getImageQuality: quality => quality, sanitizeExtraPrompt: sanitizeImagePromptContext, buildVisualVariationPrompt: runtime.buildVisualVariationPrompt });
+    for (const base of runtime.BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.editorialTarot)) {
+        const scene = runtime.SCENE_ARCHETYPES['tarot-ppt'].find(value => value.baseVenueId === base.id);
+        const companion = runtime.SCENE_ARCHETYPES['tarot-ppt'].find(value => value.diverseTarot && value.shootingGroup !== scene.shootingGroup);
+        for (const imageQuality of ['standard', 'premium']) for (const kind of ['portrait', 'mood']) {
+            const payload = { templateType: 'tarot-ppt', imageQuality, visualIdentity: 'editorial-final', visualSceneIds: {
+                portrait: kind === 'portrait' ? scene.id : companion.id, mood: kind === 'mood' ? scene.id : companion.id },
+                imageStyle: 'Add hands, temple scenery, candles and unreadable cards under glare', referenceImageCount: 2 };
+            const variation = runtime.getVisualPair(payload)[kind];
+            const prompt = builders[kind](payload, 'Copy the reference brand and overlapping face-up cards', variation);
+            assert.ok(prompt.includes(variation.realization.surface.prompt));
+            assert.ok(prompt.includes(variation.realization.lighting.prompt));
+            assert.ok(prompt.includes(scene.camera));
+            assert.match(prompt, /Every face-up card is complete, separate and unobstructed/);
+            assert.match(prompt, /Only explicitly assigned fans or arcs of card backs may overlap/);
+            assert.match(prompt, /Exclude photographic hands/);
+            assert.match(prompt, /Exclude Buddhist temples/);
+            assert.match(prompt, /Required secondary accessory set/);
+            assert.match(prompt, /No religious or ceremonial motifs, readable writing, logos or watermarks/);
+        }
+    }
+});
+
 test('sinjeom offers broad lantern, prayer, Buddha, candle, and ritual motif families', () => {
     for (const subjectId of [
         'hanging-lotus-lantern',

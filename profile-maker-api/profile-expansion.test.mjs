@@ -12,7 +12,7 @@ test('catalog retains legacy scenes and adds independent tarot subjects with com
     const runtime = createOfflineVisualRuntime(() => []);
     for (const category of ['tarot-ppt', 'saju-ppt', 'sinjeom-ppt']) {
         const bases = runtime.BASE_SCENE_ARCHETYPES[category];
-        const count = category === 'tarot-ppt' ? 324 : 120;
+        const count = category === 'tarot-ppt' ? 342 : 120;
         assert.equal(bases.length, count);
         assert.equal(new Set(bases.map(scene => scene.id)).size, count);
         assert.equal(new Set(bases.map(scene => scene.prompt + JSON.stringify(scene.packDesigns || {}))).size, count);

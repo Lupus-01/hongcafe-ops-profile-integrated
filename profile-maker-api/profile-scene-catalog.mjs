@@ -86,6 +86,7 @@ export function createAdditionalSceneArchetypes(createScene) {
     scenes['tarot-ppt'].push(...createObliqueTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createDiverseTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createPackTarotScenes(createScene));
+    scenes['tarot-ppt'].push(...createEditorialTarotScenes(createScene));
     return scenes;
 }
 
@@ -139,6 +140,37 @@ const PACK_LAYOUTS = [
     ['book-overhead', 'book', 'Open one book-style case flat with its decorated inner cover on the left, deck cavity on the right and three complete face-up cards below.', 'overhead', '45mm true vertical overhead'],
     ['horizontal-pair', 'sleeve', 'Place a closed illustrated sleeve pack beside its matching squared active deck, with two complete face-up cards in a separate front row.', 'low-oblique', '60mm at 20 degrees above the table']
 ];
+
+function createEditorialTarotScenes(createScene) {
+    const layouts = [
+        ['overhead', 'fan-three-row', 'A broad fan of matching card backs across the top, with three separate complete face-up cards in one row below.', 'overhead', 'medium', '50mm vertical 90-degree overhead'],
+        ['overhead', 'fan-six-grid', 'A broad upper fan of matching card backs, with six separate complete face-up cards in a two by three grid below.', 'overhead', 'medium', '45mm vertical 90-degree overhead'],
+        ['overhead', 'split-fans-center', 'Two separated fans of matching card backs at left and right, framing three separate complete face-up cards in a vertical central lane.', 'overhead', 'medium', '45mm vertical 90-degree overhead'],
+        ['overhead', 'open-ring-center', 'Matching card backs form an open circular arc with a clear gap at the bottom, around two separate complete face-up cards in the center.', 'overhead', 'medium', '45mm vertical 90-degree overhead'],
+        ['oblique', 's-curve-selection', 'Two connected arcs of matching card backs form a gentle S-shaped ribbon; three separate complete face-up cards sit in a clear zone beside the ribbon.', 'high-oblique', 'medium-environment', '45mm high three-quarter view at 45 degrees above the table'],
+        ['oblique', 'side-fan-reading', 'One broad fan of matching card backs occupies the left half of the working surface, with four separate complete face-up cards in a reading grid on the right.', 'high-oblique', 'medium-environment', '40mm high three-quarter view at 50 degrees above the table'],
+        ['closeup', 'rear-fan-front-two', 'A compact fan of matching card backs rests behind two separate complete face-up cards in the foreground; keep the full fan and both cards inside the crop.', 'low-oblique', 'close', '65mm close view at 30 degrees above the surface'],
+        ['closeup', 'offset-three-space', 'Three separate complete face-up cards form an offset L-shaped arrangement on the right, leaving a broad quiet cloth area on the left for the assigned small accessory.', 'low-oblique', 'close', '65mm close view at 35 degrees above the surface'],
+        ['deck-detail', 'split-deck-edges', 'Split the same deck into two short squared stacks at right angles, one showing its printed back and the other its top face; a separate complete face-up card lies beside them. Show realistic paper layers.', 'surface-level', 'tight-detail', '75mm detail view at 20 degrees above the surface'],
+        ['deck-pack', 'pack-long-front-fan', 'Stand one illustrated closed paper tuck pack at the rear right, with a long shallow fan of matching card backs extending diagonally across the foreground and two separate complete face-up cards at the left.', 'high-oblique', 'desk-detail', '50mm high three-quarter view at 40 degrees above the table', 'tuck'],
+        ['deck-pack', 'open-pack-split-reading', 'Center one open paper lift-off box containing its matching deck, place its illustrated lid behind it, and arrange two separate complete face-up cards on each side in two distinct reading areas.', 'high-oblique', 'desk-detail', '45mm high three-quarter view at 50 degrees above the table', 'lift'],
+        ['deck-pack', 'rear-packs-front-reading', 'Place three illustrated closed compact paper packs from the same selected deck family in a short rear row; arrange six separate complete face-up cards in a two by three foreground reading grid. This is a working desk, not a bookshelf view.', 'high-oblique', 'desk-detail', '40mm high three-quarter view at 45 degrees above the table', 'compact']
+    ];
+    return layouts.flatMap(([group, layout, arrangement, cameraHeight, distance, camera, structure]) =>
+        (structure ? [1, 2, 3] : [0]).map(variant => createScene(
+            `tarot-editorial-${layout}${variant ? `-art-${variant}` : ''}`, `editorial-${layout}`,
+            `Photograph a thoughtfully arranged real tarot consultation desk. ${arrangement} All cards belong to the selected deck family, with coherent dimensions, borders, backs and original printed illustrations. ${structure ? `REQUIRED TOGETHER: illustrated paper card packaging, its matching real deck, complete face-up cards, reading cloth and the assigned small accessory set. Package structure: ${PACK_STRUCTURES[structure]}. All boxes use printed paperboard, never wood, bare storage bins or metal tins. Never an empty organizer or a package-only product shot.` : 'Keep the actual reading arrangement as the main subject.'} The assigned reading cloth lies flat beneath every card; any folds stay in the empty outer margin. Cards and any assigned packs span 65 to 80 percent of the frame width. ${['oblique', 'deck-pack'].includes(group) ? 'Show a small near desk edge and only a restrained plain wall or curtain beyond it.' : 'Only cloth surrounds the assigned objects; exclude table edges, horizon, room, windows and walls.'} Every face-up card is complete, separate and unobstructed. Only explicitly assigned fans or arcs of card backs may overlap, with orderly visible individual edges; no fused or floating cards. Keep the assigned small accessory set in the cloth margin without covering cards. Follow the assigned light and surface treatment; printed scenery never becomes a real backdrop. No people, hands, extra props, readable text, logos, copied commercial designs, religious setting or ritual objects.`,
+            `${camera}; zero roll, natural perspective, clear card faces and complete required objects`, true,
+            { diverseTarot: true, editorialTarot: true, tabletopAccessories: true,
+                shootingGroup: group, shootType: group, cardLayout: layout, cameraHeight, distance,
+                support: 'reading-desk', tableShape: ['oblique', 'deck-pack'].includes(group) ? 'desk-edge' : 'outside-crop',
+                background: ['oblique', 'deck-pack'].includes(group) ? 'plain-wall-or-curtain' : 'cloth-only',
+                shotMode: ['closeup', 'deck-detail'].includes(group) ? 'close-detail' : 'environmental',
+                simpleSurfaceOnly: ['closeup', 'deck-detail'].includes(group),
+                ...(structure ? { packLayoutId: layout, packStructureId: structure, packArtVariant: variant,
+                    packDesigns: Object.fromEntries(Object.entries(PACK_ART).map(([id, designs]) => [id, designs[variant - 1]])) } : {}) }
+        )));
+}
 
 function createPackTarotScenes(createScene) {
     return PACK_LAYOUTS.flatMap(([layout, structure, arrangement, cameraHeight, camera]) =>

@@ -1985,6 +1985,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             physicalPlaceId: portraitVariation.realization.environmentLocation.id,
             placementId: portraitVariation.realization.placement.id,
             lightingId: portraitVariation.realization.lighting.id,
+            surfaceId: portraitVariation.realization.surface?.id || '',
+            editorialPolicy: portraitVariation.realization.editorialPolicy || '',
             focusId: portraitVariation.realization.focus.id,
             depthId: portraitVariation.realization.depth.id,
             subjectId: portraitVariation.subject.id,
@@ -2027,6 +2029,8 @@ function buildProfileImageGuide(payload, portraitContext = '', moodContext = '')
             physicalPlaceId: moodVariation.realization.environmentLocation.id,
             placementId: moodVariation.realization.placement.id,
             lightingId: moodVariation.realization.lighting.id,
+            surfaceId: moodVariation.realization.surface?.id || '',
+            editorialPolicy: moodVariation.realization.editorialPolicy || '',
             focusId: moodVariation.realization.focus.id,
             depthId: moodVariation.realization.depth.id,
             subjectId: moodVariation.subject.id,
@@ -2275,6 +2279,8 @@ function toVisualHistoryEntry(kind, variation) {
         physicalPlaceId: variation.realization.environmentLocation.id,
         placementId: variation.realization.placement.id,
         lightingId: variation.realization.lighting.id,
+        surfaceId: variation.realization.surface?.id || '',
+        editorialPolicy: variation.realization.editorialPolicy || '',
         focusId: variation.realization.focus.id,
         depthId: variation.realization.depth.id
     };
@@ -2309,6 +2315,7 @@ const VISUAL_HISTORY_WEIGHTS = {
         toneId: 160,
         paletteId: 180,
         lightingId: 120,
+        surfaceId: 1200,
         focusId: 40,
         depthId: 40,
         subjectId: 20
@@ -2349,6 +2356,7 @@ const getVisualUsageTotals = createIncrementalIndex(
 function createVisualUsageIndex(previousVisuals) {
     return {
         ...getVisualUsageTotals(previousVisuals),
+        recentLightSurfaces: new Set(previousVisuals.filter(entry => entry.surfaceId).slice(0, 8).map(entry => `${entry.lightingId}:${entry.surfaceId}`)),
         recentPackCombinations: new Set(previousVisuals.filter(entry => entry.packLayoutId && entry.packDesignId).slice(0, 6).map(entry => `${entry.packLayoutId}:${entry.packDesignId}`)),
         recentVisibleCombinations: new Set(previousVisuals.slice(0, 12).filter(entry => entry.shootingGroup && entry.clothColor).map(entry => `${entry.shootingGroup}:${entry.clothColor}:${entry.background}`)),
         recentAccessoryFamilies: new Set(previousVisuals.slice(0, 4).map(entry => entry.accessoryFamily).filter(Boolean)),
@@ -2415,8 +2423,8 @@ function assignNovelVisualVariant(payload) {
         }).sort((a, b) => a.cost - b.cost);
         const selectedGroups = new Set(groups.slice(0, 2).map(entry => entry.group));
         candidateScenes = candidateScenes.filter(scene => selectedGroups.has(scene.shootingGroup));
-        // Choose physical layouts BEFORE sampling cover/color variants. With 18
-        // pack layouts, the 19th pack necessarily reuses one: choose the oldest.
+        // Choose physical layouts BEFORE sampling cover/color variants. Once
+        // every available layout is used, reuse the oldest compatible layout.
         // This same rotation applies to each of the other four shooting groups.
         candidateScenes = [...selectedGroups].flatMap(group => {
             const scenes = candidateScenes.filter(scene => scene.shootingGroup === group);
@@ -2453,6 +2461,12 @@ function assignNovelVisualVariant(payload) {
             ? accessories.reduce((sum, subject) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
                 total + (usageIndex.frequencies.accessoryId.get(kind + ':' + subject.id) || 0), 0), 0) : 0;
         const visibleEntries = [pair.portrait, pair.mood];
+        const editorialEntries = visibleEntries.filter(entry => entry.realization.surface);
+        const recentLightSurfaceCount = editorialEntries.filter(entry => usageIndex.recentLightSurfaces.has(
+            `${entry.realization.lighting.id}:${entry.realization.surface.id}`)).length;
+        const lightSurfaceUsage = editorialEntries.reduce((sum, entry) => sum + ['portrait', 'mood', '*'].reduce((total, kind) => total
+            + (usageIndex.frequencies.lightingId.get(`${kind}:${entry.realization.lighting.id}`) || 0)
+            + (usageIndex.frequencies.surfaceId.get(`${kind}:${entry.realization.surface.id}`) || 0), 0), 0);
         const recentPackCount = visibleEntries.filter(entry => entry.scene.packLayoutId && usageIndex.recentPackCombinations.has(
             `${entry.scene.packLayoutId}:${entry.subject.id}-art-${entry.scene.packArtVariant}`)).length;
         const recentVisibleCount = visibleEntries.filter(entry => usageIndex.recentVisibleCombinations.has(
@@ -2460,7 +2474,7 @@ function assignNovelVisualVariant(payload) {
         const clothCount = visibleEntries.reduce((sum, entry) => sum + ['portrait', 'mood', '*'].reduce((total, kind) =>
             total + (usageIndex.frequencies.clothColor.get(`${kind}:${entry.clothColor}`) || 0), 0), 0);
         const rank = payload.templateType === 'tarot-ppt'
-            ? [Number(reused), recentPackCount, recentVisibleCount, clothCount, recentAccessoryCount, accessoryCount, reuseScore]
+            ? [Number(reused), recentPackCount, recentLightSurfaceCount, recentVisibleCount, clothCount, lightSurfaceUsage, recentAccessoryCount, accessoryCount, reuseScore]
             : [Number(reused), recentStructureCount, recentAccessoryCount, accessoryCount, structureCount, Number(!differentDirection), macroScore, reuseScore];
         candidateCount += 1;
         if (!best || rank.some((value, index) => value < best.rank[index] && rank.slice(0, index).every((prior, i) => prior === best.rank[i]))) {
@@ -2899,6 +2913,13 @@ app.get('/api/health', (req, res) => {
         tarotIndependentShootingTypes: [...new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.diverseTarot).map(scene => scene.shootType).filter(Boolean))],
         tarotActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.diverseTarot).length,
         tarotAccessoryCount: TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role === 'support').length,
+        tarotEditorialCatalog: {
+            policy: 'tarot-editorial-v1-layout-light-surface',
+            layoutCount: new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.editorialTarot).map(scene => scene.cardLayout)).size,
+            baseSceneCount: BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.editorialTarot).length,
+            lightingDirections: 6, surfaceTreatments: 6,
+            countBasis: 'layouts-separate-from-compatible-light-and-surface-variants'
+        },
         tarotPackCatalog: {
             layoutCount: new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.packLayoutId).map(scene => scene.packLayoutId)).size,
             structureCount: new Set(BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.packStructureId).map(scene => scene.packStructureId)).size,

@@ -129,6 +129,8 @@ function normalizeVisual(kind, guide = {}) {
         physicalPlaceId: String(guide.physicalPlaceId || ''),
         placementId: String(guide.placementId || ''),
         lightingId: String(guide.lightingId || ''),
+        surfaceId: String(guide.surfaceId || ''),
+        editorialPolicy: String(guide.editorialPolicy || ''),
         focusId: String(guide.focusId || ''),
         depthId: String(guide.depthId || ''),
         promptHash: guide.prompt ? hash(guide.prompt) : String(guide.promptHash || '')

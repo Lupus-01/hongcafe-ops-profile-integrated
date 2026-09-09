@@ -7,6 +7,7 @@ import { createOfflineVisualRuntime } from './profile-diversity-runtime.mjs';
 import {
     buildVisualRealizationPrompt,
     calculateStructuredImageGroupCount,
+    countIndependentRealizations,
     getVisualRealizationPair,
     PROFILE_VISUAL_VARIATION_VERSION,
     VISUAL_REALIZATION_COUNT_PER_BASE
@@ -56,7 +57,7 @@ test('new tarot assignments balance shooting groups and cloth colors with distin
         assert.ok(Math.abs(counts.get(group) - target) <= 2, JSON.stringify([...counts]));
     }
     assert.equal(accessories.size, 21);
-    assert.equal(packLayouts.size, 18);
+    assert.equal(packLayouts.size, 21);
     assert.equal(packDesigns.size, 3);
     assert.equal(colors.size, 10);
     assert.ok(Math.max(...colors.values()) - Math.min(...colors.values()) <= 8, JSON.stringify([...colors]));
@@ -64,11 +65,11 @@ test('new tarot assignments balance shooting groups and cloth colors with distin
     t.diagnostic(JSON.stringify({ groups: Object.fromEntries(counts), colors: Object.fromEntries(colors), recentRepeats, packLayouts: packLayouts.size, packDesigns: packDesigns.size }));
 });
 
-test('all 756 package design-layout choices preserve deck identity and a furnished reading desk', () => {
+test('all 882 package design-layout choices preserve deck identity and a furnished reading desk', () => {
     const runtime = createOfflineVisualRuntime(() => []);
     const bases = runtime.BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.packLayoutId);
-    assert.equal(bases.length, 54);
-    assert.equal(new Set(bases.map(scene => scene.packLayoutId)).size, 18);
+    assert.equal(bases.length, 63);
+    assert.equal(new Set(bases.map(scene => scene.packLayoutId)).size, 21);
     assert.equal(new Set(bases.map(scene => scene.packStructureId)).size, 6);
     const subjects = runtime.TEMPLATE_GUIDES['tarot-ppt'].visualSubjects.filter(subject => subject.role !== 'support');
     const companion = runtime.SCENE_ARCHETYPES['tarot-ppt'].find(scene => scene.shootingGroup === 'overhead');
@@ -95,7 +96,41 @@ test('all 756 package design-layout choices preserve deck identity and a furnish
         }
     }
     assert.equal(designs.size, 42);
-    assert.equal(checked, 756);
+    assert.equal(checked, 882);
+});
+
+test('editorial lights and cloth combinations obey scene compatibility and restore deterministically', () => {
+    const runtime = createOfflineVisualRuntime(() => []);
+    const scenes = runtime.BASE_SCENE_ARCHETYPES['tarot-ppt'].filter(scene => scene.editorialTarot);
+    assert.equal(scenes.length, 18);
+    assert.equal(new Set(scenes.map(scene => scene.cardLayout)).size, 12);
+    for (const scene of scenes) {
+        const combinations = new Set();
+        for (let sample = 0; sample < 512; sample += 1) {
+            const input = { templateType: 'tarot-ppt', stableIdentity: 'editorial-check', nonce: String(sample), portraitScene: scene, moodScene: scene };
+            const pair = getVisualRealizationPair(input);
+            assert.deepEqual(getVisualRealizationPair(JSON.parse(JSON.stringify(input))), pair);
+            for (const realization of Object.values(pair)) {
+                const { surface, lighting } = realization;
+                assert.ok(surface);
+                if (scene.simpleSurfaceOnly) assert.equal(surface.patterned, false);
+                if (surface.id === 'tarot-surface-satin') assert.ok(!['tarot-light-window-band', 'tarot-light-paper-raking'].includes(lighting.id));
+                const prompt = buildVisualRealizationPrompt(realization);
+                assert.ok(prompt.includes(surface.prompt));
+                assert.ok(prompt.includes(lighting.prompt));
+                assert.match(prompt, /Preserve the PRIMARY CLOTH COLOR/);
+                combinations.add(`${surface.id}:${lighting.id}`);
+            }
+        }
+        assert.equal(combinations.size, scene.simpleSurfaceOnly ? 16 : 34);
+        assert.equal(countIndependentRealizations(scene), combinations.size * 10);
+    }
+    for (const templateType of ['tarot-ppt', 'saju-ppt', 'sinjeom-ppt']) {
+        const scene = runtime.BASE_SCENE_ARCHETYPES[templateType].find(value => !value.editorialTarot);
+        const result = getVisualRealizationPair({ templateType, stableIdentity: 'legacy', nonce: 'kept', portraitScene: scene }).portrait;
+        assert.equal(result.surface, undefined);
+        assert.match(result.lighting.id, /^light-\d+$/);
+    }
 });
 
 test('oblique prompts preserve identifiable card faces and assigned accessories despite reference layouts', () => {

@@ -54,6 +54,35 @@ const TONE_OPTIONS = createOptions('tone', [
     'Use calm editorial neutrals while keeping the result recognizably photographic and practical.'
 ]);
 
+// Only additive editorial scene IDs opt in. Existing scenes retain the original
+// light IDs and digest mapping, including saju/sinjeom and persisted tarot jobs.
+const TAROT_EDITORIAL_LIGHTS = [
+    ['window-band', 'directional', 'Use diagonal window daylight with a soft-edged shadow band ONLY across empty cloth margins. Keep every card illustration evenly readable; do not add a visible window, obscure card faces or create theatrical contrast.'],
+    ['diffused-bright', 'bright', 'Use broad bright diffused light with soft short contact shadows, clear paper texture and natural pastel color. Keep whites below clipping and preserve the assigned cloth color.'],
+    ['warm-indirect', 'warm', 'Use warm indirect indoor room light for an evening consultation mood. Keep white cards neutral enough to read, preserve ink colors, and use no orange filter, visible lamp or candles.'],
+    ['neutral-warm-fill', 'balanced', 'Use neutral broad light on the cards with a faint warm reflected fill at the outer desk margin. Keep one coherent shadow direction, no colored spotlights or additional light fixtures.'],
+    ['paper-raking', 'directional', 'Use low broad side light to reveal squared deck paper layers and printed box seams, with soft reflected fill keeping every card face readable. Suppress surface glare and deep black shadows.'],
+    ['soft-pool', 'subdued', 'Use a wide soft pool of light over the entire reading arrangement with gently deeper but readable cloth margins. Preserve the assigned cloth color and detail; no vignette filter, spotlight beam or crushed blacks.']
+].map(([id, exposureId, prompt]) => ({ id: `tarot-light-${id}`, exposureId, prompt }));
+
+const TAROT_EDITORIAL_SURFACES = [
+    ['linen', false, 'Matte plain linen with a fine believable weave.'],
+    ['velvet', false, 'Short-pile plain velvet with readable fiber direction and restrained soft depth, never crushed black.'],
+    ['satin', false, 'Plain low-sheen satin with broad gentle highlights, no mirror glare or bright specular streaks.'],
+    ['small-check', true, 'A small low-contrast woven check using the assigned primary cloth color and a quieter neutral.'],
+    ['botanical-print', true, 'Sparse low-contrast original leaf and flower linework, subordinate to the card illustrations.'],
+    ['star-lines', true, 'Sparse fine star dots and connecting printed lines, no letters, ritual diagrams or luminous symbols.']
+].map(([id, patterned, prompt]) => ({ id: `tarot-surface-${id}`, patterned, prompt }));
+
+function editorialSurfaceOptions(scene) {
+    return TAROT_EDITORIAL_SURFACES.filter(surface => !scene.simpleSurfaceOnly || !surface.patterned);
+}
+
+function editorialLightOptions(surface) {
+    return TAROT_EDITORIAL_LIGHTS.filter(light => surface.id !== 'tarot-surface-satin'
+        || !['tarot-light-window-band', 'tarot-light-paper-raking'].includes(light.id));
+}
+
 const MATERIAL_OPTIONS = createOptions('material', [
     'Emphasize believable paper fibers, matte ink, and clean folded edges.',
     'Emphasize natural wood grain and physically correct contact between every object and support.',
@@ -255,6 +284,11 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
         focus: pickOption(FOCUS_OPTIONS, digest, 20, excluded?.focus?.id),
         depth: pickOption(DEPTH_OPTIONS, digest, 24, excluded?.depth?.id)
     };
+    if (templateType === 'tarot-ppt' && scene?.editorialTarot) {
+        selected.surface = pickOption(editorialSurfaceOptions(scene), digest, 16, excluded?.surface?.id);
+        selected.lighting = pickOption(editorialLightOptions(selected.surface), digest, 8, excluded?.lighting?.id);
+        selected.editorialPolicy = 'tarot-editorial-v1-layout-light-surface';
+    }
     selected.id = [
         templateType,
         selected.photographicDirection.id,
@@ -272,6 +306,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
             scene.shootType === 'card-shadow' ? 'scene-side-light' : selected.lighting.id,
             selected.tone.id].join(':');
     }
+    if (selected.surface) selected.id += `:${selected.editorialPolicy}:${selected.surface.id}`;
     return selected;
 }
 
@@ -291,6 +326,7 @@ export function buildVisualRealizationPrompt(realization) {
                 ? 'Lighting: follow the assigned directional side light and physically plausible cast shadow exactly.'
                 : `Lighting realization: ${realization.lighting.prompt}`,
             `Secondary tonal treatment: ${realization.tone.prompt} Keep the scene's explicit surface and background colors.`,
+            ...(realization.surface ? [`REQUIRED CLOTH SURFACE (${realization.surface.id}): ${realization.surface.prompt} Preserve the PRIMARY CLOTH COLOR. Surface pattern is printed or woven, never an extra object. No religious or ceremonial motifs, readable writing, logos or watermarks. Keep cards on a flat area and confine folds to the empty margin. The assigned lighting and surface take priority over secondary tone and reference styling.`] : []),
             'Show believable print, paper edges and contact shadows only on materials already present in the assigned scene.',
             ...(realization.packLayoutId ? ['Keep the illustrated paper packages, matching real cards and required accessories together on the decorated working reading desk. Preserve the assigned opening mechanism and camera; no wooden storage replacement, empty organizer or isolated package on a blank studio backdrop.'] : []),
             realization.diverseTarot
@@ -337,6 +373,8 @@ export const VISUAL_REALIZATION_COUNT_PER_BASE = (
 );
 
 export function countIndependentRealizations(scene) {
+    if (scene.editorialTarot) return TONE_OPTIONS.length * editorialSurfaceOptions(scene)
+        .reduce((sum, surface) => sum + editorialLightOptions(surface).length, 0);
     return TONE_OPTIONS.length * (scene.shootType === 'card-shadow' ? 1 : LIGHTING_OPTIONS.length);
 }
 

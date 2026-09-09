@@ -189,22 +189,23 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.referenceInfluenceVersion, 'profile-reference-v3-material-only');
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v16-oblique-tables');
     assert.equal(initialHealth.tarotIndependentShootingTypes.length, 5);
-    assert.equal(initialHealth.tarotActiveBaseSceneCount, 114);
+    assert.equal(initialHealth.tarotActiveBaseSceneCount, 132);
     assert.equal(initialHealth.tarotAccessoryCount, 21);
     assert.equal(initialHealth.tarotDiversityPolicyVersion, 'tarot-diversity-v2-printed-packs');
     assert.equal(initialHealth.tarotClothColors.length, 10);
     assert.deepEqual(initialHealth.tarotShootingGroupWeights, { oblique: 25, closeup: 25, overhead: 20, 'deck-detail': 15, 'deck-pack': 15 });
-    assert.deepEqual(initialHealth.tarotPackCatalog, { layoutCount: 18, structureCount: 6, designCount: 42, compatibleDesignLayoutCount: 756, countBasis: 'compatible-design-layout-configurations-not-independent-photographs' });
+    assert.deepEqual(initialHealth.tarotPackCatalog, { layoutCount: 21, structureCount: 6, designCount: 42, compatibleDesignLayoutCount: 882, countBasis: 'compatible-design-layout-configurations-not-independent-photographs' });
+    assert.deepEqual(initialHealth.tarotEditorialCatalog, { policy: 'tarot-editorial-v1-layout-light-surface', layoutCount: 12, baseSceneCount: 18, lightingDirections: 6, surfaceTreatments: 6, countBasis: 'layouts-separate-from-compatible-light-and-surface-variants' });
     assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v9-expanded-editorial');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
         countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
         groupsPerImage: {
-            'tarot-ppt': '3072384000',
+            'tarot-ppt': '4316256000',
             'saju-ppt': '7077888000000',
             'sinjeom-ppt': '127401984000000'
         },
-        fixedTarotDeckGroupsPerImage: '219456000'
+        fixedTarotDeckGroupsPerImage: '308304000'
     });
     assert.deepEqual(initialHealth.profileCopyConfiguration, {
         categories: 3,
