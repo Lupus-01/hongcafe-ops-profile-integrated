@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
         status.dataset.state = state;
     };
     const updatePreset = () => {
-        byId('pb-resize-canvas').setAttribute('aria-pressed', String(Number(title.value) === 66 && Number(body.value) === 35));
         byId('pb-resize-site').setAttribute('aria-pressed', String(Number(title.value) === 42 && Number(body.value) === 20));
     };
     const invalidate = () => {
@@ -44,9 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
         invalidate();
         if (input === source) byId('pb-resize-file-name').textContent = '원본 코드 직접 입력 중';
     });
-    for (const [id, sizes] of [['pb-resize-site', [42, 20]], ['pb-resize-canvas', [66, 35]]]) {
-        byId(id).addEventListener('click', () => { [title.value, body.value] = sizes; invalidate(); });
-    }
+    byId('pb-resize-site').addEventListener('click', () => {
+        title.value = 42;
+        body.value = 20;
+        invalidate();
+    });
     byId('pb-resize-file').addEventListener('change', async (event) => {
         const sequence = ++fileSequence;
         invalidate();

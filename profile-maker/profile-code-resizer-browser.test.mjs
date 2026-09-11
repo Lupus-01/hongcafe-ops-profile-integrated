@@ -52,8 +52,9 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-canvas').dataset.preservationSentinel = 'keep';
             get('pb-resizer-tab').click();
             assert(get('pb-app').hidden && !get('pb-resizer').hidden, 'resize tab');
-            assert(get('pb-resize-title').value === '66' && get('pb-resize-body').value === '35', 'automation defaults');
-            assert(get('pb-resize-canvas').getAttribute('aria-pressed') === 'true', 'automation selected');
+            assert(get('pb-resize-title').value === '42' && get('pb-resize-body').value === '20', 'site defaults');
+            assert(get('pb-resize-site').getAttribute('aria-pressed') === 'true', 'site default selected');
+            assert(!get('pb-resize-canvas') && !/66|35/.test(get('pb-resizer').textContent), 'image size preset removed');
             assert(getComputedStyle(get('pb-resize-title')).fontFamily.includes('Pretendard'), 'UI font inherits production font');
             const sidebar = document.querySelector('.pb-resize-sidebar').getBoundingClientRect();
             const workspace = document.querySelector('.pb-resize-workspace').getBoundingClientRect();
@@ -62,7 +63,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             assert(document.documentElement.scrollWidth <= innerWidth, 'no horizontal overflow');
             get('pb-resize-source').value = original;
             get('pb-resize-apply').click();
-            assert(get('pb-resize-output').value === ProfileCodeResizer.resize(original, 66, 35).code, 'default conversion');
+            assert(get('pb-resize-output').value === result.code, 'default conversion uses 42/20');
             assert(get('pb-resize-status').dataset.state === 'success', 'success feedback');
             get('pb-resize-site').click();
             assert(get('pb-resize-copy').disabled && get('pb-resize-site').getAttribute('aria-pressed') === 'true', 'preset invalidates previous output');
@@ -76,7 +77,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             assert(get('pb-resize-source').value === original, 'input preserved across tabs');
             get('pb-resize-title').value = 50;
             get('pb-resize-title').dispatchEvent(new Event('input'));
-            assert(get('pb-resize-canvas').getAttribute('aria-pressed') === 'false' && get('pb-resize-site').getAttribute('aria-pressed') === 'false', 'custom size deselects presets');
+            assert(get('pb-resize-site').getAttribute('aria-pressed') === 'false', 'custom size deselects preset');
             assert(!get('pb-resize-output').value && get('pb-resize-copy').disabled && get('pb-resize-save').disabled, 'stale output cleared');
             get('pb-resize-title').value = 42;
             let finishRead;
@@ -99,7 +100,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             assert(download === 'profile-font-size-adjusted.txt' && savedBlob.type === 'text/plain;charset=utf-8', 'download metadata');
             assert(await savedBlob.text() === result.code, 'download contains exact verified result');
             get('pb-resizer-tab').click();
-            get('pb-resize-canvas').click();
+            get('pb-resize-site').click();
             get('pb-resize-apply').click();
             const resultLabel = document.createElement('p');
             resultLabel.id = 'test-result';
