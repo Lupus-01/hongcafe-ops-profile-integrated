@@ -71,16 +71,25 @@
 
     function declarations(value) {
         // 불명확한 CSS는 추측해서 고치지 않는다. 문자열/함수 내부의 세미콜론은 보존한다.
-        if (/[&\\]/.test(value) || /\/\*/.test(value)) fail('교정 대상에 복잡한 CSS 인코딩 또는 주석이 있어 변환을 중단했습니다.');
-        let quote = '', depth = 0, start = 0;
+        if (/\\/.test(value) || /\/\*/.test(value)) fail('교정 대상에 복잡한 CSS 인코딩 또는 주석이 있어 변환을 중단했습니다.');
+        let quote = '', depth = 0, start = 0, lastSeparator = -1;
         const ranges = [];
         for (let index = 0; index <= value.length; index += 1) {
-            const character = value[index];
+            let character = value[index];
+            let entityLength = 0;
+            if (character === '&') {
+                // HTML 속성의 따옴표 엔티티만 해석한다. 원문 인덱스와 표기는 유지한다.
+                const entity = /^(?:&quot;|&QUOT;|&apos;|&#0*(?:34|39);|&#[xX]0*(?:22|27);)/.exec(value.slice(index));
+                if (!entity) fail('교정 대상에 복잡한 CSS 인코딩 또는 주석이 있어 변환을 중단했습니다.');
+                character = /^(?:&apos;|&#0*39;|&#[xX]0*27;)$/.test(entity[0]) ? "'" : '"';
+                entityLength = entity[0].length;
+            }
             if (quote) { if (character === quote) quote = ''; }
             else if (character === '"' || character === "'") quote = character;
             else if (character === '(') depth += 1;
             else if (character === ')') depth -= 1;
             else if ((character === ';' && depth === 0) || index === value.length) {
+                if (character === ';') lastSeparator = index;
                 const text = value.slice(start, index);
                 if (text.trim()) {
                     const match = /^(\s*)([a-z-]+)(\s*:\s*)([\s\S]*?)(\s*)$/i.exec(text);
@@ -90,9 +99,10 @@
                 start = index + 1;
             }
             if (depth < 0) fail('CSS 괄호가 올바르지 않습니다.');
+            if (entityLength) index += entityLength - 1;
         }
         if (quote || depth) fail('CSS 문자열 또는 괄호가 닫히지 않았습니다.');
-        return ranges;
+        return { entries: ranges, endsWithSeparator: lastSeparator >= 0 && !value.slice(lastSeparator + 1).trim() };
     }
 
     function classify(node) {
@@ -127,7 +137,7 @@
                 continue;
             }
             if (!style.quoted) fail('따옴표 없는 style 속성은 지원하지 않습니다.');
-            const entries = declarations(style.value);
+            const { entries, endsWithSeparator } = declarations(style.value);
             const sizes = entries.filter((entry) => entry.property === 'font-size');
             for (const entry of sizes) {
                 const before = style.value.slice(entry.start, entry.end);
@@ -139,7 +149,7 @@
             const lastSize = entries.findLastIndex((entry) => entry.property === 'font-size');
             const lastFont = entries.findLastIndex((entry) => entry.property === 'font' || entry.property === 'all');
             if (!sizes.length || lastFont > lastSize) {
-                const separator = style.value.trimEnd().endsWith(';') || !style.value.trim() ? '' : ';';
+                const separator = endsWithSeparator || !style.value.trim() ? '' : ';';
                 patches.push({ start: style.end, end: style.end, before: '', after: `${separator}font-size: ${size} !important;`, node: node.start, type: 'declaration' });
             }
         }

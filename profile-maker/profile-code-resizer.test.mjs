@@ -50,6 +50,24 @@ test('nested emphasis changes size while labels, marker descendants and images r
     assert.ok(output.includes('<span class="pb-presentation-chip"><b style="font-size:11px">라벨</b></span><img src="x" style="font-size:10px">'));
 });
 
+test('exported font-family quote entities preserve raw offsets and all non-size source text', () => {
+    for (const quote of ['&quot;', '&QUOT;', '&apos;', '&#34;', '&#0034;', '&#39;', '&#x22;', '&#X0027;']) {
+        const style = `font-family:Pretendard,${quote}Apple SD Gothic Neo${quote},sans-serif;`;
+        const source = `\ufeff<h2 class="pb-presentation-title" style="${style}font-size:66px !important;color:red">제목 &amp; 원문</h2>\r\n<p class="pb-presentation-body" style="${style}font-size:35px;line-height:1.65">본문  내용</p>`;
+        const expected = source.replace('font-size:66px', 'font-size:42px').replace('font-size:35px', 'font-size:20px !important');
+        assert.equal(resize(source, 42, 20).code, expected);
+        assert.equal(resize(expected, 42, 20).changes, 0);
+    }
+});
+
+test('entity-quoted CSS strings cannot expose fake size declarations', () => {
+    const source = '<h2 class="pb-presentation-title" style="font-family:&quot;name;font-size:99px&quot;;font-size:66px">제목</h2><p class="pb-presentation-body" style="font-family:&#39;other;font-size:88px&#39;">본문</p>';
+    assert.equal(resize(source, 42, 20).code, source.replace('font-size:66px', 'font-size:42px !important').replace('88px&#39;', '88px&#39;;font-size: 20px !important;'));
+    for (const style of ['font-family:&quot;unclosed;font-size:66px', 'font-&#115;ize:66px', 'font-family:&amp;quot;name&amp;quot;', 'font-family:&quot name', 'font-family:&quot;name&#39;', 'font-size:66px;/* comment */color:red']) {
+        assert.throws(() => resize(`<h2 class="pb-presentation-title" style="${style}">제목</h2><p class="pb-presentation-body">본문</p>`, 42, 20));
+    }
+});
+
 test('rejects ambiguous HTML, unsupported input and invalid sizes without producing code', () => {
     for (const source of ['', '<h2>일반 제목</h2><p>일반 본문</p>', '<h2 class="pb-presentation-title">제목<p class="pb-presentation-body">본문</p>', fixture() + '<script>alert(1)</script>', fixture().replace('font-size:66px', 'font-&#115;ize:66px'), fixture().replace("class='pb-presentation-title'", "class='pb-presentation-title' class='other'"), fixture().replace('alt="사진 > 설명"', 'onerror="alert(1)"'), fixture().replace('font-size:35px', '/* comment */font-size:35px')]) {
         assert.throws(() => resize(source, 42, 20));

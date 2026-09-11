@@ -24,10 +24,15 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             for (let i = 0; i < 300; i += 1) { if (predicate()) return; await new Promise((resolve) => setTimeout(resolve, 1)); }
             throw new Error('browser operation timed out');
         };
-        const original = '<div class="pb-presentation" style="background:rgb(247,246,251);padding:13px;border:1px solid red;width:600px"><h2 class="pb-presentation-title" style="font-size:66px;color:rgb(51,34,17);font-weight:800;margin:0">제목 원문</h2><p class="pb-presentation-body" style="font-size:35px;color:rgb(85,72,64);line-height:1.65;letter-spacing:1px">본문 <strong style="font-size:48px">강조</strong></p><span class="pb-presentation-chip" style="font-size:12px">라벨</span></div>';
+        const original = '<div class="pb-presentation" style="background:rgb(247,246,251);padding:13px;border:1px solid red;width:600px"><h2 class="pb-presentation-title" style="font-size:66px;color:rgb(51,34,17);font-weight:800;margin:0">제목 원문</h2><p class="pb-presentation-body" style="font-size:35px;color:rgb(85,72,64);line-height:1.65;letter-spacing:1px">본문 <strong style="font-size:48px">강조</strong></p><span class="pb-presentation-chip" style="font-size:12px">라벨</span></div>'
+            .replaceAll('style="', 'style="font-family:Pretendard,&quot;Apple SD Gothic Neo&quot;,&quot;Malgun Gothic&quot;,sans-serif;');
         try {
             const result = ProfileCodeResizer.resize(original, 42, 20);
             assert(ProfileCodeResizer.verifyDOM(original, result.code, document), 'DOM preservation');
+            assert(result.code === original.replace('font-size:66px', 'font-size:42px !important').replace('font-size:35px', 'font-size:20px !important').replace('font-size:48px', 'font-size:20px !important'), 'exported quote entities and all non-size bytes preserved');
+            const entityTail = '<h2 class="pb-presentation-title" style="font-family:&quot;name;font-size:99px&quot;">제목</h2><p class="pb-presentation-body" style="font-family:&#39;Apple SD Gothic Neo&#39;">본문</p>';
+            const entityTailResult = ProfileCodeResizer.resize(entityTail, 42, 20);
+            assert(ProfileCodeResizer.verifyDOM(entityTail, entityTailResult.code, document), 'entity terminator is not a CSS separator; font-family preserved');
             for (const mutated of [result.code.replace('제목 원문', '다른 제목'), result.code.replace('padding:13px', 'padding:99px'), result.code.replace('font-weight:800', 'font-weight:400')]) {
                 let rejected = false;
                 try { ProfileCodeResizer.verifyDOM(original, mutated, document); } catch { rejected = true; }
