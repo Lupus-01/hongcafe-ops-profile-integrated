@@ -12,28 +12,55 @@
         <button type="button" id="pb-resizer-tab" aria-pressed="false">코드 크기 조정</button>
     </nav>
     <section id="pb-resizer" hidden aria-label="코드 크기 조정">
-        <h2>코드 크기 조정</h2>
-        <p>기존 프로필 HTML의 제목·본문 글자 크기만 변경합니다. 글자 크기에 따라 줄바꿈과 높이는 달라질 수 있습니다.</p>
-        <label>원본 코드<textarea id="pb-resize-source" spellcheck="false" placeholder="사이트 등록용 HTML을 붙여 넣으세요."></textarea></label>
-        <label>코드 파일 불러오기 <input id="pb-resize-file" type="file" accept=".txt,.html,.htm"></label>
-        <div class="pb-resize-controls">
-            <label>제목 <input id="pb-resize-title" type="number" min="1" max="200" value="42"> px</label>
-            <label>본문 <input id="pb-resize-body" type="number" min="1" max="200" value="20"> px</label>
-            <button type="button" id="pb-resize-site">사이트 기준값 (42/20px)</button>
-            <button type="button" id="pb-resize-canvas">제작 화면 기준값 (66/35px)</button>
-            <button type="button" id="pb-resize-apply">크기 적용 및 검증</button>
-        </div>
-        <p id="pb-resize-status" role="status">원본은 유지되며, 검증을 통과한 코드만 복사·저장할 수 있습니다.</p>
-        <label>수정 결과<textarea id="pb-resize-output" readonly spellcheck="false"></textarea></label>
-        <div class="pb-resize-controls">
-            <button type="button" id="pb-resize-copy" disabled>수정 코드 복사</button>
-            <button type="button" id="pb-resize-save" disabled>수정 코드 저장 (.txt)</button>
-            <button type="button" id="pb-resize-preview" disabled>원본·수정 미리보기</button>
-        </div>
-        <div id="pb-resize-previews" hidden>
-            <p>두 화면은 같은 너비입니다. 외부 스타일·스크립트는 차단되므로 실제 등록 사이트와 표시가 다를 수 있습니다.</p>
-            <h3>원본</h3><iframe id="pb-resize-before" sandbox="" referrerpolicy="no-referrer" title="원본 프로필 미리보기"></iframe>
-            <h3>수정 후</h3><iframe id="pb-resize-after" sandbox="" referrerpolicy="no-referrer" title="크기 수정 후 프로필 미리보기"></iframe>
+        <aside class="pb-resize-sidebar">
+            <div class="pb-sidebar-header">
+                <h2>코드 크기 조정</h2>
+                <p>기존 프로필의 제목·본문 크기를 맞추고<br>원본과 비교해 저장하세요.</p>
+            </div>
+            <section class="pb-resize-card">
+                <h3>코드 불러오기</h3>
+                <label class="pb-resize-field">코드 파일
+                    <input id="pb-resize-file" type="file" accept=".txt,.html,.htm" aria-describedby="pb-resize-file-name">
+                </label>
+                <p id="pb-resize-file-name" class="pb-resize-help">.txt · .html, 최대 30MB. 원본 코드에 직접 붙여 넣어도 됩니다.</p>
+            </section>
+            <section class="pb-resize-card">
+                <div class="pb-resize-card-heading"><h3>글자 크기 설정</h3><span class="pb-resize-badge">기본 66 / 35px</span></div>
+                <div class="pb-resize-presets" aria-label="크기 기준 선택">
+                    <button type="button" id="pb-resize-canvas" aria-pressed="true"><span>자동화 제작 기준</span><strong>제목 66 · 본문 35px</strong></button>
+                    <button type="button" id="pb-resize-site" aria-pressed="false"><span>사이트 등록 기준</span><strong>제목 42 · 본문 20px</strong></button>
+                </div>
+                <div class="pb-resize-sizes">
+                    <label class="pb-resize-field">제목 크기<span class="pb-resize-number"><input id="pb-resize-title" type="number" min="1" max="200" value="66"><span>px</span></span></label>
+                    <label class="pb-resize-field">본문 크기<span class="pb-resize-number"><input id="pb-resize-body" type="number" min="1" max="200" value="35"><span>px</span></span></label>
+                </div>
+                <p class="pb-resize-help">자동화 제작 글꼴은 Pretendard입니다.<br>코드에 지정된 글꼴·내용·디자인은 유지합니다.</p>
+            </section>
+            <div class="pb-resize-actions">
+                <button type="button" id="pb-resize-apply" class="pb-action-btn primary">크기 적용 및 검증</button>
+                <button type="button" id="pb-resize-preview" class="pb-action-btn secondary" disabled>원본·수정 미리보기</button>
+                <button type="button" id="pb-resize-copy" class="pb-action-btn secondary" disabled>수정 코드 복사</button>
+                <button type="button" id="pb-resize-save" class="pb-action-btn secondary" disabled>수정 코드 저장 (.txt)</button>
+                <p class="pb-resize-help">검증을 통과하면 미리보기·복사·저장이 활성화됩니다.</p>
+            </div>
+        </aside>
+        <div class="pb-resize-workspace">
+            <div class="pb-resize-workspace-header"><h2>프로필 코드 편집</h2><p>제목·본문 크기만 변경합니다. 크기에 따라 줄바꿈과 높이는 달라질 수 있습니다.</p></div>
+            <div id="pb-resize-status" role="status" data-state="idle">원본 코드를 불러오거나 붙여 넣어 시작하세요.</div>
+            <section class="pb-resize-code-card">
+                <div class="pb-resize-card-heading"><label for="pb-resize-source">원본 코드</label><span class="pb-resize-badge">원본 보존</span></div>
+                <textarea id="pb-resize-source" spellcheck="false" placeholder="사이트 등록용 HTML을 여기에 붙여 넣으세요."></textarea>
+            </section>
+            <section class="pb-resize-code-card">
+                <div class="pb-resize-card-heading"><label for="pb-resize-output">수정 결과</label><span class="pb-resize-help">검증된 코드</span></div>
+                <textarea id="pb-resize-output" readonly spellcheck="false" placeholder="크기 적용 및 검증을 완료하면 수정된 코드가 표시됩니다."></textarea>
+            </section>
+            <section id="pb-resize-previews" class="pb-resize-code-card" hidden>
+                <h3>원본·수정 비교</h3>
+                <p class="pb-resize-help">두 화면은 같은 너비입니다. 외부 스타일·스크립트는 차단되므로 실제 등록 사이트와 표시가 다를 수 있습니다.</p>
+                <h4>원본</h4><iframe id="pb-resize-before" sandbox="" referrerpolicy="no-referrer" title="원본 프로필 미리보기"></iframe>
+                <h4>수정 후</h4><iframe id="pb-resize-after" sandbox="" referrerpolicy="no-referrer" title="크기 수정 후 프로필 미리보기"></iframe>
+            </section>
         </div>
     </section>
     <div class="pb-layout pb-theme-sinjeom" id="pb-app">

@@ -52,7 +52,20 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-canvas').dataset.preservationSentinel = 'keep';
             get('pb-resizer-tab').click();
             assert(get('pb-app').hidden && !get('pb-resizer').hidden, 'resize tab');
+            assert(get('pb-resize-title').value === '66' && get('pb-resize-body').value === '35', 'automation defaults');
+            assert(get('pb-resize-canvas').getAttribute('aria-pressed') === 'true', 'automation selected');
+            assert(getComputedStyle(get('pb-resize-title')).fontFamily.includes('Pretendard'), 'UI font inherits production font');
+            const sidebar = document.querySelector('.pb-resize-sidebar').getBoundingClientRect();
+            const workspace = document.querySelector('.pb-resize-workspace').getBoundingClientRect();
+            if (innerWidth > 960) assert(workspace.left >= sidebar.right - 1, 'desktop columns');
+            else assert(workspace.top >= sidebar.bottom - 1, 'mobile stacked layout');
+            assert(document.documentElement.scrollWidth <= innerWidth, 'no horizontal overflow');
             get('pb-resize-source').value = original;
+            get('pb-resize-apply').click();
+            assert(get('pb-resize-output').value === ProfileCodeResizer.resize(original, 66, 35).code, 'default conversion');
+            assert(get('pb-resize-status').dataset.state === 'success', 'success feedback');
+            get('pb-resize-site').click();
+            assert(get('pb-resize-copy').disabled && get('pb-resize-site').getAttribute('aria-pressed') === 'true', 'preset invalidates previous output');
             get('pb-resize-apply').click();
             assert(get('pb-resize-output').value === result.code && !get('pb-resize-copy').disabled, 'verified output');
             get('pb-resize-preview').click();
@@ -63,6 +76,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             assert(get('pb-resize-source').value === original, 'input preserved across tabs');
             get('pb-resize-title').value = 50;
             get('pb-resize-title').dispatchEvent(new Event('input'));
+            assert(get('pb-resize-canvas').getAttribute('aria-pressed') === 'false' && get('pb-resize-site').getAttribute('aria-pressed') === 'false', 'custom size deselects presets');
             assert(!get('pb-resize-output').value && get('pb-resize-copy').disabled && get('pb-resize-save').disabled, 'stale output cleared');
             get('pb-resize-title').value = 42;
             let finishRead;
@@ -84,12 +98,20 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-resize-save').click();
             assert(download === 'profile-font-size-adjusted.txt' && savedBlob.type === 'text/plain;charset=utf-8', 'download metadata');
             assert(await savedBlob.text() === result.code, 'download contains exact verified result');
-            document.body.innerHTML = '<p id="test-result">PASS: DOM preservation, computed styles, tabs, previews, invalidation, files, copy, download</p>';
+            get('pb-resizer-tab').click();
+            get('pb-resize-canvas').click();
+            get('pb-resize-apply').click();
+            const resultLabel = document.createElement('p');
+            resultLabel.id = 'test-result';
+            resultLabel.textContent = 'PASS: DOM preservation, computed styles, tabs, previews, invalidation, files, copy, download';
+            if (window.PB_CAPTURE) { resultLabel.hidden = true; document.body.appendChild(resultLabel); }
+            else document.body.replaceChildren(resultLabel);
         } catch (error) { document.body.innerHTML = ''; const result = document.createElement('pre'); result.textContent = 'FAIL: ' + error.stack; document.body.appendChild(result); }
     };
-    page = page.replace('</body>', `<script>window.addEventListener('load', ${run.toString()});</script></body>`);
+    page = page.replace('</body>', `<script>window.PB_CAPTURE = ${Boolean(process.env.PROFILE_TEST_SCREENSHOT)}; window.addEventListener('load', ${run.toString()});</script></body>`);
     const file = path.join(temporary, 'test.html');
     fs.writeFileSync(file, page);
-    const output = execFileSync(chrome, ['--headless', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', '--host-resolver-rules=MAP * ~NOTFOUND', `--user-data-dir=${path.join(temporary, 'browser')}`, '--allow-file-access-from-files', '--virtual-time-budget=5000', '--dump-dom', pathToFileURL(file).href], { encoding: 'utf8', timeout: 45000, maxBuffer: 4 * 1024 * 1024, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    assert.match(output, /<p id="test-result">PASS: DOM preservation, computed styles, tabs, previews, invalidation, files, copy, download<\/p>/, output);
+    const capture = process.env.PROFILE_TEST_SCREENSHOT ? [`--screenshot=${path.resolve(process.env.PROFILE_TEST_SCREENSHOT)}`] : [];
+    const output = execFileSync(chrome, ['--headless', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', '--host-resolver-rules=MAP * ~NOTFOUND', `--user-data-dir=${path.join(temporary, 'browser')}`, `--window-size=${process.env.PROFILE_TEST_WINDOW_SIZE || '1440,1000'}`, ...capture, '--allow-file-access-from-files', '--virtual-time-budget=5000', '--dump-dom', pathToFileURL(file).href], { encoding: 'utf8', timeout: 45000, maxBuffer: 4 * 1024 * 1024, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.match(output, /<p id="test-result"(?: hidden="")?>PASS: DOM preservation, computed styles, tabs, previews, invalidation, files, copy, download<\/p>/, output);
 });

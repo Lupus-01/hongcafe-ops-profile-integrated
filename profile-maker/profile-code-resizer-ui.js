@@ -13,6 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const preview = byId('pb-resize-preview');
     let verifiedSource = '';
     let fileSequence = 0;
+    const setStatus = (message, state = 'idle') => {
+        status.textContent = message;
+        status.dataset.state = state;
+    };
+    const updatePreset = () => {
+        byId('pb-resize-canvas').setAttribute('aria-pressed', String(Number(title.value) === 66 && Number(body.value) === 35));
+        byId('pb-resize-site').setAttribute('aria-pressed', String(Number(title.value) === 42 && Number(body.value) === 20));
+    };
     const invalidate = () => {
         output.value = '';
         verifiedSource = '';
@@ -20,7 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
         byId('pb-resize-previews').hidden = true;
         byId('pb-resize-before').removeAttribute('srcdoc');
         byId('pb-resize-after').removeAttribute('srcdoc');
-        status.textContent = '입력 후 크기 적용 및 검증 버튼을 눌러주세요.';
+        updatePreset();
+        setStatus('입력 후 크기 적용 및 검증 버튼을 눌러주세요.');
     };
     for (const [id, resizing] of [['pb-maker-tab', false], ['pb-resizer-tab', true]]) {
         byId(id).addEventListener('click', () => {
@@ -30,7 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
             byId('pb-resizer-tab').setAttribute('aria-pressed', String(resizing));
         });
     }
-    for (const input of [source, title, body]) input.addEventListener('input', () => { fileSequence += 1; invalidate(); });
+    for (const input of [source, title, body]) input.addEventListener('input', () => {
+        fileSequence += 1;
+        invalidate();
+        if (input === source) byId('pb-resize-file-name').textContent = '원본 코드 직접 입력 중';
+    });
     for (const [id, sizes] of [['pb-resize-site', [42, 20]], ['pb-resize-canvas', [66, 35]]]) {
         byId(id).addEventListener('click', () => { [title.value, body.value] = sizes; invalidate(); });
     }
@@ -39,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         invalidate();
         const file = event.target.files[0];
         if (!file) return;
+        byId('pb-resize-file-name').textContent = `${file.name} · 읽는 중`;
         try {
             if (!/\.(txt|html?)$/i.test(file.name)) throw new Error('.txt 또는 .html 파일을 선택해주세요.');
             if (file.size > 30 * 1024 * 1024) throw new Error('30MB 이하의 코드 파일을 선택해주세요.');
@@ -46,8 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sequence !== fileSequence) return;
             invalidate();
             source.value = text;
-            status.textContent = '파일을 불러왔습니다. 크기 적용 및 검증 버튼을 눌러주세요.';
-        } catch (error) { if (sequence === fileSequence) status.textContent = error.message; }
+            byId('pb-resize-file-name').textContent = `${file.name} · 불러오기 완료`;
+            setStatus('파일을 불러왔습니다. 크기 적용 및 검증 버튼을 눌러주세요.');
+        } catch (error) {
+            if (sequence === fileSequence) {
+                byId('pb-resize-file-name').textContent = `${file.name} · 불러오기 실패`;
+                setStatus(error.message, 'error');
+            }
+        }
     });
 
     byId('pb-resize-apply').addEventListener('click', () => {
@@ -58,16 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
             verifiedSource = source.value;
             output.value = result.code;
             copy.disabled = save.disabled = preview.disabled = false;
-            status.textContent = `검증 통과: 제목 ${result.counts.title}곳, 본문 ${result.counts.body}곳 / 크기 지정 ${result.changes}곳 변경. 내용·구조·다른 스타일 보존 확인.`;
-        } catch (error) { status.textContent = error.message; }
+            setStatus(`검증 통과: 제목 ${result.counts.title}곳, 본문 ${result.counts.body}곳 / 크기 지정 ${result.changes}곳 변경. 내용·구조·다른 스타일 보존 확인.`, 'success');
+        } catch (error) { setStatus(error.message, 'error'); }
     });
     copy.addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(output.value);
-            status.textContent = '검증된 수정 코드를 복사했습니다.';
+            setStatus('검증된 수정 코드를 복사했습니다.', 'success');
         } catch {
             output.focus(); output.select();
-            status.textContent = '자동 복사가 차단되었습니다. 선택된 코드를 Ctrl+C로 복사해주세요.';
+            setStatus('자동 복사가 차단되었습니다. 선택된 코드를 Ctrl+C로 복사해주세요.');
         }
     });
     save.addEventListener('click', () => {
@@ -76,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = url;
         link.download = 'profile-font-size-adjusted.txt';
         link.click();
+        setStatus('검증된 수정 코드의 파일 저장을 요청했습니다.', 'success');
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
     preview.addEventListener('click', () => {
