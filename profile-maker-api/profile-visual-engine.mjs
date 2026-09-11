@@ -269,6 +269,7 @@ function selectRealization({ templateType, stableIdentity, nonce, generationSequ
     const placementOptions = CATEGORY_PLACEMENT_OPTIONS[templateType] || CATEGORY_PLACEMENT_OPTIONS['sinjeom-ppt'];
     const selected = {
         templateType,
+        ...(scene?.sajuStudy ? { sajuStudy: true } : {}),
         shootType: scene?.shootType || '',
         tabletopAccessories: Boolean(scene?.tabletopAccessories),
         obliqueTabletop: Boolean(scene?.obliqueTabletop),
@@ -318,6 +319,17 @@ export function getVisualRealizationPair({ templateType, stableIdentity, nonce, 
 
 export function buildVisualRealizationPrompt(realization) {
     const direction = realization.photographicDirection;
+    if (realization.sajuStudy) {
+        return [
+            'SAJU STUDY PHOTOGRAPH: the assigned analysis material is the sole category anchor; no card deck, ritual object or generic decorative office.',
+            `Primary photographic direction (${direction.id}): ${direction.prompt}`,
+            `Lighting realization: ${realization.lighting.prompt}`,
+            `Secondary tonal treatment: ${realization.tone.prompt} Preserve the assigned surface colors.`,
+            'Preserve the exact object count, support, camera distance and background specified by the scene. Do not add shelves or a room to a close or overhead composition.',
+            'Keep paper edges, grid structure, binding and material texture sharp. Omit readable personal data and labels; do not blur the whole object. No invented legible fortunes, floating diagrams or glowing symbols.',
+            'Only the scene-assigned pencil or storage components may accompany the study material. Reference images may inform compatible material texture only; they cannot change the layout or introduce people.'
+        ].join('\n');
+    }
     if (realization.shootType) {
         return [
             `Category identity: ${realization.templateType}; preserve the assigned card family at the scene's subject scale.`,

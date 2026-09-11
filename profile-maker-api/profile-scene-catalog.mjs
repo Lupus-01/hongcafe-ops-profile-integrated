@@ -87,7 +87,34 @@ export function createAdditionalSceneArchetypes(createScene) {
     scenes['tarot-ppt'].push(...createDiverseTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createPackTarotScenes(createScene));
     scenes['tarot-ppt'].push(...createEditorialTarotScenes(createScene));
+    scenes['saju-ppt'].push(...createSajuStudyScenes(createScene));
     return scenes;
+}
+
+function createSajuStudyScenes(createScene) {
+    const groups = [
+        ['analysis-overhead', 'tabletop-study', 'medium', 'overhead', 'flat-review-board', 'flat-paper-surface', true,
+            ['pillars', 'diagram', 'timeline'], 'Lay the assigned complete analysis sheet or workbook flat, with one pencil parallel to its outer edge. Preserve four columns for a pillars sheet, five restrained color regions for an elements diagram, or a clear horizontal progression for a timeline.'],
+        ['reference-oblique', 'research-space', 'medium', 'high-oblique', 'sloped-reading-stand', 'plain-study-wall', false,
+            ['calendar-book', 'research-notes'], 'Place one assigned reference volume or bound research notebook on a fitted sloped reading stand. Show the complete binding, page block and stand with natural perspective; no extra books.'],
+        ['material-close', 'detail-closeup', 'close', 'side-level', 'fitted-book-cradle', 'plain-matte-backing', false,
+            ['calendar-book', 'research-notes', 'index-storage'], 'Show the entire assigned object close enough to distinguish its binding, tabs or index compartments. Preserve paper thickness and separate edges; no microscopic crop or extra papers.'],
+        ['diagram-front', 'diagram-study', 'medium', 'front-level', 'vertical-document-holder', 'plain-hanji-panel', false,
+            ['pillars', 'diagram', 'timeline'], 'Secure the assigned analysis material fully within a vertical document holder. Show the complete four-column grid, five-region relationship diagram or horizontal timeline appropriate to that object; no floating sheet.'],
+        ['consultation-space', 'architectural-wide', 'wide', 'eye-level', 'fitted-review-alcove', 'modest-consultation-room', false,
+            ['pillars', 'diagram', 'timeline', 'calendar-book', 'research-notes', 'index-storage'], 'Show a bright modest Korean consultation alcove with only the assigned study object on a built-in support, one empty seat and clear walking space. Keep the study object large enough to identify; no distant library shelves.']
+    ];
+    const finishes = [
+        ['ivory', 'ivory matte support with pale timber trim'],
+        ['sage', 'muted sage backing and natural oak support'],
+        ['ink', 'soft ink-blue backing and light ash support'],
+        ['sand', 'warm sand backing and walnut support']
+    ];
+    return groups.flatMap(([group, family, distance, cameraHeight, support, background, tabletop, motifFamilies, direction]) =>
+        finishes.map(([finish, material]) => createScene(`saju-study-${group}-${finish}`, family,
+            `${direction} Use ${material}. Keep the assigned object count; no decorative props. Paper, grid lines, binding and physical edges remain sharp; omit legible names, birth data and labels instead of blurring the entire object.`,
+            `${cameraHeight} camera, zero roll, ${distance} framing, natural perspective`, tabletop,
+            { sajuStudy: true, shootingGroup: group, shootType: `saju-${group}`, distance, cameraHeight, support, background, motifFamilies })));
 }
 
 // Original print directions, keyed by the existing selected deck family. Never

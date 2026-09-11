@@ -36,7 +36,7 @@ test('text generation retains copy variants and references while image reference
 
 test('image variation version participates in generated-image fingerprints', () => {
     assert.match(serverSource, /const VISUAL_VARIATION_VERSION = PROFILE_VISUAL_VARIATION_VERSION;/);
-    const versionAssignments = serverSource.match(/payload\.visualVariationVersion = VISUAL_VARIATION_VERSION;/g) || [];
+    const versionAssignments = serverSource.match(/payload\.visualVariationVersion = payload\.templateType === 'saju-ppt' \? SAJU_VISUAL_VERSION : VISUAL_VARIATION_VERSION;/g) || [];
     assert.equal(versionAssignments.length, 2);
     const fingerprintFields = serverSource.match(/visualVariationVersion: generateImageRequested \? String\(payload\.visualVariationVersion \|\| 'legacy'\) : 'none'/g) || [];
     assert.equal(fingerprintFields.length, 2);

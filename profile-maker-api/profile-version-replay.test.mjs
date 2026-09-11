@@ -32,17 +32,18 @@ test('v7/v11 through v9/v15 exact requests replay across reference changes witho
     }
 });
 
-test('v15 request keys and expired receipts survive a cold restart into v16 without billing', (t) => {
+test('tarot v15 and saju v16 request keys survive new versions and cold restarts without billing', (t) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-v16-replay-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const source = fs.readFileSync(new URL('./server.mjs', import.meta.url), 'utf8');
     const functionSource = source.slice(source.indexOf('function submitProfileJob('), source.indexOf('const profileRecoveryStartedAt')).trim();
+    for (const [templateType, oldVisual, newVisual] of [['tarot-ppt', 'profile-visual-v15-overhead-accessories', 'profile-visual-v16-oblique-tables'], ['saju-ppt', 'profile-visual-v16-oblique-tables', 'profile-visual-saju-v1-study-compositions']])
     for (const expired of [false, true]) for (const kind of ['direct', 'document']) {
-        const campaignId = `${kind}-${expired}`;
-        const oldInput = { profileTextPromptVersion: 'profile-copy-v9-expanded-editorial', visualVariationVersion: 'profile-visual-v15-overhead-accessories', referenceInfluenceVersion: 'profile-reference-v3-material-only', referenceText: 'same source', referenceDigests: ['same-reference'], generateImageRequested: true };
+        const campaignId = `${templateType}-${kind}-${expired}`;
+        const oldInput = { templateType, profileTextPromptVersion: 'profile-copy-v9-expanded-editorial', visualVariationVersion: oldVisual, referenceInfluenceVersion: 'profile-reference-v3-material-only', referenceText: 'same source', referenceDigests: ['same-reference'], generateImageRequested: true };
         const fingerprint = createProfileJobFingerprint({ kind, ...oldInput });
         const original = new FileProfileJobStore({ directory, campaignId });
-        const { job } = original.createOrGet({ fingerprint, kind, input: { payload: { templateType: 'tarot-ppt' } }, requestKey: 'same-key' });
+        const { job } = original.createOrGet({ fingerprint, kind, input: { payload: { templateType } }, requestKey: 'same-key' });
         original.update(job.id, record => ({ ...record, state: 'completed', completedAt: expired ? '2020-01-01T00:00:00.000Z' : new Date().toISOString(), result: { profile: { headline: 'saved', profileImage: 'saved-image' } } }));
         const restored = new FileProfileJobStore({ directory, campaignId });
         const submit = vm.runInNewContext(`(${functionSource})`, {
@@ -55,7 +56,7 @@ test('v15 request keys and expired receipts survive a cold restart into v16 with
             profileJobStore: restored
         });
         const res = { setHeader(key, value) { assert.equal(value, 'true'); }, status(code) { assert.equal(code, 200); return this; }, json(value) { assert.equal(value.job.id, job.id); } };
-        const options = { kind, fingerprintInput: { ...oldInput, visualVariationVersion: 'profile-visual-v16-oblique-tables', referenceInfluenceVersion: 'profile-reference-v3-material-only' }, input: {} };
+        const options = { kind, fingerprintInput: { ...oldInput, visualVariationVersion: newVisual, referenceInfluenceVersion: 'profile-reference-v3-material-only' }, input: {} };
         if (expired) assert.throws(() => submit({}, res, options), error => error.status === 410);
         else assert.equal(submit({}, res, options).id, job.id);
     }

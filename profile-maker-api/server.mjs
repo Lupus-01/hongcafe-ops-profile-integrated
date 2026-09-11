@@ -269,6 +269,16 @@ const TAROT_CARD_TYPES = {
     'dream-archetype': { labelKo: '꿈·원형 타로', subjectId: 'dream-archetype' }
 };
 
+const SAJU_VISUAL_VERSION = 'profile-visual-saju-v1-study-compositions';
+const SAJU_SHOOTING_WEIGHTS = { 'analysis-overhead': 25, 'reference-oblique': 25, 'material-close': 20, 'diagram-front': 20, 'consultation-space': 10 };
+const SAJU_MOTIF_FAMILIES = {
+    'four-pillars-sheet': 'pillars',
+    'modern-manse-calendar': 'calendar-book', 'traditional-almanac': 'calendar-book', 'reference-book-stack': 'calendar-book',
+    'five-elements-workbook': 'diagram', 'ten-gods-reference': 'diagram', 'diagram-notebook': 'diagram',
+    'luck-cycle-folder': 'timeline', 'seasonal-calendar': 'timeline',
+    'consultation-ledger': 'research-notes', 'archive-folder': 'index-storage', 'wooden-index-system': 'index-storage'
+};
+
 function createSceneArchetype(id, family, prompt, camera, tabletop = false, options = {}) {
     const shotMode = family === 'detail-closeup'
         ? 'close-detail'
@@ -701,6 +711,10 @@ function getVisualCombinationConfigurationSummary() {
     const groupsPerImage = Object.fromEntries(Object.entries(TEMPLATE_GUIDES).map(([templateType, guide]) => {
         const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support').length;
         if (templateType === 'tarot-ppt') return [templateType, (fixedTarotGroups * BigInt(heroSubjects)).toString()];
+        if (templateType === 'saju-ppt') return [templateType, (SCENE_ARCHETYPES[templateType].filter(scene => scene.sajuStudy)
+            .reduce((sum, scene) => sum + BigInt(countIndependentRealizations(scene))
+                * BigInt(guide.visualSubjects.filter(subject => isSubjectCompatibleWithScene(subject, scene)).length), 0n)
+            * BigInt(VISUAL_VARIATION_OPTIONS.palettes.length)).toString()];
         const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support').length;
         const palettes = templateType === 'tarot-ppt'
             ? TAROT_VISUAL_PALETTES.length
@@ -714,7 +728,7 @@ function getVisualCombinationConfigurationSummary() {
     }));
     return {
         realizationCombinationsPerBase: String(VISUAL_REALIZATION_COUNT_PER_BASE),
-        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
+        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot and saju count active compatible scene and styling choices only',
         groupsPerImage,
         fixedTarotDeckGroupsPerImage: fixedTarotGroups.toString()
     };
@@ -816,7 +830,8 @@ function getSubjectMotifFamily(subject) {
 
 function isSubjectCompatibleWithScene(subject, scene, excludedMotifFamily = '') {
     if (subject?.templateType && scene?.templateType && subject.templateType !== scene.templateType) return false;
-    const motifFamily = getSubjectMotifFamily(subject);
+    if (scene.sajuStudy && subject.id === 'reference-book-stack' && !['detail-closeup', 'architectural-wide'].includes(scene.family)) return false;
+    const motifFamily = scene.sajuStudy ? SAJU_MOTIF_FAMILIES[subject.id] : getSubjectMotifFamily(subject);
     if (excludedMotifFamily && motifFamily === excludedMotifFamily) return false;
     if (Array.isArray(subject?.sceneFamilies) && !subject.sceneFamilies.includes(scene.family)) return false;
     if (Array.isArray(scene?.motifFamilies) && !scene.motifFamilies.includes(motifFamily)) return false;
@@ -887,11 +902,19 @@ function pickCompatibleScene(archetypes, firstScene, digest, byteOffset, {
 
 function getVisualPair(payload, candidateScenes = null) {
     const guide = getTemplateGuide(payload.templateType);
-    const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support');
+    const sajuStudy = payload.templateType === 'saju-ppt' && (payload.visualSceneIds
+        ? SCENE_ARCHETYPES['saju-ppt'].find(scene => scene.id === payload.visualSceneIds.portrait)?.sajuStudy
+        : !payload.visualVariationVersion || payload.visualVariationVersion === SAJU_VISUAL_VERSION);
+    const heroSubjects = guide.visualSubjects.filter((subject) => subject.role !== 'support').map(subject => sajuStudy
+        ? { ...subject, motifFamilyId: SAJU_MOTIF_FAMILIES[subject.id],
+            ...(subject.id === 'reference-book-stack' ? { sceneFamilies: ['detail-closeup', 'architectural-wide'] } : {}),
+            ...(subject.id === 'consultation-ledger' ? { prompt: 'one bound Korean saju research notebook with neutral index tabs and anonymized structured notes, no loose cards or extra pencil' } : {}) } : subject);
     const supportSubjects = guide.visualSubjects.filter((subject) => subject.role === 'support');
     // Keep old IDs available only when restoring an already assigned job.
     const archetypes = SCENE_ARCHETYPES[payload.templateType].filter(scene =>
-        payload.visualSceneIds || payload.templateType !== 'tarot-ppt' || scene.diverseTarot);
+        payload.visualSceneIds || (payload.templateType === 'saju-ppt'
+            ? Boolean(scene.sajuStudy) === Boolean(sajuStudy)
+            : payload.templateType !== 'tarot-ppt' || scene.diverseTarot));
     const stableIdentity = payload.visualIdentity || createVisualIdentity([
         payload.templateType,
         payload.name,
@@ -1112,7 +1135,9 @@ function buildVisualVariationPrompt(variation, imageKind) {
             ? 'Make this the signature hero image, but follow the assigned scene family and camera distance instead of defaulting to a desk still life.'
             : 'Make this the complementary image, following its own assigned scene family and camera distance even when it is a close detail or an outdoor view.');
     const tabletopRule = variation.scene.shootType
-        ? (variation.scene.tabletop
+        ? (variation.scene.sajuStudy
+            ? 'Use exactly the assigned study support and camera axis. Do not add a desk, bookcase or room context outside the assigned framing.'
+            : variation.scene.tabletop
             ? 'Use only the reading surface explicitly assigned to this spread scene.'
             : 'Use only the assigned rail, cradle, storage, shelf or plinth. Do not add a reading table or cloth.')
         : variation.allowPairedTabletop
@@ -1868,7 +1893,7 @@ function buildPortraitImagePrompt(payload, extraPrompt = '', visualVariation = g
 Create one 16:9 image for a Korean ${guide.labelEn} consultant profile page as ${qualityProfile.captureStyle}. ${visualVariation.scene.diverseTarot ? 'Keep the assigned complete cards prominent at the assigned camera distance.' : visualVariation.scene.obliqueTabletop ? 'Show a reading table with identifiable face-up cards, a cloth, its near edge and a little surrounding space in a high three-quarter view.' : visualVariation.scene.tabletopAccessories ? 'Keep the large face-up card spread as the main subject in a true overhead photograph.' : 'Preserve category identity at the subject scale assigned by the scene, including a small identifiable category cue when the architecture is the main subject.'}
 
 The physical scene to photograph:
-${visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueImageMood : !visualVariation.scene.tabletopAccessories && guide.legacyImageMood ? guide.legacyImageMood : guide.imageMood}
+${visualVariation.scene.sajuStudy || visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueImageMood : !visualVariation.scene.tabletopAccessories && guide.legacyImageMood ? guide.legacyImageMood : guide.imageMood}
 
 Photography direction:
 - keep every required category object fully inside the frame and easy to identify
@@ -1888,7 +1913,7 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'portrait')}
 Upright orientation and gravity requirements:
-${visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.sajuStudy ? `Use a landscape 16:9 canvas with the assigned ${visualVariation.scene.cameraHeight} camera axis and zero roll. Every study object rests on its assigned support. In overhead views gravity acts into the surface, with no room horizon; otherwise keep architectural verticals upright. Never change this axis to follow a reference image.` : visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'portrait')}
 Quality-specific optimization for the selected ${imageQuality} tier:
@@ -1922,7 +1947,7 @@ function buildMoodImagePrompt(payload, extraPrompt = '', visualVariation = getVi
 Create one 16:9 image of a Korean ${guide.labelEn} consultation-related scene as ${qualityProfile.captureStyle}. The category identity is the highest priority: the assigned working environment, physical surface, and camera distance must clearly show the required ${guide.labelEn} hero object and must not become a generic office or decorative room.
 
 The category and environment rules:
-${visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueMoodScene : !visualVariation.scene.tabletopAccessories && guide.legacyMoodScene ? guide.legacyMoodScene : guide.moodScene}
+${visualVariation.scene.sajuStudy || visualVariation.scene.diverseTarot ? visualVariation.scene.prompt : visualVariation.scene.obliqueTabletop ? guide.obliqueMoodScene : !visualVariation.scene.tabletopAccessories && guide.legacyMoodScene ? guide.legacyMoodScene : guide.moodScene}
 
 Photography direction:
 - follow the assigned scene family, physical surface, object arrangement, and camera treatment exactly
@@ -1942,7 +1967,7 @@ ${REFERENCE_IMAGE_REQUIREMENTS}
 Reference assignment for this paired image:
 ${buildReferenceAssignmentPrompt(Number(payload.referenceImageCount || 0), 'mood')}
 Upright orientation and gravity requirements:
-${visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
+${visualVariation.scene.sajuStudy ? `Use a landscape 16:9 canvas with the assigned ${visualVariation.scene.cameraHeight} camera axis and zero roll. Every study object rests on its assigned support. In overhead views gravity acts into the surface, with no room horizon; otherwise keep architectural verticals upright. Never change this axis to follow a reference image.` : visualVariation.scene.diverseTarot ? `Follow the assigned ${visualVariation.scene.cameraHeight} camera axis with zero roll; cards rest naturally on the cloth. The assigned composition takes priority over conflicting reference layouts.` : visualVariation.scene.obliqueTabletop ? OBLIQUE_ORIENTATION_REQUIREMENTS : visualVariation.scene.tabletopAccessories ? OVERHEAD_ORIENTATION_REQUIREMENTS : UPRIGHT_ORIENTATION_REQUIREMENTS}
 Consultant-specific variation:
 ${buildVisualVariationPrompt(visualVariation, 'mood')}
 Quality-specific optimization for the selected ${imageQuality} tier:
@@ -2406,6 +2431,7 @@ function assignNovelVisualVariant(payload) {
     const families = new Map();
     for (const scene of SCENE_ARCHETYPES[payload.templateType]) {
         if (payload.templateType === 'tarot-ppt' && !scene.diverseTarot) continue;
+        if (payload.templateType === 'saju-ppt' && Boolean(scene.sajuStudy) !== (!payload.visualVariationVersion || payload.visualVariationVersion === SAJU_VISUAL_VERSION)) continue;
         if (!families.has(scene.family)) families.set(scene.family, []);
         families.get(scene.family).push(scene);
     }
@@ -2415,6 +2441,14 @@ function assignNovelVisualVariant(payload) {
         .sort((left, right) => packArtUsage(left) - packArtUsage(right)
             || (usageIndex.sceneCounts.get(left.id) || 0) - (usageIndex.sceneCounts.get(right.id) || 0))
         .slice(0, 12));
+    if (payload.templateType === 'saju-ppt' && candidateScenes.some(scene => scene.sajuStudy)) {
+        const groups = Object.entries(SAJU_SHOOTING_WEIGHTS).map(([group, weight]) => ({
+            group, cost: (2 * ['portrait', 'mood', '*'].reduce((sum, kind) => sum
+                + (usageIndex.frequencies.shootingGroup.get(`${kind}:${group}`) || 0), 0) + 1) / weight
+        })).sort((a, b) => a.cost - b.cost);
+        const selected = new Set(groups.slice(0, 2).map(entry => entry.group));
+        candidateScenes = candidateScenes.filter(scene => selected.has(scene.shootingGroup));
+    }
     if (payload.templateType === 'tarot-ppt') {
         // Minimize the increase in weighted usage, counting actual photographs.
         // Select two different groups before selecting layouts/material variants.
@@ -2744,6 +2778,7 @@ function submitProfileJob(req, res, { kind, fingerprintInput, input, requestKey 
     const reusableLegacyJob = reusableLegacyJobId ? profileJobStore.read(reusableLegacyJobId) : null;
     // 동일 입력의 이전 버전 결과도 그대로 돌려준다. 배포만으로 유료 재생성을 시작하지 않는다.
     const previousFingerprints = [
+        ['profile-copy-v9-expanded-editorial', 'profile-visual-v16-oblique-tables', 'profile-reference-v3-material-only'],
         ['profile-copy-v9-expanded-editorial', 'profile-visual-v15-overhead-accessories', 'profile-reference-v3-material-only'],
         ['profile-copy-v9-expanded-editorial', 'profile-visual-v14-independent-shots', 'profile-reference-v3-material-only'],
         ['profile-copy-v9-expanded-editorial', 'profile-visual-v13-expanded-scenes', 'profile-reference-v2-strong-priority'],
@@ -2884,6 +2919,9 @@ app.get('/api/health', (req, res) => {
             premium: PREMIUM_IMAGE_MODEL
         },
         visualVariationVersion: VISUAL_VARIATION_VERSION,
+        sajuVisualVariationVersion: SAJU_VISUAL_VERSION,
+        sajuShootingGroupWeights: SAJU_SHOOTING_WEIGHTS,
+        sajuActiveBaseSceneCount: BASE_SCENE_ARCHETYPES['saju-ppt'].filter(scene => scene.sajuStudy).length,
         visualCombinationConfiguration: getVisualCombinationConfigurationSummary(),
         profileTextPromptVersion: PROFILE_TEXT_PROMPT_VERSION,
         referenceInfluenceVersion: REFERENCE_INFLUENCE_VERSION,
@@ -3015,7 +3053,7 @@ app.post('/api/generate-profile', ...protectedApiMiddleware, parseProfileUploads
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         payload.referenceInfluenceVersion = REFERENCE_INFLUENCE_VERSION;
-        payload.visualVariationVersion = VISUAL_VARIATION_VERSION;
+        payload.visualVariationVersion = payload.templateType === 'saju-ppt' ? SAJU_VISUAL_VERSION : VISUAL_VARIATION_VERSION;
         payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;
@@ -3150,7 +3188,7 @@ app.post('/api/generate-from-ppt', ...protectedApiMiddleware, parseDocumentUploa
         payload.imageQuality = getImageQuality(payload.imageQuality);
         payload.profileTextPromptVersion = PROFILE_TEXT_PROMPT_VERSION;
         payload.referenceInfluenceVersion = REFERENCE_INFLUENCE_VERSION;
-        payload.visualVariationVersion = VISUAL_VARIATION_VERSION;
+        payload.visualVariationVersion = payload.templateType === 'saju-ppt' ? SAJU_VISUAL_VERSION : VISUAL_VARIATION_VERSION;
         payload.referenceText = sanitizeProfileReferenceText(payload.referenceText || '');
         referenceImages = validateReferenceImages(req);
         payload.referenceImageCount = referenceImages.length;

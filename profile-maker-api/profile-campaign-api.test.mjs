@@ -190,6 +190,9 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.visualVariationVersion, 'profile-visual-v16-oblique-tables');
     assert.equal(initialHealth.tarotIndependentShootingTypes.length, 5);
     assert.equal(initialHealth.tarotActiveBaseSceneCount, 132);
+    assert.equal(initialHealth.sajuVisualVariationVersion, 'profile-visual-saju-v1-study-compositions');
+    assert.equal(initialHealth.sajuActiveBaseSceneCount, 20);
+    assert.deepEqual(initialHealth.sajuShootingGroupWeights, { 'analysis-overhead': 25, 'reference-oblique': 25, 'material-close': 20, 'diagram-front': 20, 'consultation-space': 10 });
     assert.equal(initialHealth.tarotAccessoryCount, 21);
     assert.equal(initialHealth.tarotDiversityPolicyVersion, 'tarot-diversity-v2-printed-packs');
     assert.equal(initialHealth.tarotClothColors.length, 10);
@@ -199,10 +202,10 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(initialHealth.profileTextPromptVersion, 'profile-copy-v9-expanded-editorial');
     assert.deepEqual(initialHealth.visualCombinationConfiguration, {
         realizationCombinationsPerBase: '61440000',
-        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot counts active scene/light/tone/palette/cloth/deck/accessory choices only',
+        countBasis: 'configuration-space-not-perceptual-uniqueness; tarot and saju count active compatible scene and styling choices only',
         groupsPerImage: {
             'tarot-ppt': '4316256000',
-            'saju-ppt': '7077888000000',
+            'saju-ppt': '1267200',
             'sinjeom-ppt': '127401984000000'
         },
         fixedTarotDeckGroupsPerImage: '308304000'
@@ -353,4 +356,31 @@ test('campaign API coalesces duplicates without external AI calls', async (t) =>
     assert.equal(finalHealth.maxDocumentFileCount, 5);
     assert.equal(finalHealth.maxDocumentTotalBytes, 26214400);
     assert.equal(finalHealth.usedGeminiRequestsToday, 0);
+    // Both production upload routes use the new saju policy in isolated AI mock mode.
+    for (const route of ['generate-profile', 'generate-from-ppt']) {
+        const form = createProfileForm(`saju-${route}`);
+        form.set('templateType', 'saju-ppt');
+        form.delete('tarotCardType');
+        if (route === 'generate-from-ppt') form.append('pptFile', new Blob(['사주 상담사 김연구\n명리 분석과 직업 방향을 상담합니다.'], { type: 'text/plain' }), 'saju.txt');
+        const submit = async key => {
+            const response = await fetch(`${baseUrl}/api/${route}`, { method: 'POST', headers: { 'Idempotency-Key': key }, body: form });
+            const data = await response.json();
+            assert.ok([200, 202].includes(response.status), JSON.stringify(data));
+            return data.job;
+        };
+        const submitted = await submit(`saju-${route}`);
+        const job = await waitForJob(baseUrl, submitted.id);
+        assert.equal(job.state, 'completed');
+        const { portrait, mood } = job.result.imageGuide;
+        assert.match(portrait.sceneId, /^saju-study-/);
+        assert.match(mood.sceneId, /^saju-study-/);
+        assert.notEqual(portrait.motifFamilyId, mood.motifFamilyId);
+        assert.notEqual(portrait.shootingGroup, mood.shootingGroup);
+        assert.match(portrait.prompt, /SAJU STUDY PHOTOGRAPH/);
+        assert.match(mood.prompt, /SAJU STUDY PHOTOGRAPH/);
+        assert.equal((await submit(`saju-replay-${route}`)).id, job.id);
+    }
+    const sajuHealth = await (await fetch(`${baseUrl}/api/health`)).json();
+    assert.equal(sajuHealth.profileCampaignJobs, finalHealth.profileCampaignJobs + 2);
+    assert.equal(sajuHealth.usedGeminiRequestsToday, 0);
 });
