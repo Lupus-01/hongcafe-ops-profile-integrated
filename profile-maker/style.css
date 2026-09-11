@@ -435,6 +435,15 @@ body {
 .pb-resize-number { display: flex; align-items: center; gap: 8px; border: 1px solid #dfe3e8; border-radius: 12px; padding: 0 12px; background: #fff; }
 #pb-resizer input[type="number"] { width: 100%; min-width: 0; padding: 12px 0; border: 0; background: transparent; color: #222; font-size: 16px; font-weight: 700; }
 .pb-resize-actions { display: grid; gap: 10px; padding: 20px 24px; border-top: 1px solid var(--pb-border); }
+#pb-resize-cancel[hidden] { display: none; }
+#pb-resize-manual { width: 100%; margin-top: 12px; padding: 10px; font-size: 12px; }
+#pb-resize-file-list { display: grid; gap: 7px; max-height: 300px; overflow-y: auto; margin-top: 12px; }
+.pb-resize-file-item { display: grid; gap: 4px; width: 100%; padding: 10px; text-align: left; border: 1px solid #dfe3e8; border-radius: 10px; background: #fff; color: #333; cursor: pointer; font-size: 12px; overflow-wrap: anywhere; }
+.pb-resize-file-item[aria-pressed="true"] { border-color: #333; background: #f0f2f5; }
+.pb-resize-file-item small { color: #737d89; line-height: 1.5; }
+.pb-resize-file-item[data-state="success"] small { color: #256344; }
+.pb-resize-file-item[data-state="error"] small { color: #9b3030; }
+#pb-resize-current-name { max-width: 65%; white-space: normal; overflow-wrap: anywhere; }
 #pb-resizer button:disabled { opacity: .5; cursor: default; }
 .pb-resize-workspace { min-width: 0; overflow-y: auto; padding: 32px; }
 .pb-resize-workspace-header h2 { margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -.5px; }

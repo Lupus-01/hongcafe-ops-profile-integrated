@@ -89,7 +89,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (url.pathname.startsWith("/api/profile-jobs/")) {
+    if (url.pathname.startsWith("/api/profile-jobs/") || url.pathname === "/api/profile-code-document") {
       proxyProfileApiRequest(req, res);
       return;
     }

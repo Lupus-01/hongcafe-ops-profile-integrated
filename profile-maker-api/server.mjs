@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
+import { registerCodeDocumentRoute } from './profile-code-document.mjs';
 import { GoogleGenAI } from '@google/genai';
 import {
     buildLimitedDocumentText,
@@ -1399,6 +1400,7 @@ function auditApiRequest(req, res, next) {
 }
 
 const protectedApiMiddleware = [requireProfileAuth, enforceProfileRateLimit];
+registerCodeDocumentRoute(app, protectedApiMiddleware, multer);
 
 function getKstDateString() {
     return new Intl.DateTimeFormat('sv-SE', {

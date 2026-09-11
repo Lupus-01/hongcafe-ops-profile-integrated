@@ -85,6 +85,11 @@ test('web server proxies profile job status and retry requests to the profile AP
   });
   assert.equal(retryResponse.status, 200);
 
+  const codeResponse = await fetch(`${webBaseUrl}/api/profile-code-document`, {
+    method: 'POST', headers: { Cookie: 'profile_api_auth=test-token', 'Content-Type': 'application/octet-stream' }, body: 'docx-upload-test'
+  });
+  assert.equal(codeResponse.status, 200);
+
   assert.deepEqual(receivedRequests, [
     {
       method: 'GET',
@@ -97,6 +102,12 @@ test('web server proxies profile job status and retry requests to the profile AP
       url: '/api/profile-jobs/job-123/retry-failed',
       cookie: 'profile_api_auth=test-token',
       body: '{}'
+    },
+    {
+      method: 'POST',
+      url: '/api/profile-code-document',
+      cookie: 'profile_api_auth=test-token',
+      body: 'docx-upload-test'
     }
   ]);
 });

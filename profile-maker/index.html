@@ -20,9 +20,13 @@
             <section class="pb-resize-card">
                 <h3>코드 불러오기</h3>
                 <label class="pb-resize-field">코드 파일
-                    <input id="pb-resize-file" type="file" accept=".txt,.html,.htm" aria-describedby="pb-resize-file-name">
+                    <input id="pb-resize-file" type="file" accept=".txt,.docx" multiple aria-describedby="pb-resize-file-name">
                 </label>
-                <p id="pb-resize-file-name" class="pb-resize-help">.txt · .html, 최대 30MB. 원본 코드에 직접 붙여 넣어도 됩니다.</p>
+                <p id="pb-resize-file-name" class="pb-resize-help">TXT · Word(.docx) 여러 개 선택. 최대 50개, 파일당 30MB, 합계 60MB. 다시 선택하면 목록이 교체됩니다.</p>
+                <p class="pb-resize-help">Word 안에 텍스트로 저장된 HTML 코드를 읽습니다. .doc는 .docx로 저장해주세요.</p>
+                <button type="button" id="pb-resize-manual" class="pb-action-btn secondary">코드 직접 입력</button>
+                <p id="pb-resize-batch-summary" class="pb-resize-help" role="status"></p>
+                <div id="pb-resize-file-list" aria-label="선택한 코드 파일"></div>
             </section>
             <section class="pb-resize-card">
                 <div class="pb-resize-card-heading"><h3>글자 크기 설정</h3><span class="pb-resize-badge">기본 42 / 20px</span></div>
@@ -36,10 +40,13 @@
                 <p class="pb-resize-help">자동화 제작 글꼴은 Pretendard입니다.<br>코드에 지정된 글꼴·내용·디자인은 유지합니다.</p>
             </section>
             <div class="pb-resize-actions">
+                <button type="button" id="pb-resize-apply-all" class="pb-action-btn primary" disabled>전체 크기 적용 및 검증</button>
+                <button type="button" id="pb-resize-cancel" class="pb-action-btn secondary" hidden>처리 중단</button>
                 <button type="button" id="pb-resize-apply" class="pb-action-btn primary">크기 적용 및 검증</button>
                 <button type="button" id="pb-resize-preview" class="pb-action-btn secondary" disabled>원본·수정 미리보기</button>
                 <button type="button" id="pb-resize-copy" class="pb-action-btn secondary" disabled>수정 코드 복사</button>
                 <button type="button" id="pb-resize-save" class="pb-action-btn secondary" disabled>수정 코드 저장 (.txt)</button>
+                <button type="button" id="pb-resize-save-all" class="pb-action-btn secondary" disabled>성공한 결과 전체 저장 (.zip)</button>
                 <p class="pb-resize-help">검증을 통과하면 미리보기·복사·저장이 활성화됩니다.</p>
             </div>
         </aside>
@@ -47,7 +54,7 @@
             <div class="pb-resize-workspace-header"><h2>프로필 코드 편집</h2><p>제목·본문 크기만 변경합니다. 크기에 따라 줄바꿈과 높이는 달라질 수 있습니다.</p></div>
             <div id="pb-resize-status" role="status" data-state="idle">원본 코드를 불러오거나 붙여 넣어 시작하세요.</div>
             <section class="pb-resize-code-card">
-                <div class="pb-resize-card-heading"><label for="pb-resize-source">원본 코드</label><span class="pb-resize-badge">원본 보존</span></div>
+                <div class="pb-resize-card-heading"><label for="pb-resize-source">원본 코드</label><span id="pb-resize-current-name" class="pb-resize-badge">직접 입력</span></div>
                 <textarea id="pb-resize-source" spellcheck="false" placeholder="사이트 등록용 HTML을 여기에 붙여 넣으세요."></textarea>
             </section>
             <section class="pb-resize-code-card">
@@ -435,6 +442,7 @@
     <script src="/vendor/html2canvas/html2canvas.min.js"></script>
     <script src="script.js"></script>
     <script src="profile-code-resizer.js"></script>
+    <script src="profile-code-files.js"></script>
     <script src="profile-code-resizer-ui.js"></script>
 </body>
 </html>
