@@ -7,6 +7,35 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <nav class="pb-work-tabs" aria-label="프로필 작업">
+        <button type="button" id="pb-maker-tab" aria-pressed="true">프로필 제작</button>
+        <button type="button" id="pb-resizer-tab" aria-pressed="false">코드 크기 조정</button>
+    </nav>
+    <section id="pb-resizer" hidden aria-label="코드 크기 조정">
+        <h2>코드 크기 조정</h2>
+        <p>기존 프로필 HTML의 제목·본문 글자 크기만 변경합니다. 글자 크기에 따라 줄바꿈과 높이는 달라질 수 있습니다.</p>
+        <label>원본 코드<textarea id="pb-resize-source" spellcheck="false" placeholder="사이트 등록용 HTML을 붙여 넣으세요."></textarea></label>
+        <label>코드 파일 불러오기 <input id="pb-resize-file" type="file" accept=".txt,.html,.htm"></label>
+        <div class="pb-resize-controls">
+            <label>제목 <input id="pb-resize-title" type="number" min="1" max="200" value="42"> px</label>
+            <label>본문 <input id="pb-resize-body" type="number" min="1" max="200" value="20"> px</label>
+            <button type="button" id="pb-resize-site">사이트 기준값 (42/20px)</button>
+            <button type="button" id="pb-resize-canvas">제작 화면 기준값 (66/35px)</button>
+            <button type="button" id="pb-resize-apply">크기 적용 및 검증</button>
+        </div>
+        <p id="pb-resize-status" role="status">원본은 유지되며, 검증을 통과한 코드만 복사·저장할 수 있습니다.</p>
+        <label>수정 결과<textarea id="pb-resize-output" readonly spellcheck="false"></textarea></label>
+        <div class="pb-resize-controls">
+            <button type="button" id="pb-resize-copy" disabled>수정 코드 복사</button>
+            <button type="button" id="pb-resize-save" disabled>수정 코드 저장 (.txt)</button>
+            <button type="button" id="pb-resize-preview" disabled>원본·수정 미리보기</button>
+        </div>
+        <div id="pb-resize-previews" hidden>
+            <p>두 화면은 같은 너비입니다. 외부 스타일·스크립트는 차단되므로 실제 등록 사이트와 표시가 다를 수 있습니다.</p>
+            <h3>원본</h3><iframe id="pb-resize-before" sandbox="" referrerpolicy="no-referrer" title="원본 프로필 미리보기"></iframe>
+            <h3>수정 후</h3><iframe id="pb-resize-after" sandbox="" referrerpolicy="no-referrer" title="크기 수정 후 프로필 미리보기"></iframe>
+        </div>
+    </section>
     <div class="pb-layout pb-theme-sinjeom" id="pb-app">
         <aside class="pb-sidebar">
             <div class="pb-sidebar-header">
@@ -187,6 +216,7 @@
                     <h3>타이포 설정</h3>
                     <span class="pb-ai-badge">결과 스타일</span>
                 </div>
+                <p class="pb-ai-status">제작 화면·이미지 기본값: 제목 66px / 본문 35px. 사이트 등록용 코드: 제목 42px / 본문 20px.</p>
                 <div class="pb-ai-form">
                     <label class="pb-ai-field">
                         <span>폰트</span>
@@ -378,5 +408,7 @@
     </div>
     <script src="/vendor/html2canvas/html2canvas.min.js"></script>
     <script src="script.js"></script>
+    <script src="profile-code-resizer.js"></script>
+    <script src="profile-code-resizer-ui.js"></script>
 </body>
 </html>
