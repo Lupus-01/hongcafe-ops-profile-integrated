@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { createAthenaProbe } = require("./athena-session-test");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "data");
@@ -31,6 +32,12 @@ const PROFILE_AUTH_SECRET = process.env.PROFILE_AUTH_SECRET || "";
 validateProductionSecurity();
 
 const sessions = new Map();
+const athenaProbe = createAthenaProbe({
+  loginUrl: LEGACY_LOGIN_URL,
+  enabled: process.env.ATHENA_SESSION_TEST === "true" && process.env.NODE_ENV !== "production"
+    && ["127.0.0.1", "::1"].includes(HOST),
+  authenticate: authenticateWithLegacyProgram,
+});
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -51,6 +58,13 @@ ensureStorage();
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (await athenaProbe.handle(req, res, url.pathname, readJsonBody)) return;
+    if (url.pathname === "/athena-session-test" || url.pathname === "/athena-session-test.js") {
+      if (!athenaProbe.enabled || req.method !== "GET") { sendText(res, 404, "Not found"); return; }
+      res.setHeader("Cache-Control", "no-store");
+      serveFile(path.join(__dirname, url.pathname.endsWith('.js') ? 'athena-session-test-ui.js' : 'athena-session-test.html'), res);
+      return;
+    }
 
     if (url.pathname === "/api/health" && req.method === "GET") {
       sendJson(res, 200, {
@@ -263,16 +277,21 @@ async function loginUser(body) {
   });
 }
 
-async function authenticateWithLegacyProgram(username, password) {
+async function authenticateWithLegacyProgram(username, password, capture = null) {
+  if (capture && new URL(LEGACY_LOGIN_POST_URL).origin !== new URL(LEGACY_LOGIN_URL).origin) {
+    throw new Error("Athena test requires same-origin login endpoints");
+  }
   const getResponse = await fetch(LEGACY_LOGIN_URL, {
     method: "GET",
     redirect: "manual",
+    ...(capture ? { signal: AbortSignal.timeout(10000) } : {}),
     headers: {
       "User-Agent": "HongCafe-Ops-Worklog/0.1",
     },
   });
   const loginPage = await getResponse.text();
-  const cookieHeader = collectSetCookies(getResponse.headers);
+  if (capture) capture.jar.absorb(getResponse.headers, LEGACY_LOGIN_URL);
+  const cookieHeader = capture ? capture.jar.header(LEGACY_LOGIN_POST_URL) : collectSetCookies(getResponse.headers);
   const hiddenFields = extractHiddenFields(loginPage);
   const form = new URLSearchParams({
     ...hiddenFields,
@@ -284,6 +303,7 @@ async function authenticateWithLegacyProgram(username, password) {
   const postResponse = await fetch(LEGACY_LOGIN_POST_URL, {
     method: "POST",
     redirect: "manual",
+    ...(capture ? { signal: AbortSignal.timeout(10000) } : {}),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "User-Agent": "HongCafe-Ops-Worklog/0.1",
@@ -293,6 +313,7 @@ async function authenticateWithLegacyProgram(username, password) {
     },
     body: form,
   });
+  if (capture) capture.jar.absorb(postResponse.headers, LEGACY_LOGIN_POST_URL);
   const responseText = await postResponse.text();
   const location = postResponse.headers.get("location") || "";
 
