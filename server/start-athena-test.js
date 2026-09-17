@@ -13,4 +13,4 @@ process.env.LEGACY_EXTRA_FIELDS = '{}';
 process.env.LEGACY_SUCCESS_TEXT = '';
 process.env.LEGACY_FAILURE_TEXT = '';
 require('./server');
-console.log(`Athena read-only test: http://127.0.0.1:${process.env.PORT}/athena-session-test`);
+console.log(`Athena login/upload test: http://127.0.0.1:${process.env.PORT}/athena-session-test`);

@@ -9,6 +9,7 @@ dist/
 profile-maker-api/.profile-usage.json
 profile-maker-api/.profile-jobs/
 server/data/*.json
+server/data/athena-upload-tests/
 server/uploads/*
 !server/uploads/.gitkeep
 _sources/

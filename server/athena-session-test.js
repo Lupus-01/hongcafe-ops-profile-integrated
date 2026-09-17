@@ -1,6 +1,8 @@
 const crypto = require('node:crypto');
+const path = require('node:path');
+const { createImageTest } = require('./athena-image-test');
 
-// A small origin-bound cookie jar for the read-only Athena probe. It never
+// A small origin-bound cookie jar for the local Athena probe. It never
 // forwards cookies to a different origin or follows an authentication redirect.
 class AthenaCookieJar {
   constructor(origin) { this.origin = new URL(origin).origin; this.cookies = new Map(); }
@@ -46,8 +48,9 @@ class AthenaCookieJar {
   }
 }
 
-function createAthenaProbe({ loginUrl, enabled, authenticate, fetchImpl = fetch, now = Date.now }) {
+function createAthenaProbe({ loginUrl, enabled, authenticate, fetchImpl = fetch, now = Date.now, receiptDirectory = path.join(__dirname, 'data', 'athena-upload-tests') }) {
   const sessions = new Map();
+  const imageTest = createImageTest({ loginUrl, receiptDirectory, fetchImpl });
   const ttl = 15 * 60 * 1000;
   const cleanup = setInterval(() => {
     for (const [id, session] of sessions) if (session.expires <= now()) sessions.delete(id);
@@ -88,13 +91,28 @@ function createAthenaProbe({ loginUrl, enabled, authenticate, fetchImpl = fetch,
           const ok = await authenticate(username, password, capture);
           if (!ok) { respond(res, 401, { error: '아테나 로그인에 실패했습니다.' }); return true; }
           const id = crypto.randomBytes(32).toString('hex');
-          sessions.set(id, { jar: capture.jar, expires: now() + ttl, busy: false });
+          sessions.set(id, { jar: capture.jar, accountKey: crypto.createHash('sha256').update(username.toLowerCase()).digest('hex'), expires: now() + ttl, busy: false });
           setCookie(res, id, ttl / 1000);
           respond(res, 200, { ok: true, message: '로그인 판정 성공. 목록 조회 검사를 실행해주세요.', expiresInSeconds: ttl / 1000 });
         } else if (pathname === '/api/athena-test/logout') {
           sessions.delete(sessionId(req));
           setCookie(res, '', 0);
           respond(res, 200, { ok: true, message: '로컬 아테나 검사 세션을 삭제했습니다.' });
+        } else if (pathname === '/api/athena-test/upload' || pathname === '/api/athena-test/recover') {
+          const session = sessions.get(sessionId(req));
+          if (!session || session.expires <= now()) {
+            sessions.delete(sessionId(req));
+            respond(res, 401, { error: '검사 화면에서 다시 로그인해주세요.' }); return true;
+          }
+          if (session.busy) { respond(res, 409, { error: '다른 검사가 진행 중입니다.' }); return true; }
+          session.busy = true;
+          try {
+            const body = await readBody(req, 12 * 1024 * 1024);
+            if (pathname.endsWith('/upload') && body.confirmUpload !== true) {
+              respond(res, 400, { error: '선택한 이미지의 실제 등록에 체크해주세요.' }); return true;
+            }
+            respond(res, 200, await imageTest(session, body, pathname.endsWith('/recover')));
+          } finally { session.busy = false; }
         } else if (pathname === '/api/athena-test/check') {
           const id = sessionId(req);
           const session = sessions.get(id);
@@ -131,9 +149,9 @@ function createAthenaProbe({ loginUrl, enabled, authenticate, fetchImpl = fetch,
             }
           } finally { session.busy = false; }
         } else respond(res, 404, { error: 'Not found' });
-      } catch {
+      } catch (error) {
         // Never return upstream HTML, fetch errors, cookies or submitted secrets.
-        respond(res, 502, { error: '아테나 연결 검사를 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해주세요.' });
+        respond(res, error.publicStatus || 502, { error: error.publicStatus ? error.message : '아테나 연결 검사를 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해주세요.' });
       }
       return true;
     }

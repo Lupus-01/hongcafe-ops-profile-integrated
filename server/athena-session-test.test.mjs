@@ -7,6 +7,7 @@ import http from 'node:http';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import probeModule from './athena-session-test.js';
+import imageModule from './athena-image-test.js';
 const { AthenaCookieJar, createAthenaProbe } = probeModule;
 const directory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -68,7 +69,7 @@ const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', ()
 async function startWeb(t, extraEnv = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'athena-probe-'));
   fs.mkdirSync(path.join(root, 'server', 'data'), { recursive: true });
-  for (const name of ['server.js', 'athena-session-test.js', 'athena-session-test-ui.js', 'athena-session-test.html']) fs.copyFileSync(path.join(directory, name), path.join(root, 'server', name));
+  for (const name of ['server.js', 'athena-session-test.js', 'athena-image-test.js', 'athena-session-test-ui.js', 'athena-session-test.html']) fs.copyFileSync(path.join(directory, name), path.join(root, 'server', name));
   fs.writeFileSync(path.join(root, 'server', 'data', 'users.json'), JSON.stringify([{ adminId: 'alice', name: 'Alice', role: 'teamLead', part: '운영팀' }]));
   const child = spawn(process.execPath, ['server/server.js'], { cwd: root, windowsHide: true,
     env: { ...process.env, NODE_ENV: 'test', HOST: '127.0.0.1', PORT: '0', AUTH_BYPASS: 'false', COOKIE_SECURE: 'false', PROFILE_AUTH_SECRET: '', ATHENA_SESSION_TEST: 'true', ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -153,4 +154,118 @@ test('disabled probe returns 404 without authentication or upstream requests', a
   const probe = createAthenaProbe({ enabled: false, loginUrl: 'https://athena.example', authenticate: () => { throw new Error('must not run'); } });
   t.after(() => probe.close());
   assert.equal((await invoke(probe, 'login')).status, 404);
+});
+
+const imageSource = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2nQAAAAASUVORK5CYII=';
+const cdn = 'https://hongcafe-korea.gcdn.ntruss.com/media/media_url/test.jpg';
+function uploadHarness() {
+  const receiptDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'athena-upload-receipts-'));
+  const rows = new Map();
+  const posts = [];
+  const state = { failAfterPost: false, denyList: false, delayPost: null };
+  const session = { accountKey: 'fixture-account', jar: new AthenaCookieJar('https://athena.example'), busy: false };
+  session.jar.absorb(new Headers({ 'Set-Cookie': 'sid=private-cookie; Path=/' }), 'https://athena.example/admin');
+  const fetchImpl = async (url, options) => {
+    assert.equal(options.headers.Cookie, 'sid=private-cookie');
+    assert.equal(options.redirect, 'manual');
+    if (new URL(url).pathname === '/management/image') {
+      if (state.denyList) return new Response('login', { status: 302, headers: { Location: '/admin' } });
+      const entries = [...rows].map(([name, value]) => `<tr><td>4312</td><td> ${name} </td><td><img src="${value}"></td><td>1376</td></tr>`).join('');
+      return new Response(`<button class="image-popup-insert"></button><script id="image-popup-template"></script><table><tbody><tr><td>4313</td><td>other-user</td><td><img src="https://other.example/wrong.jpg"></td></tr>${entries}</tbody></table>`);
+    }
+    assert.equal(new URL(url).pathname, '/api/management/insertImage');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.body.getAll('bn_img').length, 1);
+    assert.equal(options.body.get('bn_img').type, 'image/png');
+    assert.deepEqual(Buffer.from(await options.body.get('bn_img').arrayBuffer()), Buffer.from(imageSource.split(',')[1], 'base64'));
+    const name = options.body.get('media_name');
+    posts.push(name);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(receiptDirectory, fs.readdirSync(receiptDirectory).find(n => n.endsWith('.json'))))).state, 'pending');
+    if (state.delayPost) await state.delayPost;
+    if (state.failAfterPost) throw new Error('private upstream error');
+    rows.set(name, cdn);
+    return new Response(JSON.stringify({ response: 'success' }));
+  };
+  const create = () => imageModule.createImageTest({ loginUrl: 'https://athena.example/admin', receiptDirectory, fetchImpl });
+  return { create, session, rows, posts, state, receiptDirectory, fetchImpl };
+}
+
+test('one upload maps exact row URL, reuses result after service restart and keeps no image or credentials', async () => {
+  const h = uploadHarness();
+  const first = await h.create()(h.session, { source: imageSource });
+  assert.equal(first.ok, true);
+  assert.equal(first.reused, false);
+  assert.equal(first.url, cdn);
+  const second = await h.create()(h.session, { source: imageSource });
+  assert.equal(second.reused, true);
+  assert.equal(h.posts.length, 1);
+  const content = fs.readFileSync(path.join(h.receiptDirectory, fs.readdirSync(h.receiptDirectory)[0]), 'utf8');
+  assert.ok(!/base64|private-cookie|fixture-account/.test(content));
+});
+
+test('uncertain upload is never reposted, including after restart; read-only recovery finds exact result', async () => {
+  const h = uploadHarness();
+  h.state.failAfterPost = true;
+  const first = await h.create()(h.session, { source: imageSource });
+  assert.equal(first.pending, true);
+  assert.ok(!JSON.stringify(first).includes('private upstream error'));
+  const second = await h.create()(h.session, { source: imageSource });
+  assert.equal(second.pending, true);
+  assert.equal(h.posts.length, 1);
+  h.rows.set(first.name, cdn);
+  const recovered = await h.create()(h.session, { source: imageSource }, true);
+  assert.equal(recovered.ok, true);
+  assert.equal(recovered.reused, true);
+  assert.equal(h.posts.length, 1);
+});
+
+test('recovery without previous attempt and expired login never upload', async () => {
+  const h = uploadHarness();
+  assert.equal((await h.create()(h.session, { source: imageSource }, true)).ok, false);
+  assert.equal(h.posts.length, 0);
+  h.state.denyList = true;
+  await assert.rejects(h.create()(h.session, { source: imageSource }), /로그인/);
+  assert.equal(h.posts.length, 0);
+  assert.equal(fs.readdirSync(h.receiptDirectory).length, 0);
+});
+
+test('invalid image and ambiguous/malicious rows are rejected', () => {
+  for (const source of ['data:image/png;base64,YQ==', imageSource.replace('image/png', 'image/jpeg'), 'https://example.com/a.png']) {
+    assert.throws(() => imageModule.decodeImage(source));
+  }
+  const row = `<tr><td>1</td><td>target</td><td><img src="${cdn}"></td></tr>`;
+  assert.equal(imageModule.registeredUrl(row, 'target'), cdn);
+  assert.equal(imageModule.registeredUrl(row, 'tar'), null);
+  assert.throws(() => imageModule.registeredUrl(row + row, 'target'), /여러 개/);
+  assert.throws(() => imageModule.registeredUrl(row.replace(cdn, 'https://evil.example/a.jpg'), 'target'), /호스트/);
+});
+
+test('separate sessions cannot post same account image concurrently', async () => {
+  const h = uploadHarness();
+  let release;
+  h.state.delayPost = new Promise(resolve => { release = resolve; });
+  const first = h.create()(h.session, { source: imageSource });
+  while (!h.posts.length) await new Promise(resolve => setTimeout(resolve, 1));
+  const second = await h.create()({ ...h.session }, { source: imageSource });
+  assert.equal(second.pending, true);
+  release();
+  await first;
+  assert.equal(h.posts.length, 1);
+});
+
+test('upload API requires authenticated session, same origin and explicit file confirmation', async t => {
+  const h = uploadHarness();
+  const probe = createAthenaProbe({ enabled: true, loginUrl: 'https://athena.example/admin', receiptDirectory: h.receiptDirectory, fetchImpl: h.fetchImpl,
+    authenticate: async (username, password, capture) => { capture.jar = h.session.jar; return true; } });
+  t.after(() => probe.close());
+  assert.equal((await invoke(probe, 'upload', { body: { source: imageSource, confirmUpload: true } })).status, 401);
+  const login = await invoke(probe, 'login', { body: { username: 'alice', password: 'fixture' } });
+  const cookie = login.headers['Set-Cookie'].split(';')[0];
+  assert.equal((await invoke(probe, 'upload', { cookie, body: { source: imageSource } })).status, 400);
+  assert.equal((await invoke(probe, 'upload', { cookie, origin: 'https://evil.example', body: { source: imageSource, confirmUpload: true } })).status, 403);
+  assert.equal(h.posts.length, 0);
+  const upload = await invoke(probe, 'upload', { cookie, body: { source: imageSource, confirmUpload: true } });
+  assert.equal(upload.body.ok, true);
+  assert.equal((await invoke(probe, 'recover', { cookie, body: { source: imageSource } })).body.reused, true);
+  assert.equal(h.posts.length, 1);
 });
