@@ -9,23 +9,23 @@ const script = fs.readFileSync(path.join(profileMakerDirectory, 'script.js'), 'u
 const style = fs.readFileSync(path.join(profileMakerDirectory, 'style.css'), 'utf8');
 const html = fs.readFileSync(path.join(profileMakerDirectory, 'index.html'), 'utf8');
 
-test('profile site body text and points stay aligned at 20px', () => {
+test('profile site body text and points stay aligned at 16px', () => {
     assert.match(script, /bodySize:\s*35,\s*\r?\n\s*pointSize:\s*35,/);
     assert.match(style, /--pb-body-size:\s*35px;\s*\r?\n\s*--pb-point-size:\s*35px;/);
     assert.match(html, /id="pb-point-size"[^>]*value="35"/);
-    assert.match(script, /bodySize:\s*'20px',\s*\r?\n\s*pointSize:\s*'20px'/);
+    assert.match(script, /bodySize:\s*'16px',\s*\r?\n\s*pointSize:\s*'16px'/);
     assert.match(script, /const profileBodySize = isSiteCode \? siteTypography\.bodySize : bodySize;/);
     assert.match(script, /const profilePointSize = isSiteCode \? siteTypography\.pointSize : pointSize;/);
     assert.match(script, /\.pb-presentation-points'[\s\S]*?'font-size': profilePointSize,/);
 });
 
-test('profile site labels and list items keep the fixed 20px standard', () => {
+test('profile site labels and list items keep the fixed 16px standard', () => {
     assert.match(style, /\.pb-presentation\s*\{[\s\S]*?container-type:\s*inline-size;/);
-    assert.match(script, /chipSize:\s*'20px'/);
+    assert.match(script, /chipSize:\s*'16px'/);
     assert.match(script, /eyebrowSize:\s*'12px'/);
     assert.match(script, /const profileChipSize = isSiteCode\s*\? siteTypography\.chipSize/);
     assert.match(script, /const profileEyebrowSize = isSiteCode \? siteTypography\.eyebrowSize : '12px';/);
-    assert.match(script, /\.pb-presentation-points li'[\s\S]*?'font-size': profilePointSize,[\s\S]*?'line-height': '1\.55'/);
+    assert.match(script, /\.pb-presentation-points li'[\s\S]*?'font-size': profilePointSize,[\s\S]*?'line-height': isSiteCode \? siteTypography\.lineHeight : '1\.55'/);
 });
 
 test('profile canvas and image export keep the configured title pixels without automatic shrinking', () => {
@@ -46,7 +46,7 @@ test('all generated profile outputs use fixed typography standards', () => {
     assert.match(html, /id="pb-body-size"[^>]*value="35" disabled/);
     assert.match(html, /id="pb-point-size"[^>]*value="35" disabled/);
     assert.match(html, /id="pb-line-height"[^>]*value="1\.7" disabled/);
-    assert.match(script, /const siteTypography = \{[\s\S]*?titleSize:\s*'42px',[\s\S]*?bodySize:\s*'20px',[\s\S]*?pointSize:\s*'20px',[\s\S]*?chipSize:\s*'20px',[\s\S]*?eyebrowSize:\s*'12px'/);
+    assert.match(script, /const siteTypography = \{[\s\S]*?titleSize:\s*'26px',[\s\S]*?bodySize:\s*'16px',[\s\S]*?pointSize:\s*'16px',[\s\S]*?chipSize:\s*'16px',[\s\S]*?eyebrowSize:\s*'12px'/);
     assert.match(script, /const resolvedTitleSize = isSiteCode \? siteTypography\.titleSize : titleSize;/);
     assert.match(script, /if \(!input \|\| input\.disabled \|\| input\.closest\('\.pb-range-control'\)\) return;/);
     assert.doesNotMatch(script, /getHeadlineFitCqw/);

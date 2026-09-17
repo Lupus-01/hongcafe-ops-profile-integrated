@@ -94,12 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lineHeight: 1.7
     };
     const siteTypography = {
-        titleSize: '42px',
-        bodySize: '20px',
-        pointSize: '20px',
-        chipSize: '20px',
+        titleSize: '26px',
+        bodySize: '16px',
+        pointSize: '16px',
+        chipSize: '16px',
         eyebrowSize: '12px',
-        lineHeight: '1.65'
+        lineHeight: '1.5'
     };
 
     const templates = {
@@ -1316,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             display: 'inline-block',
             'margin-bottom': '12px',
             padding: '8px 12px',
-            'border-radius': '12px',
+            'border-radius': isSiteCode ? '6px' : '12px',
             background: currentBrandLight,
             'box-shadow': 'none',
             'font-size': profileChipSize,
@@ -1355,13 +1355,13 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '0',
             display: 'flex',
             'flex-direction': 'column',
-            gap: '14px',
+            gap: isSiteCode ? '10px' : '14px',
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
             'font-size': profilePointSize,
             'font-weight': '700',
-            'line-height': '1.55',
+            'line-height': isSiteCode ? siteTypography.lineHeight : '1.55',
             color: '#3a2f28',
             'overflow-wrap': 'anywhere',
             'list-style': 'none'
@@ -1374,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'align-items': 'flex-start',
             gap: '12px',
             'font-size': profilePointSize,
-            'line-height': '1.55'
+            'line-height': isSiteCode ? siteTypography.lineHeight : '1.55'
         }));
 
         stabilizeExportListMarkers(clone);
@@ -1444,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 padding: hasImage ? '0' : (isPortrait ? '32px 24px' : '40px 24px'),
                 background: hasImage ? '#ffffff' : 'rgba(255,255,255,0.56)',
                 border: '0',
-                'border-radius': '18px',
+                'border-radius': isSiteCode ? '8px' : '18px',
                 'box-shadow': 'none',
                 'box-sizing': 'border-box',
                 'text-align': 'center',
@@ -1466,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
             height: '100%',
             display: 'block',
             'max-width': '100%',
-            'border-radius': '18px',
+            'border-radius': isSiteCode ? '8px' : '18px',
             'object-fit': 'cover',
             'object-position': 'center',
             'vertical-align': 'top',

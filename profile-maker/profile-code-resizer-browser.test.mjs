@@ -27,11 +27,11 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
         const original = '<div class="pb-presentation" style="background:rgb(247,246,251);padding:13px;border:1px solid red;width:600px"><h2 class="pb-presentation-title" style="font-size:66px;color:rgb(51,34,17);font-weight:800;margin:0">제목 원문</h2><p class="pb-presentation-body" style="font-size:35px;color:rgb(85,72,64);line-height:1.65;letter-spacing:1px">본문 <strong style="font-size:48px">강조</strong></p><span class="pb-presentation-chip" style="font-size:12px">라벨</span></div>'
             .replaceAll('style="', 'style="font-family:Pretendard,&quot;Apple SD Gothic Neo&quot;,&quot;Malgun Gothic&quot;,sans-serif;');
         try {
-            const result = ProfileCodeResizer.resize(original, 42, 20);
+            const result = ProfileCodeResizer.resize(original, 26, 16);
             assert(ProfileCodeResizer.verifyDOM(original, result.code, document), 'DOM preservation');
-            assert(result.code === original.replace('font-size:66px', 'font-size:42px !important').replace('font-size:35px', 'font-size:20px !important').replace('font-size:48px', 'font-size:20px !important'), 'exported quote entities and all non-size bytes preserved');
+            assert(result.code === original.replace('font-size:66px', 'font-size:26px !important').replace('font-size:35px', 'font-size:16px !important').replace('font-size:48px', 'font-size:16px !important'), 'exported quote entities and all non-size bytes preserved');
             const entityTail = '<h2 class="pb-presentation-title" style="font-family:&quot;name;font-size:99px&quot;">제목</h2><p class="pb-presentation-body" style="font-family:&#39;Apple SD Gothic Neo&#39;">본문</p>';
-            const entityTailResult = ProfileCodeResizer.resize(entityTail, 42, 20);
+            const entityTailResult = ProfileCodeResizer.resize(entityTail, 26, 16);
             assert(ProfileCodeResizer.verifyDOM(entityTail, entityTailResult.code, document), 'entity terminator is not a CSS separator; font-family preserved');
             for (const mutated of [result.code.replace('제목 원문', '다른 제목'), result.code.replace('padding:13px', 'padding:99px'), result.code.replace('font-weight:800', 'font-weight:400')]) {
                 let rejected = false;
@@ -41,7 +41,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             let rejected = false;
             try {
                 const malformed = '<p class="pb-presentation-body"><h2 class="pb-presentation-title">제목</h2>본문</p>';
-                ProfileCodeResizer.verifyDOM(malformed, ProfileCodeResizer.resize(malformed, 42, 20).code, document);
+                ProfileCodeResizer.verifyDOM(malformed, ProfileCodeResizer.resize(malformed, 26, 16).code, document);
             } catch { rejected = true; }
             assert(rejected, 'must reject browser repaired markup');
             const blocks = [original, result.code].map((html) => {
@@ -54,15 +54,15 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
                 const [before, after] = blocks.map((block) => getComputedStyle(block.querySelector(selector)));
                 for (const property of ['color', 'backgroundColor', 'fontFamily', 'fontWeight', 'fontStyle', 'letterSpacing', 'textAlign', 'padding', 'margin', 'border', 'display']) assert(before[property] === after[property], selector + ' preserves ' + property);
             }
-            assert(getComputedStyle(blocks[1].querySelector('h2')).fontSize === '42px', 'title 42px');
-            assert(getComputedStyle(blocks[1].querySelector('p')).fontSize === '20px', 'body 20px');
-            assert(getComputedStyle(blocks[1].querySelector('strong')).fontSize === '20px', 'nested 20px');
+            assert(getComputedStyle(blocks[1].querySelector('h2')).fontSize === '26px', 'title 26px');
+            assert(getComputedStyle(blocks[1].querySelector('p')).fontSize === '16px', 'body 16px');
+            assert(getComputedStyle(blocks[1].querySelector('strong')).fontSize === '16px', 'nested 16px');
             assert(getComputedStyle(blocks[1].querySelector('.pb-presentation-chip')).fontSize === '12px', 'label unchanged');
             blocks.forEach((block) => block.remove());
             get('pb-canvas').dataset.preservationSentinel = 'keep';
             get('pb-resizer-tab').click();
             assert(get('pb-app').hidden && !get('pb-resizer').hidden, 'resize tab');
-            assert(get('pb-resize-title').value === '42' && get('pb-resize-body').value === '20', 'site defaults');
+            assert(get('pb-resize-title').value === '26' && get('pb-resize-body').value === '16', 'site defaults');
             assert(get('pb-resize-site').getAttribute('aria-pressed') === 'true', 'site default selected');
             assert(!get('pb-resize-canvas') && !/66|35/.test(get('pb-resizer').textContent), 'image size preset removed');
             assert(getComputedStyle(get('pb-resize-title')).fontFamily.includes('Pretendard'), 'UI font inherits production font');
@@ -73,7 +73,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             assert(document.documentElement.scrollWidth <= innerWidth, 'no horizontal overflow');
             get('pb-resize-source').value = original;
             get('pb-resize-apply').click();
-            assert(get('pb-resize-output').value === result.code, 'default conversion uses 42/20');
+            assert(get('pb-resize-output').value === result.code, 'default conversion uses 26/16');
             assert(get('pb-resize-status').dataset.state === 'success', 'success feedback');
             get('pb-resize-site').click();
             assert(get('pb-resize-copy').disabled && get('pb-resize-site').getAttribute('aria-pressed') === 'true', 'preset invalidates previous output');
@@ -90,7 +90,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-resize-title').dispatchEvent(new Event('input'));
             assert(get('pb-resize-site').getAttribute('aria-pressed') === 'false', 'custom size deselects preset');
             assert(!get('pb-resize-output').value && get('pb-resize-copy').disabled && get('pb-resize-save').disabled, 'stale output cleared');
-            get('pb-resize-title').value = 42;
+            get('pb-resize-title').value = 26;
             let finishRead;
             Object.defineProperty(get('pb-resize-file'), 'files', { configurable: true, value: [{ name: 'old-profile.txt', size: original.length, arrayBuffer: () => new Promise((resolve) => { finishRead = resolve; }) }] });
             get('pb-resize-file').dispatchEvent(new Event('change'));
@@ -144,7 +144,7 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             await waitUntil(() => !get('pb-resize-file').disabled);
             assert(document.querySelectorAll('.pb-resize-file-item[data-state="success"]').length === 3, 'mixed batch successes');
             assert(document.querySelectorAll('.pb-resize-file-item[data-state="error"]').length === 2, 'failed files isolated');
-            const expectedCodes = [txtCode, wordCode, otherCode].map((code) => ProfileCodeResizer.resize(code, 42, 20).code);
+            const expectedCodes = [txtCode, wordCode, otherCode].map((code) => ProfileCodeResizer.resize(code, 26, 16).code);
             for (let i = 0; i < 3; i += 1) {
                 document.querySelectorAll('.pb-resize-file-item')[i].click();
                 get('pb-resize-output').value = '출력 영역을 잘못 바꿔도 저장에 사용하지 않음';

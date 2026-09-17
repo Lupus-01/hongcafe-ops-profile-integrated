@@ -186,7 +186,7 @@ test('site protection runs after all export formatting while capture keeps its s
     const source = script.slice(start, end).trim();
     const run = vm.runInNewContext(`(${source})`, {
         defaultTypography: { fontFamily: 'Pretendard', titleSize: 66, bodySize: 35, pointSize: 35, lineHeight: 1.7 },
-        siteTypography: { bodySize: '20px', pointSize: '20px', lineHeight: '1.65', chipSize: '20px', eyebrowSize: '12px' },
+        siteTypography: vm.runInNewContext(`(${script.match(/const siteTypography = (\{[\s\S]*?\});/)[1]})`),
         currentBrandBg: '#fff',
         currentBrandColor: '#c21129',
         currentBrandLight: '#fbe6e8',
@@ -202,7 +202,22 @@ test('site protection runs after all export formatting while capture keeps its s
         }
     });
     const makeRoot = () => {
-        const root = { steps: [], values: {}, classList: { add() {} }, querySelectorAll() { return []; } };
+        const selectors = [
+            '.pb-presentation-title, .pb-presentation-card h3, .pb-presentation-closing h3',
+            '.pb-presentation-intro, .pb-presentation-body, .pb-presentation-card-body, .pb-presentation-closing p',
+            '.pb-presentation-chip', '.pb-presentation-points', '.pb-presentation-points li',
+            '.pb-presentation-portrait, .pb-presentation-photo',
+            '.pb-presentation-portrait .pb-uploaded-img, .pb-presentation-photo .pb-uploaded-img'
+        ];
+        const nodes = new Map(selectors.map((selector) => {
+            const node = {
+                values: {}, classList: { contains() { return false; } }, closest() { return null; },
+                querySelector() { return { getAttribute() { return 'existing-image.jpg'; } }; }
+            };
+            node.style = { setProperty(property, value) { node.values[property] = value; } };
+            return [selector, node];
+        }));
+        const root = { steps: [], values: {}, nodes, classList: { add() {} }, querySelectorAll(selector) { return nodes.has(selector) ? [nodes.get(selector)] : []; } };
         root.style = { setProperty(property, value) { root.values[property] = value; } };
         return root;
     };
@@ -212,6 +227,20 @@ test('site protection runs after all export formatting while capture keeps its s
     const capture = makeRoot();
     run(capture);
     assert.deepEqual(capture.steps, ['capture', 'normalize']);
+    const siteNodes = [...site.nodes.values()].map((node) => node.values);
+    const captureNodes = [...capture.nodes.values()].map((node) => node.values);
+    assert.deepEqual(siteNodes.slice(0, 5).map((node) => node['font-size']), ['26px', '16px', '16px', '16px', '16px']);
+    assert.deepEqual(captureNodes.slice(0, 5).map((node) => node['font-size']), ['66px', '35px', '38px', '35px', '35px']);
+    assert.equal(siteNodes[1]['line-height'], '1.5');
+    assert.equal(captureNodes[1]['line-height'], '1.7');
+    for (const index of [3, 4]) {
+        assert.equal(siteNodes[index]['line-height'], '1.5');
+        assert.equal(captureNodes[index]['line-height'], '1.55');
+    }
+    assert.equal(siteNodes[3].gap, '10px');
+    assert.equal(captureNodes[3].gap, '14px');
+    assert.deepEqual([2, 5, 6].map((index) => siteNodes[index]['border-radius']), ['6px', '8px', '8px']);
+    assert.deepEqual([2, 5, 6].map((index) => captureNodes[index]['border-radius']), ['12px', '18px', '18px']);
 });
 
 test('site exports reject mixed manual blocks and remove pasted nested formatting', () => {

@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         status.dataset.state = state;
     };
     const updatePreset = () => {
-        byId('pb-resize-site').setAttribute('aria-pressed', String(Number(title.value) === 42 && Number(body.value) === 20));
+        byId('pb-resize-site').setAttribute('aria-pressed', String(Number(title.value) === 26 && Number(body.value) === 16));
     };
     const hidePreview = () => {
         byId('pb-resize-previews').hidden = true;
@@ -113,8 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     byId('pb-resize-manual').addEventListener('click', () => selectRecord(-1));
     byId('pb-resize-site').addEventListener('click', () => {
-        title.value = 42;
-        body.value = 20;
+        title.value = 26;
+        body.value = 16;
         invalidate();
     });
     byId('pb-resize-file').addEventListener('change', async (event) => {

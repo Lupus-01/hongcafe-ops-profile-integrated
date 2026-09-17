@@ -1,5 +1,68 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-17 사이트 디자인 1차 반영
+
+승인된 변경: 사이트 제목 42→26px, 본문·목록·색상 소제목 20→16px, 본문 줄 간격 1.65→1.5, 목록 줄 간격 1.55→1.5, 목록 항목 간격 14→10px, 대표·무드 이미지와 틀 모서리 18→8px, 소제목 모서리 12→6px.
+
+제작 화면·이미지 저장 기준(66/35px), 제목 줄 간격, 설명 박스 모서리, 문구·이미지·URL·다운로드 기능을 보존했다. 코드 크기 조정 도구의 기본값도 26/16으로 맞췄으며, 이 도구는 기존대로 글자 크기만 변경한다. 줄 간격·모서리·소제목은 변환하지 않는다.
+
+### 수정 파일 및 검증 결과
+
+- `profile-maker/script.js`: 사이트 출력 수치와 모드별 간격·모서리.
+- `profile-maker/index.html`, `profile-maker/profile-code-resizer-ui.js`: 기본값·버튼·안내.
+- `profile-maker/profile-typography.test.mjs`, `profile-maker/profile-code-output.test.mjs`, `profile-maker/profile-code-resizer-browser.test.mjs`: 새 기준 및 이미지 출력 기존 설정 보존 검증.
+- `PROFILE_CODE_RESIZER_REPORT.md`: 이번 작업 결과 기록.
+- `npm run check` 통과, 관련 테스트 28/28 통과, Chrome 검사 1/1 통과. Chrome은 샌드박스 실행 실패 후 권한 확장 재실행으로 통과했다.
+- diff 공백 검사와 변경 내역 확인 수행. 실제 아테나 육안 검수와 사이트 출력의 320·375·430px별 비교는 아직 수행하지 않았다.
+
+### 검수 및 Git 상태
+
+로컬 화면 새로고침 → 기존 프로필 복원 → 사이트 코드 다시 내보내기로 검수한다. 제작 캔버스는 기존 크기가 유지되며, 이미 등록된 HTML은 자동 변경되지 않는다. 같은 문구·이미지를 같은 폭에서 비교하고 줄바꿈·잘림·가로 넘침·가독성을 확인한다. 로컬 검수에는 운영 배포가 필요 없다.
+
+기준 HEAD `2ba722d`, 브랜치 `main`. 이번 변경은 미커밋이다. 기존 `package.json` 변경, 미추적 `tools/`, `t`, `ers...` 항목을 보존했다. 아테나 2차 검수는 보류이며 AI 생성·이미지 등록·커밋·푸시·운영 배포·PM2 조작은 실행하지 않았다.
+
+### 검수 후 사용할 반영 명령
+
+권장 커밋 메시지: `수정: 프로필 사이트 출력 글자 크기와 간격 조정`
+
+로컬 PowerShell에서 이번 파일만 스테이징한다. 스테이징된 다른 작업이 있으면 커밋 전에 분리한다.
+
+```powershell
+npm run check
+node --test profile-maker/profile-typography.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-code-resizer.test.mjs profile-maker/profile-history.test.mjs
+npm run test:code-resizer:browser
+git diff --check
+git diff
+git add -- profile-maker/script.js profile-maker/index.html profile-maker/profile-code-resizer-ui.js profile-maker/profile-typography.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-code-resizer-browser.test.mjs PROFILE_CODE_RESIZER_REPORT.md
+git diff --cached --stat
+git diff --cached --check
+git commit -m "수정: 프로필 사이트 출력 글자 크기와 간격 조정"
+git push origin main
+git status --short
+```
+
+운영 서버 Bash에서 각 단계 성공을 확인하고 다음 단계로 진행한다. 작업 트리에 변경이 있으면 먼저 확인한다.
+
+```bash
+cd /opt/hongcafe-ops-profile-integrated
+git status --short
+git pull --ff-only origin main
+npm run check
+git log -1 --oneline
+pm2 reload hongcafe-ops-profile
+curl -fsS -w '\nHTTP %{http_code}\n' http://127.0.0.1:3000/api/health
+pm2 status
+pm2 logs hongcafe-ops-profile --lines 50 --nostream
+git status --short
+git log -1 --oneline
+```
+
+정상 기준: 웹 서비스 online, HTTP 200 및 `ok: true`, 적용 커밋 일치, 새 오류 로그 없음. 정적 파일 변경이므로 웹 reload는 필요 시 실행하며 API 재시작은 필요 없다. 운영에서 아테나 로컬 검사 플래그를 켜지 않는다.
+
+---
+
+아래는 이전 작업 기록이다.
+
 기준 커밋: `d4248bd`, 작업 브랜치: `main`.
 
 기존 사이트 등록용 HTML을 붙여 넣거나 .txt/.html 파일로 불러와 제목·본문의 font-size만 변경하는 탭을 추가했다. 기본값은 사이트 코드 기준 42px/20px이며 제작 화면 기준 66px/35px도 선택할 수 있다. 새 프로필을 생성할 필요가 없고 AI 호출이나 과금이 발생하지 않는다.
