@@ -193,6 +193,7 @@ test('site protection runs after all export formatting while capture keeps its s
         setInlineStyles: vm.runInNewContext(`(${getFunctionSource(script, 'setInlineStyles')})`),
         setProtectedInlineStyles: vm.runInNewContext(`(${getFunctionSource(script, 'setProtectedInlineStyles')})`),
         stabilizeExportListMarkers() {},
+        applySiteListMarkers() {},
         normalizeExportRichText(root) { root.steps.push('normalize'); },
         appendProfileExportCaptureStyles(root) { root.steps.push('capture'); },
         applyProfileSiteProtectionStyles(root) {
@@ -237,7 +238,7 @@ test('site protection runs after all export formatting while capture keeps its s
         assert.equal(siteNodes[index]['line-height'], '1.5');
         assert.equal(captureNodes[index]['line-height'], '1.55');
     }
-    assert.equal(siteNodes[3].gap, '10px');
+    assert.equal(siteNodes[3].gap, '6px');
     assert.equal(captureNodes[3].gap, '14px');
     assert.deepEqual([2, 5, 6].map((index) => siteNodes[index]['border-radius']), ['6px', '8px', '8px']);
     assert.deepEqual([2, 5, 6].map((index) => captureNodes[index]['border-radius']), ['12px', '18px', '18px']);

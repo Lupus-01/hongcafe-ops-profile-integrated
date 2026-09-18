@@ -1,5 +1,76 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-18 사이트 여백·정렬·목록 반영
+
+승인된 두 번째 이미지 피드백을 사이트 출력에 적용했다. 출력 영역 기준 좌우 16px, 상단 30px, 큰 내용 구간 사이 30px로 맞췄다. 설명·마무리의 흰 배경과 왼쪽 테두리를 제거하고 중복 들여쓰기를 없앴다. 색상 소제목의 좌우 패딩도 제거해 글자 시작을 맞췄다. 목록 흰 배경과 구분선은 유지한다.
+
+목록은 최종 서식 정리 뒤 실제 `·` 문자를 추가하며 재출력 전 기존 기호를 제거해 중복을 방지한다. 항목 간격은 6px이고, 긴 항목의 두 번째 줄은 본문 시작점에 맞춘다. 상위 영역의 가운데 정렬 영향을 받지 않도록 사이트 텍스트 정렬을 명시했다. 제목 26px·본문 16px, 이미지 모서리 8px와 제작 화면·이미지 저장 기준은 유지한다.
+
+### 파일과 검증
+
+- `profile-maker/script.js`: 사이트 출력 여백·정렬·장식과 목록 기호 처리.
+- `profile-maker/profile-code-output.test.mjs`, `profile-maker/profile-typography.test.mjs`: 출력 순서·간격 기대값 수정.
+- `profile-maker/profile-site-layout-browser.test.mjs`: 실제 출력 함수와 HTML 구성 함수를 이용한 Chrome 검증 추가. 별도 명령으로 실행하며 package.json은 수정하지 않았다.
+- 이 보고서: 작업 결과 및 반영 명령.
+- 구문 검사 통과, 출력·타이포·히스토리 테스트 22/22 통과.
+- 브라우저 검사 1/1 통과: 3개 유형의 구조 × 320·375·430·720px 총 12개 조합. HTML 직렬화 이후 16px 정렬, 30px 상단/구간 간격, 6px 목록 간격, 문구/이미지 URL 보존, 기호 중복 방지, 가로 넘침을 확인했다.
+- 샘플 문구·단색 이미지로 375px 렌더링을 육안 확인했다. 실제 생성 이미지 품질 또는 아테나 등록 화면 검증을 의미하지 않는다.
+- git diff 공백 검사 및 전체 변경 내역 확인. 아테나의 서비스 소개·탭·닫기와 바깥 영역 여백은 변경하지 않았다.
+
+### 상태와 검수
+
+기준 커밋 `cba8ebf`, 브랜치 main. 이번 변경은 미커밋이며 기존 package.json 변경과 tools/, t, ers... 미추적 항목을 보존했다. 타이포 패널 추가 수정과 아테나 2차 등록 검수는 보류 상태다. AI 생성·이미지 등록·커밋·푸시·배포·PM2 조작은 수행하지 않았다.
+
+로컬 화면을 새로고침하고 기존 프로필을 복원해 사이트 HTML을 다시 내보내면 검수할 수 있다. 기존 등록 코드에 자동 반영되지는 않는다. 로컬 검수에 운영 배포는 필요 없다. 실제 아테나에서 좌우 16px와 상단 30px가 되려면 외부 등록 영역의 추가 여백 여부를 확인해야 한다.
+
+### 검수 후 수동 반영 명령
+
+권장 커밋 메시지: `수정: 프로필 사이트 여백 정렬 및 목록 표시 개선`
+
+로컬 PowerShell에서 각 검사 성공 후 다음 단계로 진행한다. 이번 파일 5개만 스테이징되었는지 확인한다.
+
+```powershell
+npm run check
+node --test profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-history.test.mjs
+node --test profile-maker/profile-site-layout-browser.test.mjs
+git diff --check
+git diff
+git add -- profile-maker/script.js profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-site-layout-browser.test.mjs PROFILE_CODE_RESIZER_REPORT.md
+git diff --cached --stat
+git diff --cached --check
+git commit -m "수정: 프로필 사이트 여백 정렬 및 목록 표시 개선"
+git push origin main
+git log -1 --oneline
+git status --short
+```
+
+운영 서버 Bash에서 상태가 깨끗한지 확인하고 각 단계 성공 후 다음으로 진행한다.
+
+```bash
+cd /opt/hongcafe-ops-profile-integrated
+git status --short
+git pull --ff-only origin main
+npm run check
+node --test profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-history.test.mjs
+git log -1 --oneline
+pm2 reload hongcafe-ops-profile
+```
+
+기동을 잠시 기다린 뒤 아래 명령을 실행한다. 정적 파일 수정이므로 웹 reload는 필요 시 사용하며 API 재시작은 필요 없다.
+
+```bash
+curl -fsS -w '\nHTTP %{http_code}\n' http://127.0.0.1:3000/api/health
+pm2 status
+pm2 logs hongcafe-ops-profile --lines 50 --nostream
+git status --short
+git log -1 --oneline
+git rev-parse HEAD origin/main
+```
+
+정상 기준은 HTTP 200 및 ok=true, 웹 online, 새 오류 없음, 로컬/운영 적용 커밋 일치와 운영 Git 상태 출력 없음이다. reload 직후 연결 거부가 나면 추가 재시작 전에 잠시 후 헬스체크만 재확인한다.
+
+---
+
 ## 2026-09-17 사이트 디자인 1차 반영
 
 승인된 변경: 사이트 제목 42→26px, 본문·목록·색상 소제목 20→16px, 본문 줄 간격 1.65→1.5, 목록 줄 간격 1.55→1.5, 목록 항목 간격 14→10px, 대표·무드 이미지와 틀 모서리 18→8px, 소제목 모서리 12→6px.

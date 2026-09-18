@@ -61,7 +61,7 @@ test('site code protects fonts, sizes, line heights, and image ratios from host 
     assert.match(script, /element\.style\.setProperty\(property, value, protectedProperties\.has\(property\) \? 'important' : ''\)/);
     assert.match(script, /classList\.add\('pb-site-profile-output'\)/);
     assert.doesNotMatch(script, /@import|appendProfileSiteProtectionStyles/);
-    assert.match(script, /normalizeExportRichText\(clone\);\s*if \(isSiteCode\) applyProfileSiteProtectionStyles\(clone\);/);
+    assert.match(script, /normalizeExportRichText\(clone\);\s*if \(isSiteCode\) applySiteListMarkers\(clone\);\s*if \(isSiteCode\) applyProfileSiteProtectionStyles\(clone\);/);
     assert.match(script, /'aspect-ratio': isPortrait \? '16 \/ 8\.6' : '16 \/ 8\.8'/);
     assert.match(script, /const setMediaStyles = isSiteCode \? setProtectedInlineStyles : setInlineStyles;/);
 });

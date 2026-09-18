@@ -1040,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setProtectedInlineStyles(element, styles) {
         if (!element) return;
         const protectedProperties = new Set([
-            'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing',
+            'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-align',
             'width', 'max-width', 'min-width', 'height', 'min-height', 'aspect-ratio',
             'object-fit', 'object-position', 'box-sizing'
         ]);
@@ -1135,6 +1135,21 @@ document.addEventListener('DOMContentLoaded', () => {
         root.prepend(style);
     }
 
+    function applySiteListMarkers(root) {
+        root.querySelectorAll('.pb-presentation-points li').forEach((item) => {
+            const marker = document.createElement('span');
+            marker.className = 'pb-export-point-marker';
+            marker.setAttribute('aria-hidden', 'true');
+            marker.textContent = '·';
+            setProtectedInlineStyles(marker, {
+                position: 'absolute', left: '0', top: '0',
+                width: '10px', 'font-size': siteTypography.pointSize,
+                'line-height': siteTypography.lineHeight, 'text-align': 'left'
+            });
+            item.prepend(marker);
+        });
+    }
+
     function applyProfileSiteProtectionStyles(root) {
         // 등록 편집기가 style 태그만 제거해 CSS 본문을 노출하지 않도록 블록 전체를 제외한다.
         root.querySelectorAll('style').forEach((style) => style.remove());
@@ -1188,13 +1203,14 @@ document.addEventListener('DOMContentLoaded', () => {
             : `${defaultTypography.bodySize + 3}px`;
         const profileEyebrowSize = isSiteCode ? siteTypography.eyebrowSize : '12px';
         const setTypographyStyles = (element, styles) => {
-            const resolvedStyles = isSiteCode ? { 'font-family': fontFamily, ...styles } : styles;
+            const resolvedStyles = isSiteCode ? { 'font-family': fontFamily, 'text-align': 'left', ...styles } : styles;
             const setter = isSiteCode ? setProtectedInlineStyles : setInlineStyles;
             setter(element, resolvedStyles);
         };
         const setMediaStyles = isSiteCode ? setProtectedInlineStyles : setInlineStyles;
 
         setInlineStyles(clone, {
+            ...(isSiteCode ? { 'text-align': 'left' } : {}),
             width: isSiteCode ? '100%' : '720px',
             'max-width': isSiteCode ? '100%' : '720px',
             'min-width': '0',
@@ -1215,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 width: '100%',
                 'max-width': '100%',
                 'min-width': '0',
-                padding: isSiteCode ? '12px 8px' : '10px',
+                padding: isSiteCode ? '30px 16px 12px' : '10px',
                 color: '#2a211c',
                 'box-shadow': 'none',
                 overflow: 'hidden',
@@ -1231,8 +1247,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'grid-template-columns': '1fr',
             gap: '14px',
             'align-items': 'stretch',
-            'margin-bottom': '16px',
-            padding: '4px 0 0',
+            'margin-bottom': isSiteCode ? '30px' : '16px',
+            padding: isSiteCode ? '0' : '4px 0 0',
             'border-radius': '0',
             background: 'transparent',
             border: '0',
@@ -1301,12 +1317,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-section').forEach((node) => setInlineStyles(node, {
-            'margin-bottom': '18px',
-            padding: '13px 15px',
+            'margin-bottom': isSiteCode ? '30px' : '18px',
+            padding: isSiteCode ? '0' : '13px 15px',
             border: '0',
-            'border-left': `4px solid ${currentBrandColor}`,
-            'border-radius': '18px',
-            background: 'rgba(255,255,255,0.58)',
+            'border-left': isSiteCode ? '0' : `4px solid ${currentBrandColor}`,
+            'border-radius': isSiteCode ? '0' : '18px',
+            background: isSiteCode ? 'transparent' : 'rgba(255,255,255,0.58)',
             'box-shadow': 'none',
             'box-sizing': 'border-box',
             overflow: 'hidden'
@@ -1315,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setTypographyStyles(node, {
             display: 'inline-block',
             'margin-bottom': '12px',
-            padding: '8px 12px',
+            padding: isSiteCode ? '8px 0' : '8px 12px',
             'border-radius': isSiteCode ? '6px' : '12px',
             background: currentBrandLight,
             'box-shadow': 'none',
@@ -1332,7 +1348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'grid-template-columns': '1fr',
             gap: '14px',
             'align-items': 'stretch',
-            'margin-bottom': '16px'
+            'margin-bottom': isSiteCode ? '30px' : '16px'
         }));
 
         clone.querySelectorAll('.pb-presentation-detail').forEach((node) => setInlineStyles(node, {
@@ -1341,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'flex-direction': 'column',
             'justify-content': 'flex-start',
             gap: '16px',
-            padding: '13px 15px',
+            padding: isSiteCode ? '13px 0' : '13px 15px',
             border: '0',
             'border-radius': '18px',
             background: 'rgba(255,255,255,0.62)',
@@ -1355,7 +1371,7 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: '0',
             display: 'flex',
             'flex-direction': 'column',
-            gap: isSiteCode ? '10px' : '14px',
+            gap: isSiteCode ? '6px' : '14px',
             'border-radius': '0',
             background: 'transparent',
             'box-shadow': 'none',
@@ -1369,8 +1385,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clone.querySelectorAll('.pb-presentation-points li').forEach((node) => setTypographyStyles(node, {
             position: 'relative',
-            'padding-left': '0',
-            display: 'flex',
+            ...(isSiteCode ? { margin: '0', padding: '0 0 0 16px', 'list-style': 'none' } : {}),
+            'padding-left': isSiteCode ? '16px' : '0',
+            display: isSiteCode ? 'block' : 'flex',
             'align-items': 'flex-start',
             gap: '12px',
             'font-size': profilePointSize,
@@ -1413,11 +1430,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         clone.querySelectorAll('.pb-presentation-closing').forEach((node) => setInlineStyles(node, {
-            padding: '13px 15px',
+            padding: isSiteCode ? '0' : '13px 15px',
             border: '0',
-            'border-left': '4px solid rgba(124, 88, 70, 0.22)',
-            'border-radius': '18px',
-            background: 'rgba(255,255,255,0.6)',
+            'border-left': isSiteCode ? '0' : '4px solid rgba(124, 88, 70, 0.22)',
+            'border-radius': isSiteCode ? '0' : '18px',
+            background: isSiteCode ? 'transparent' : 'rgba(255,255,255,0.6)',
             'box-shadow': 'none',
             'box-sizing': 'border-box',
             overflow: 'hidden'
@@ -1476,7 +1493,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // 기존 기호를 먼저 제거하고 서식 정리 후 재삽입해 유실·중복을 방지한다.
+        if (isSiteCode) clone.querySelectorAll('.pb-export-point-marker').forEach((marker) => marker.remove());
         normalizeExportRichText(clone);
+        if (isSiteCode) applySiteListMarkers(clone);
         if (isSiteCode) applyProfileSiteProtectionStyles(clone);
     }
 
