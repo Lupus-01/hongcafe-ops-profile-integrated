@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
-const { resize } = createRequire(import.meta.url)('./profile-code-resizer.js');
+const { resize, applySiteDesign, parse } = createRequire(import.meta.url)('./profile-code-resizer.js');
 
 export const fixture = (category = 'tarot') => `<div class="pb-presentation pb-theme-${category}" style="background:#f7f6fb;padding:13px;border:1px solid red;width:640px">
 <!-- 원본 공백과 주석 유지 -->
@@ -73,4 +73,53 @@ test('rejects ambiguous HTML, unsupported input and invalid sizes without produc
         assert.throws(() => resize(source, 42, 20));
     }
     for (const size of [0, -1, 201, NaN, Infinity, 20.5]) assert.throws(() => resize(fixture(), size, 20));
+});
+
+test('site design converts all categories without losing content, colors, URLs or source formatting', () => {
+    for (const category of ['tarot', 'saju', 'sinjeom']) {
+        const original = '\ufeff' + fixture(category);
+        const result = applySiteDesign(original);
+        const nodes = parse(result.code);
+        const css = (className) => nodes.find((node) => node.classes.has(className)).attrs.style.value;
+        assert.match(css('pb-presentation'), /padding: 30px 16px 12px !important/);
+        assert.match(css('pb-presentation'), /background:#f7f6fb/);
+        assert.match(css('pb-presentation-title'), /font-size: 26px !important;line-height: 1.25/);
+        assert.match(css('pb-presentation-body'), /font-size: 16px !important;line-height: 1.5/);
+        assert.match(css('pb-presentation-chip'), /padding: 8px 12px !important;border-radius: 6px/);
+        assert.match(css('pb-presentation-chip'), /font-size: 16px/);
+        assert.match(css('pb-presentation-closing'), /background: transparent !important/);
+        assert.match(result.code, /font-weight:800/);
+        assert.match(result.code, /letter-spacing:1px/);
+        assert.ok(result.code.includes('href="https://example.com/?a=1&amp;b=2"'));
+        assert.ok(result.code.includes('<img src="data:image/png;base64,AAAA" style="width:100%;aspect-ratio:16 / 8.6" alt="사진 > 설명">'));
+        assert.ok(result.code.startsWith('\ufeff'));
+        assert.ok(result.code.includes('<!-- 원본 공백과 주석 유지 -->'));
+        assert.equal((result.code.match(/>·<\/span>/g) || []).length, 1);
+        assert.equal(applySiteDesign(result.code).code, result.code);
+        assert.equal(applySiteDesign(result.code).changes, 0);
+        assert.equal(applySiteDesign(applySiteDesign(result.code, 30, 18).code).code, result.code);
+    }
+});
+
+test('site design adds missing markers, deduplicates designated markers and preserves unknown content', () => {
+    const base = fixture().replace('<span class="pb-export-point-marker" style="width:7px;height:7px;font-size:7px">•</span>', '');
+    assert.equal((applySiteDesign(base).code.match(/>·<\/span>/g) || []).length, 1);
+    const duplicate = base.replace('<li>', '<li><span class="pb-export-point-marker">·</span><span class="pb-export-point-marker"></span>');
+    assert.equal((applySiteDesign(duplicate).code.match(/>·<\/span>/g) || []).length, 1);
+    assert.throws(() => applySiteDesign(base.replace('<li>', '<li><span class="pb-export-point-marker">보존할 내용</span>')), /예상하지 못한 내용/);
+    const outside = '<p style="font-size:99px">프로필 밖 내용</p>';
+    assert.ok(applySiteDesign(base + outside).code.endsWith(outside));
+    assert.throws(() => applySiteDesign('<h2 class="pb-presentation-title">제목</h2><p class="pb-presentation-body">본문</p>'), /프로필 영역/);
+    assert.throws(() => applySiteDesign(base, 0, 16), /정수/);
+});
+
+test('site design preserves CSS entities, backgrounds, separators and nested chip typography', () => {
+    const original = fixture().replace('font-size:20px">작은 라벨', 'font-size:20px;background:#abc">작은 <b style="font-size:40px">라벨</b>')
+        .replace('<div class="pb-presentation-card">', '<div class="pb-presentation-detail" style="background:rgba(255,255,255,0.62);border-top:1px solid red;font-family:&quot;Apple SD Gothic Neo&quot;"><div class="pb-presentation-card">')
+        .replace('<div class="pb-presentation-closing">', '</div><div class="pb-presentation-closing">');
+    const result = applySiteDesign(original);
+    assert.match(result.code, /background:#abc/);
+    assert.match(result.code, /background:rgba\(255,255,255,0.62\);border-top:1px solid red;font-family:&quot;Apple SD Gothic Neo&quot;/);
+    assert.match(result.code, /<b style="font-size: 16px !important;line-height: 1.5/);
+    assert.equal(applySiteDesign(result.code).code, result.code);
 });

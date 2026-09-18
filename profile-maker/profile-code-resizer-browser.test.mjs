@@ -17,6 +17,9 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
         .replace('src="profile-code-resizer.js"', `src="${pathToFileURL(path.join(directory, 'profile-code-resizer.js'))}"`)
         .replace('src="profile-code-files.js"', `src="${pathToFileURL(path.join(directory, 'profile-code-files.js'))}"`)
         .replace('src="profile-code-resizer-ui.js"', `src="${pathToFileURL(path.join(directory, 'profile-code-resizer-ui.js'))}"`);
+    // Windows Chrome의 최소 창 너비와 무관하게 요청한 좁은 레이아웃 폭을 검사한다.
+    const layoutWidth = Number((process.env.PROFILE_TEST_WINDOW_SIZE || '1440,1000').split(',')[0]);
+    page = page.replace('</head>', `<style>html{width:${layoutWidth}px;max-width:100%}</style></head>`);
     const run = async () => {
         const assert = (condition, message) => { if (!condition) throw new Error(message); };
         const get = (id) => document.getElementById(id);
@@ -71,7 +74,21 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             if (innerWidth > 960) assert(workspace.left >= sidebar.right - 1, 'desktop columns');
             else assert(workspace.top >= sidebar.bottom - 1, 'mobile stacked layout');
             assert(document.documentElement.scrollWidth <= innerWidth, 'no horizontal overflow');
+            assert(sidebar.right <= document.documentElement.getBoundingClientRect().right, 'sidebar fits requested layout width');
             get('pb-resize-source').value = original;
+            assert(get('pb-resize-mode').value === 'site', 'site design is the default');
+            get('pb-resize-apply').click();
+            const siteCode = ProfileCodeResizer.applySiteDesign(original).code;
+            assert(get('pb-resize-output').value === siteCode, 'default site design conversion');
+            assert(ProfileCodeResizer.verifyDOM(original, siteCode, document, { mode: 'site' }), 'site design DOM preservation');
+            for (const mutated of [siteCode.replace('제목 원문', '다른 제목'), siteCode.replace('padding: 30px', 'padding: 99px'), siteCode.replace('font-weight:800', 'font-weight:400')]) {
+                let refused = false;
+                try { ProfileCodeResizer.verifyDOM(original, mutated, document, { mode: 'site' }); } catch { refused = true; }
+                assert(refused, 'site verification rejects unauthorized content and style changes');
+            }
+            get('pb-resize-mode').value = 'size';
+            get('pb-resize-mode').dispatchEvent(new Event('change'));
+            assert(!get('pb-resize-output').value && get('pb-resize-copy').disabled && get('pb-resize-design-summary').hidden, 'mode change invalidates result and updates guidance');
             get('pb-resize-apply').click();
             assert(get('pb-resize-output').value === result.code, 'default conversion uses 26/16');
             assert(get('pb-resize-status').dataset.state === 'success', 'success feedback');
@@ -189,13 +206,51 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-resizer-tab').click();
             get('pb-resize-site').click();
             get('pb-resize-apply').click();
+            // 동일한 파일 처리 경로를 사이트 모드에서도 실행한다.
+            get('pb-resize-mode').value = 'site';
+            get('pb-resize-mode').dispatchEvent(new Event('change'));
+            Object.defineProperty(get('pb-resize-file'), 'files', { configurable: true, value: files });
+            get('pb-resize-file').dispatchEvent(new Event('change'));
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            get('pb-resize-apply-all').click();
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            assert(document.querySelectorAll('.pb-resize-file-item[data-state="success"]').length === 3, 'site batch isolates failures');
+            const expectedSiteCodes = [txtCode, wordCode, otherCode].map((code) => ProfileCodeResizer.applySiteDesign(code).code);
+            for (let index = 0; index < 3; index += 1) {
+                document.querySelectorAll('.pb-resize-file-item')[index].click();
+                get('pb-resize-save').click();
+                assert(new TextDecoder('utf-8', { ignoreBOM: true }).decode(await savedBlob.arrayBuffer()) === expectedSiteCodes[index], 'site TXT bytes equal verified result');
+            }
+            navigator.clipboard.writeText = async (text) => { copied = text; };
+            get('pb-resize-copy').click();
+            await Promise.resolve();
+            assert(copied === expectedSiteCodes[2], 'site copy uses verified result');
+            get('pb-resize-preview').click();
+            assert(get('pb-resize-after').srcdoc.includes(expectedSiteCodes[2]), 'site preview uses verified result');
+            get('pb-resize-save-all').click();
+            assert(download === 'profile-site-design-results.zip', 'site ZIP name');
+            const siteArchive = new Uint8Array(await savedBlob.arrayBuffer()), siteView = new DataView(siteArchive.buffer);
+            let siteOffset = 0, siteIndex = 0;
+            while (siteView.getUint32(siteOffset, true) === 0x04034b50) {
+                const length = siteView.getUint32(siteOffset + 18, true), nameLength = siteView.getUint16(siteOffset + 26, true), extra = siteView.getUint16(siteOffset + 28, true);
+                const start = siteOffset + 30 + nameLength + extra;
+                assert(new TextDecoder('utf-8', { ignoreBOM: true }).decode(siteArchive.slice(start, start + length)) === expectedSiteCodes[siteIndex++], 'site ZIP bytes equal verified result');
+                siteOffset = start + length;
+            }
+            assert(siteIndex === 3, 'site ZIP excludes failed files');
+            get('pb-resize-mode').value = 'size';
+            get('pb-resize-mode').dispatchEvent(new Event('change'));
+            assert(get('pb-resize-save-all').disabled && !get('pb-resize-output').value, 'mode change invalidates whole batch');
             if (window.PB_CAPTURE) {
+                get('pb-resize-mode').value = 'site';
+                get('pb-resize-mode').dispatchEvent(new Event('change'));
                 Object.defineProperty(get('pb-resize-file'), 'files', { configurable: true, value: files });
                 get('pb-resize-file').dispatchEvent(new Event('change'));
                 await waitUntil(() => !get('pb-resize-file').disabled);
                 get('pb-resize-apply-all').click();
                 await waitUntil(() => !get('pb-resize-file').disabled);
                 document.querySelector('.pb-resize-file-item').click();
+                get('pb-resize-design-summary').open = true;
             }
             const resultLabel = document.createElement('p');
             resultLabel.id = 'test-result';

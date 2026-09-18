@@ -1,5 +1,30 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-18 코드 조정 도구에 최신 사이트 디자인 적용 추가
+
+기준 HEAD `ebda656`. 사용자 승인 후 코드 크기 조정 도구에 `최신 사이트 디자인 적용`을 기본 모드로 추가했다. 기존 `글자 크기만 조정` 모드는 그대로 제공한다. 기본값은 제목 26px, 본문·목록·색상 소제목 16px이며 사용자 지정 크기도 지원한다.
+
+사이트 모드는 제목 줄 간격 1.25, 본문·목록 1.5, 출력 패딩 30px 16px 12px, 주요 구간 간격 30px, 소제목 패딩 8px 12px·모서리 6px, 이미지 모서리 8px, 상세 설명 박스 패딩 16px, 사진과 박스 간격 16px, 목록 간격 6px와 들여쓰기를 적용한다. 설명·마무리의 배경과 왼쪽 테두리는 제거하고 상세 설명 박스의 배경·구분선은 보존한다. 프로필의 글꼴·색상·문구·링크·이미지 URL은 유지한다.
+
+`profile-code-resizer.js`의 기존 resize 경로를 유지하고 applySiteDesign 및 사이트 모드 검증 경로를 추가했다. HTML을 다시 직렬화하지 않고 지정된 요소의 CSS와 목록 기호만 원문 위치에서 수정한다. 지정된 목록 기호 span만 교체·추가·중복 제거하며, 기호 안에 예상하지 못한 내용이 있으면 중단한다. 프로필 구조를 식별할 수 없는 코드는 출력하지 않는다. 반복 적용 결과는 동일하며, 변환 후 DOM 검사와 복사·저장 직전 재계산으로 내용 훼손과 결과 변조를 차단한다.
+
+index.html, style.css, profile-code-resizer-ui.js에 모드 선택·CSS 기준 안내·모드별 버튼과 상태 문구를 연결했다. 모드 또는 크기 변경 시 개별·전체 결과를 무효화한다. 기존 TXT·Word 읽기, 미리보기, 개별 저장 및 ZIP 저장 경로를 유지했다. 사이트 모드 ZIP 이름은 profile-site-design-results.zip이다. 기존 파일별 TXT 이름 규칙은 유지한다.
+
+수정 파일은 위 구현 4개, profile-code-resizer.test.mjs, profile-code-resizer-browser.test.mjs, profile-site-layout-browser.test.mjs 및 이 보고서 총 8개다. 제작·이미지 저장 로직과 API는 수정하지 않았다. 기존 package.json 변경 및 tools/, t, ers... 미추적 항목은 보존했다.
+
+검증 결과:
+
+- `npm run check` 통과.
+- `node --test profile-maker/profile-code-resizer.test.mjs profile-maker/profile-code-files.test.mjs profile-maker-api/profile-code-document.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-history.test.mjs`: 36/36 통과.
+- Chrome 브라우저 테스트 3개 통과: 코드 조정 도구, 사이트 레이아웃, 제작 미리보기.
+- 조정 도구는 두 모드의 개별·일괄 처리, TXT·Word 입력, 실패 파일 격리, 복사·미리보기·TXT·ZIP 바이트 일치, 설정 변경 시 결과 무효화를 확인했다.
+- 사이트 레이아웃은 3유형 × 4폭(320/375/430/720px) × 2경로(현재 출력/기존 스타일 변환) = 24조합에서 크기·간격·정렬·모서리·목록 기호·내용·이미지 URL 보존을 확인했다. 샘플 문구와 단색 이미지 기반이며 운영 사이트 실검수는 아니다.
+- 390px로 제한한 조정 도구 레이아웃을 추가 검사하고 CSS 안내를 펼친 스크린샷을 육안 확인했다. Windows Chrome의 최소 창 크기로 인한 캡처 잘림은 테스트 문서 폭을 명시해 보정했다.
+- 샌드박스 Chrome 실행은 GPU 프로세스 권한 오류로 실패하여 승인된 권한 확장 실행으로 통과했다.
+- `git diff --check` 및 최종 diff 검토 완료. LF→CRLF 경고는 검사 실패가 아니다.
+
+현재 미커밋. 커밋·푸시·운영 반영·PM2 조작은 수행하지 않았다. 권장 커밋 메시지: `기능: 코드 조정 도구에 최신 사이트 디자인 적용 추가`. 운영 확인은 반영 후 Ctrl+F5 → 코드 크기 조정 → 기존 코드 입력 → 디자인 적용 및 검증 → 원본·수정 비교 → 수정 코드를 사이트 등록 HTML에 반영하는 순서다. 등록된 HTML은 자동 변경되지 않는다.
+
 ## 2026-09-18 제작 페이지 사이트 HTML 미리보기
 
 기준 HEAD `a28ded6`. 제작 페이지에 사이트 등록 미리보기와 편집 화면 전환을 추가했다. 기존 편집용 복제 모달은 사이트 미리보기로 대체했다. 미리보기는 createSiteRegistrationCode() 결과를 그대로 iframe 본문에 사용하며 편집 CSS는 전달하지 않는다. iframe은 스크립트 실행을 차단한다. 사이트 내부 이미지 경로는 미리보기 문서의 base를 아테나 origin으로 설정해 해석한다.

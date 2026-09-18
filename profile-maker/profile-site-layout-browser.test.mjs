@@ -35,17 +35,29 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
         for (const variant of ['tarot', 'saju', 'sinjeom']) {
             templates[variant] = { ...template, variant };
             for (const width of [320, 375, 430, 720]) {
+              for (const resizeLegacy of [false, true]) {
                 const root = document.createElement('div');
                 root.innerHTML = buildPresentationMarkup(variant);
                 const imageUrl = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="350"><rect width="640" height="350" fill="#ccc3de"/></svg>');
                 root.querySelectorAll('img').forEach((img) => img.setAttribute('src', imageUrl));
                 root.querySelectorAll('.pb-upload-placeholder').forEach((node) => node.remove());
                 const originalText = root.textContent.replace(/\s/g, '');
-                applyEditorFriendlyExportStyles(root, { outputMode: 'site' });
-                applyEditorFriendlyExportStyles(root, { outputMode: 'site' });
+                if (resizeLegacy) {
+                    // 이전 큰 글자·장식·여백이 있는 HTML을 최신 기준으로 변환한다.
+                    applyEditorFriendlyExportStyles(root, { outputMode: 'capture' });
+                    root.querySelectorAll('style').forEach((node) => node.remove());
+                    const original = root.outerHTML;
+                    const result = ProfileCodeResizer.applySiteDesign(original);
+                    check(ProfileCodeResizer.verifyDOM(original, result.code, document, { mode: 'site' }), 'converted DOM preservation');
+                    check(ProfileCodeResizer.applySiteDesign(result.code).code === result.code, 'repeated conversion is stable');
+                    root.outerCode = result.code;
+                } else {
+                    applyEditorFriendlyExportStyles(root, { outputMode: 'site' });
+                    applyEditorFriendlyExportStyles(root, { outputMode: 'site' });
+                }
                 const frame = document.createElement('div');
                 frame.style.cssText = `width:${width}px; margin:20px; text-align:center`;
-                frame.innerHTML = root.outerHTML; // 실제 저장과 같은 직렬화 이후 검사
+                frame.innerHTML = root.outerCode || root.outerHTML; // 실제 저장과 같은 직렬화 이후 검사
                 document.body.appendChild(frame);
                 const output = frame.firstElementChild;
                 check(output.querySelectorAll('.pb-export-point-marker').length === 3, 'one bullet per item after repeated export');
@@ -60,6 +72,17 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                     });
                 }
                 const chip = output.querySelector('.pb-presentation-chip');
+                output.querySelectorAll('h2,h3').forEach((node) => {
+                    check(getComputedStyle(node).fontSize === '26px', 'title size');
+                    check(getComputedStyle(node).lineHeight === '32.5px', 'title line height');
+                });
+                output.querySelectorAll('p,li,.pb-presentation-chip').forEach((node) => check(getComputedStyle(node).fontSize === '16px', 'body and chip size'));
+                output.querySelectorAll('p,li').forEach((node) => check(getComputedStyle(node).lineHeight === '24px', 'body line height'));
+                output.querySelectorAll('.pb-presentation-portrait,.pb-presentation-photo,img').forEach((node) => check(getComputedStyle(node).borderRadius === '8px', 'image radius'));
+                output.querySelectorAll('.pb-presentation-section,.pb-presentation-closing').forEach((node) => {
+                    check(getComputedStyle(node).backgroundColor === 'rgba(0, 0, 0, 0)', 'section background cleared');
+                    check(getComputedStyle(node).borderLeftWidth === '0px', 'section border cleared');
+                });
                 const chipStyle = getComputedStyle(chip);
                 check(chipStyle.paddingLeft === '12px' && chipStyle.paddingRight === '12px' && chipStyle.paddingTop === '8px' && chipStyle.paddingBottom === '8px', 'chip breathing room');
                 const detail = output.querySelector('.pb-presentation-detail');
@@ -79,13 +102,15 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                 check(getComputedStyle(items[1]).paddingLeft === '16px', 'wrapped list text indent');
                 check(frame.scrollWidth <= width, 'no horizontal overflow');
                 output.querySelectorAll('h2,h3,p,li,.pb-presentation-chip').forEach((node) => check(node.scrollWidth <= node.clientWidth + 1, 'no clipped text'));
-                if (variant !== 'tarot' || width !== 375) frame.remove();
+                if (variant !== 'tarot' || width !== 375 || !resizeLegacy) frame.remove();
+              }
             }
         }
         const label = document.createElement('p');
         label.id = 'test-result'; label.textContent = 'PASS'; document.body.appendChild(label);
     };
     const page = `<!doctype html><meta charset="utf-8"><style>body{margin:0;font-family:Arial,sans-serif}</style><script>
+        ${fs.readFileSync(path.join(directory, 'profile-code-resizer.js'), 'utf8')}
         const templates = {};
         const defaultTypography = ${source.match(/const defaultTypography = (\{[\s\S]*?\});/)[1]};
         const siteTypography = ${source.match(/const siteTypography = (\{[\s\S]*?\});/)[1]};

@@ -444,6 +444,10 @@ body {
 .pb-resize-sizes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .pb-resize-number { display: flex; align-items: center; gap: 8px; border: 1px solid #dfe3e8; border-radius: 12px; padding: 0 12px; background: #fff; }
 #pb-resizer input[type="number"] { width: 100%; min-width: 0; padding: 12px 0; border: 0; background: transparent; color: #222; font-size: 16px; font-weight: 700; }
+#pb-resize-mode { width: 100%; padding: 12px 8px; border: 1px solid #dfe3e8; border-radius: 10px; background: #fff; color: #333; font: inherit; }
+.pb-resize-design-summary { margin-top: 12px; font-size: 12px; line-height: 1.7; color: #555; }
+.pb-resize-design-summary summary { cursor: pointer; font-weight: 700; }
+.pb-resize-design-summary ul { padding-left: 18px; margin: 8px 0 0; }
 .pb-resize-actions { display: grid; gap: 10px; padding: 20px 24px; border-top: 1px solid var(--pb-border); }
 #pb-resize-cancel[hidden] { display: none; }
 #pb-resize-manual { width: 100%; margin-top: 12px; padding: 10px; font-size: 12px; }
@@ -464,7 +468,7 @@ body {
 .pb-resize-code-card { padding: 20px; margin-bottom: 20px; border: 1px solid var(--pb-border); border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.025); }
 #pb-resizer textarea { display: block; width: 100%; min-height: 210px; padding: 14px; border: 1px solid #dfe3e8; border-radius: 12px; background: #fafbfc; color: #333; font-size: 13px; line-height: 1.7; resize: vertical; }
 #pb-resizer textarea::placeholder { color: #8b95a1; }
-#pb-resizer :is(button, input, textarea):focus-visible, .pb-work-tabs button:focus-visible { outline: 2px solid #526b89; outline-offset: 3px; }
+#pb-resizer :is(button, input, textarea, select, summary):focus-visible, .pb-work-tabs button:focus-visible { outline: 2px solid #526b89; outline-offset: 3px; }
 #pb-resize-previews iframe { display: block; width: 100%; max-width: 760px; height: 640px; background: #fff; border: 1px solid var(--pb-border); border-radius: 12px; }
 @media (max-width: 960px) {
     .pb-work-tabs ~ #pb-app { height: auto; min-height: calc(100vh - 56px); }
