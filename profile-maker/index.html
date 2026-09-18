@@ -393,7 +393,7 @@
             </div>
 
             <div class="pb-actions">
-                <button id="pb-preview-btn" class="pb-action-btn" type="button">미리보기</button>
+                <button id="pb-preview-btn" class="pb-action-btn" type="button">사이트 등록 미리보기</button>
                 <button id="pb-clear-btn" class="pb-action-btn danger" type="button">전체 초기화</button>
                 <button id="pb-code-generate-btn" class="pb-action-btn secondary" type="button">사이트 등록용 코드 생성</button>
                 <button id="pb-code-download-btn" class="pb-action-btn secondary" type="button">사이트 코드 파일 저장 (.txt)</button>
@@ -402,26 +402,33 @@
             </div>
         </aside>
 
-        <main class="pb-canvas-wrapper">
-            <div class="pb-canvas" id="pb-canvas">
-                <div class="pb-empty-state">
-                    <div class="pb-empty-icon">DOC</div>
-                    <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
+        <main class="pb-canvas-wrapper" id="pb-workspace">
+            <div class="pb-view-toolbar" aria-label="제작 화면 선택">
+                <button id="pb-site-view-btn" type="button" aria-pressed="true">사이트 등록 미리보기</button>
+                <button id="pb-edit-view-btn" type="button" aria-pressed="false">편집 화면</button>
+            </div>
+            <section id="pb-site-view" class="pb-site-view" aria-label="사이트 등록 미리보기">
+                <div class="pb-view-toolbar">
+                    <label>화면 너비 <select id="pb-site-view-width"><option value="375">모바일 375px</option><option value="720">넓게 보기 720px</option></select></label>
+                    <button id="pb-site-view-refresh" type="button">새로 확인</button>
+                </div>
+                <p class="pb-site-view-help">등록용 HTML과 입력한 이미지 URL을 보여줍니다. 문구·이미지 수정은 편집 화면에서 할 수 있습니다. 실제 사이트의 바깥 여백과 글꼴 환경에 따라 차이가 날 수 있습니다.</p>
+                <p id="pb-site-view-status" role="status"></p>
+                <div class="pb-site-frame-wrap">
+                    <iframe id="pb-site-view-frame" title="사이트 등록용 HTML 미리보기" sandbox="allow-same-origin" referrerpolicy="no-referrer" hidden></iframe>
+                </div>
+            </section>
+            <div id="pb-editor-view" class="pb-editor-view" hidden>
+                <div class="pb-canvas" id="pb-canvas">
+                    <div class="pb-empty-state">
+                        <div class="pb-empty-icon">DOC</div>
+                        <p>문서 업로드 생성 버튼으로 시작하거나, 왼쪽 블록을 끌어와 직접 구성해보세요.</p>
+                    </div>
                 </div>
             </div>
         </main>
 
         <input type="file" id="pb-image-uploader" accept="image/*" hidden>
-
-        <div class="pb-modal" id="pb-modal">
-            <div class="pb-modal-content">
-                <div class="pb-modal-header">
-                    <h3>고객 화면 미리보기</h3>
-                    <button id="pb-close-modal" class="pb-close-btn" type="button">&times;</button>
-                </div>
-                <div class="pb-modal-body" id="pb-preview-area"></div>
-            </div>
-        </div>
 
         <div class="pb-modal" id="pb-code-modal">
             <div class="pb-modal-content pb-code-modal-content">
@@ -440,6 +447,7 @@
         </div>
     </div>
     <script src="/vendor/html2canvas/html2canvas.min.js"></script>
+    <script src="profile-site-preview.js"></script>
     <script src="script.js"></script>
     <script src="profile-code-resizer.js"></script>
     <script src="profile-code-files.js"></script>

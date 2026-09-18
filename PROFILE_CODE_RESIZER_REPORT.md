@@ -1,5 +1,26 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-18 제작 페이지 사이트 HTML 미리보기
+
+기준 HEAD `a28ded6`. 제작 페이지에 사이트 등록 미리보기와 편집 화면 전환을 추가했다. 기존 편집용 복제 모달은 사이트 미리보기로 대체했다. 미리보기는 createSiteRegistrationCode() 결과를 그대로 iframe 본문에 사용하며 편집 CSS는 전달하지 않는다. iframe은 스크립트 실행을 차단한다. 사이트 내부 이미지 경로는 미리보기 문서의 base를 아테나 origin으로 설정해 해석한다.
+
+생성·히스토리 복원 시 사이트 미리보기를 열고, 편집 후 전환·이미지 URL·Base64 옵션·캔버스 변경 시 갱신한다. 오류 발생 시 기존 미리보기를 지우고 입력 안내를 표시한다. 모바일 375px와 720px 너비를 제공하며 iframe 높이는 내용에 맞춘다. 좁은 화면에서는 고정 폭 미리보기 영역 안에서 가로 스크롤할 수 있다. 실제 사이트 외부 여백과 폰트 환경은 재현하지 않으므로 차이가 남을 수 있다.
+
+수정 파일은 index.html, script.js, style.css, 신규 profile-site-preview.js, 신규 profile-site-preview-browser.test.mjs 및 이 보고서 총 6개다. 기존 생성·업로드·내보내기 함수와 이미지 저장은 보존했다. package.json 기존 사용자 변경과 미추적 tools/, t, ers...는 수정하지 않았다.
+
+검증: npm run check 및 신규 JS 구문 검사 통과. 관련 단위 테스트 22/22 통과. Chrome 브라우저 테스트 3/3 통과(사이트 레이아웃 12조합, 코드 조정 도구, 실제 제작 페이지 미리보기). 실제 제작 페이지 테스트는 API 호출을 차단한 샘플로 HTML 일치, 히스토리 복원, 편집 전환, URL 변경, Base64 옵션, 미입력 시 이전 화면 제거, 이미지 저장 720px·제목66px 기준 보존을 검증했다. html2canvas는 검증용 대체 함수를 사용했으므로 실제 PNG 파일 품질 검증은 아니다. 샘플 화면 스크린샷 육안 확인 및 diff 검사 완료.
+
+현재 미커밋이며 커밋·푸시·운영 배포·PM2 조작은 하지 않았다. 권장 커밋 메시지: `기능: 제작 페이지에 사이트 HTML 미리보기 추가`. 로컬 검수에는 배포가 필요 없다.
+
+추가 검사 명령:
+
+```powershell
+node --check profile-maker/profile-site-preview.js
+node --test profile-maker/profile-site-preview-browser.test.mjs profile-maker/profile-site-layout-browser.test.mjs profile-maker/profile-code-resizer-browser.test.mjs
+```
+
+---
+
 ## 2026-09-18 소제목·설명 박스 내부 여백 보완
 
 기준 HEAD `222b69b`, main. 사이트 출력 CSS 값만 부분 조정했다. 소제목 패딩은 위아래 8px·좌우 12px, 흰색 설명 박스 패딩은 사방 16px다. 기존 grid 간격 14px에 설명 박스 상단 여백 2px를 더해 사진 아래 간격을 16px로 맞췄다. 제목과 사진 사이 간격은 유지한다.

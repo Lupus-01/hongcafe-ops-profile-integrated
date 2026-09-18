@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const appContainer = document.getElementById('pb-app');
     const canvas = document.getElementById('pb-canvas');
+    let sitePreview = null;
     const tools = document.querySelectorAll('.pb-tool');
     const themeButtons = document.querySelectorAll('.pb-theme-btn');
     const imageUploader = document.getElementById('pb-image-uploader');
@@ -51,8 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const slotStatus = document.getElementById('pb-slot-status');
     const slotRegenerateButtons = Array.from(document.querySelectorAll('.pb-slot-regenerate-btn'));
 
-    const previewModal = document.getElementById('pb-modal');
-    const previewArea = document.getElementById('pb-preview-area');
     const codeModal = document.getElementById('pb-code-modal');
     const codeOutput = document.getElementById('pb-code-output');
     const copyButton = document.getElementById('pb-copy-btn');
@@ -833,6 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.innerHTML = '';
         const element = makeCanvasElement(type);
         if (element) canvas.appendChild(element);
+        sitePreview?.show('site');
         return element;
     }
 
@@ -2022,13 +2022,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('pb-preview-btn')?.addEventListener('click', () => {
-        previewArea.innerHTML = '';
-        previewArea.style.backgroundColor = currentBrandBg;
-        previewArea.appendChild(getCleanCanvasClone());
-        previewModal.classList.add('active');
+        sitePreview?.show('site');
+        document.getElementById('pb-workspace')?.scrollIntoView({ block: 'start' });
     });
-
-    document.getElementById('pb-close-modal')?.addEventListener('click', () => previewModal.classList.remove('active'));
 
     document.getElementById('pb-clear-btn')?.addEventListener('click', () => {
         if (!window.confirm('캔버스의 모든 블록을 지울까요?')) return;
@@ -2317,4 +2313,5 @@ document.addEventListener('DOMContentLoaded', () => {
     renderProfileHistory();
     updateSlotRegenerateState();
     resumePendingProfileJob();
+    sitePreview = window.ProfileSitePreview.create({ canvas, createCode: createSiteRegistrationCode });
 });
