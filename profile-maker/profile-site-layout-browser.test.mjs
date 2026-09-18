@@ -54,10 +54,19 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                 const left = output.getBoundingClientRect().left + 16;
                 for (const selector of ['h2', 'h3', 'p', '.pb-presentation-chip', '.pb-export-point-marker']) {
                     output.querySelectorAll(selector).forEach((node) => {
-                        close(node.getBoundingClientRect().left, left, 'left alignment');
+                        const inset = node.closest('.pb-presentation-detail') ? 16 : 0;
+                        close(node.getBoundingClientRect().left, left + inset, 'left alignment');
                         check(getComputedStyle(node).textAlign === 'left', 'host center alignment overridden');
                     });
                 }
+                const chip = output.querySelector('.pb-presentation-chip');
+                const chipStyle = getComputedStyle(chip);
+                check(chipStyle.paddingLeft === '12px' && chipStyle.paddingRight === '12px' && chipStyle.paddingTop === '8px' && chipStyle.paddingBottom === '8px', 'chip breathing room');
+                const detail = output.querySelector('.pb-presentation-detail');
+                close(detail.getBoundingClientRect().left, left, 'detail outer edge');
+                close(output.getBoundingClientRect().right - detail.getBoundingClientRect().right, 16, 'right outer spacing');
+                check(getComputedStyle(detail).padding === '16px', 'detail breathing room');
+                close(detail.getBoundingClientRect().top - output.querySelector('.pb-presentation-photo').getBoundingClientRect().bottom, 16, 'photo to detail spacing');
                 close(output.querySelector('h2').getBoundingClientRect().top - output.getBoundingClientRect().top, 30, 'top spacing');
                 const sections = ['.pb-presentation-hero', '.pb-presentation-section', '.pb-presentation-grid', '.pb-presentation-closing'].map((selector) => output.querySelector(selector));
                 for (let i = 1; i < sections.length; i++) close(sections[i].getBoundingClientRect().top - sections[i - 1].getBoundingClientRect().bottom, 30, 'section gap');
@@ -69,7 +78,7 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                 close(items[1].getBoundingClientRect().top - items[0].getBoundingClientRect().bottom, 6, 'list gap');
                 check(getComputedStyle(items[1]).paddingLeft === '16px', 'wrapped list text indent');
                 check(frame.scrollWidth <= width, 'no horizontal overflow');
-                output.querySelectorAll('h2,h3,p,li').forEach((node) => check(node.scrollWidth <= node.clientWidth + 1, 'no clipped text'));
+                output.querySelectorAll('h2,h3,p,li,.pb-presentation-chip').forEach((node) => check(node.scrollWidth <= node.clientWidth + 1, 'no clipped text'));
                 if (variant !== 'tarot' || width !== 375) frame.remove();
             }
         }

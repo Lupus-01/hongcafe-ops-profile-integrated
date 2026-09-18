@@ -1331,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelectorAll('.pb-presentation-chip').forEach((node) => setTypographyStyles(node, {
             display: 'inline-block',
             'margin-bottom': '12px',
-            padding: isSiteCode ? '8px 0' : '8px 12px',
+            padding: '8px 12px',
             'border-radius': isSiteCode ? '6px' : '12px',
             background: currentBrandLight,
             'box-shadow': 'none',
@@ -1357,7 +1357,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'flex-direction': 'column',
             'justify-content': 'flex-start',
             gap: '16px',
-            padding: isSiteCode ? '13px 0' : '13px 15px',
+            padding: isSiteCode ? '16px' : '13px 15px',
+            ...(isSiteCode ? { 'margin-top': '2px' } : {}),
             border: '0',
             'border-radius': '18px',
             background: 'rgba(255,255,255,0.62)',

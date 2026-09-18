@@ -1,5 +1,62 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-18 소제목·설명 박스 내부 여백 보완
+
+기준 HEAD `222b69b`, main. 사이트 출력 CSS 값만 부분 조정했다. 소제목 패딩은 위아래 8px·좌우 12px, 흰색 설명 박스 패딩은 사방 16px다. 기존 grid 간격 14px에 설명 박스 상단 여백 2px를 더해 사진 아래 간격을 16px로 맞췄다. 제목과 사진 사이 간격은 유지한다.
+
+바깥 좌우 16px, 상단·큰 구간 사이 30px, 목록 간격 6px, 글자 크기·줄 간격·모서리·기호·이미지 URL을 유지했다. 박스 바깥 가장자리는 기존 기준선에 맞추고 박스 안 글자만 안쪽으로 배치한다. 제작 화면·이미지 저장 및 생성 로직은 변경하지 않았다.
+
+수정 파일: `profile-maker/script.js`(CSS 값), `profile-maker/profile-site-layout-browser.test.mjs`(내부/외부 정렬과 여백 검사), 이 보고서.
+
+검증: npm run check 통과, 관련 테스트 22/22 통과, Chrome 검사 1/1 통과(3개 유형 × 320·375·430·720px). 박스 패딩·사진 아래 간격·기존 구간 간격·문구/이미지 URL 보존·가로 넘침을 확인했다. 단색 샘플 이미지를 사용한 375px 화면도 육안 확인했다. 실제 아테나 등록 화면 확인은 남아 있다. git diff --check 및 전체 diff 확인 완료.
+
+이번 파일 3개는 미커밋이다. 기존 package.json 변경과 tools/, t, ers... 미추적 항목을 보존했다. 커밋·푸시·배포·PM2 조작은 하지 않았다. 로컬 검수에는 배포가 필요 없으며 기존 프로필에서 사이트 코드를 다시 내보내어 확인한다.
+
+권장 커밋 메시지: `수정: 프로필 소제목과 설명 박스 내부 여백 확보`
+
+로컬 PowerShell에서 단계별 성공 확인 후 실행한다. 스테이징에는 이번 파일 3개만 포함한다.
+
+```powershell
+npm run check
+node --test profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-history.test.mjs
+node --test profile-maker/profile-site-layout-browser.test.mjs
+git diff --check
+git diff
+git add -- profile-maker/script.js profile-maker/profile-site-layout-browser.test.mjs PROFILE_CODE_RESIZER_REPORT.md
+git diff --cached --stat
+git diff --cached --check
+git commit -m "수정: 프로필 소제목과 설명 박스 내부 여백 확보"
+git push origin main
+git log -1 --oneline
+git status --short
+```
+
+운영 서버 Bash에서 Git 상태가 깨끗한지 확인하고 단계별 성공 후 다음으로 진행한다.
+
+```bash
+cd /opt/hongcafe-ops-profile-integrated
+git status --short
+git pull --ff-only origin main
+npm run check
+node --test profile-maker/profile-code-output.test.mjs profile-maker/profile-typography.test.mjs profile-maker/profile-history.test.mjs
+git log -1 --oneline
+pm2 reload hongcafe-ops-profile
+```
+
+기동을 몇 초 기다린 뒤 확인한다. API 재시작은 필요 없다.
+
+```bash
+curl -fsS -w '\nHTTP %{http_code}\n' http://127.0.0.1:3000/api/health
+pm2 status
+pm2 logs hongcafe-ops-profile --lines 50 --nostream
+git status --short
+git rev-parse HEAD origin/main
+```
+
+정상 기준: HTTP 200 및 ok=true, 웹 online, 새 오류 없음, 푸시한 커밋과 서버 HEAD/origin/main 일치, 운영 Git 상태 출력 없음. 브라우저 새로고침 후 사이트 코드를 다시 내보내어 기존 등록 HTML을 교체해야 반영된다.
+
+---
+
 ## 2026-09-18 사이트 여백·정렬·목록 반영
 
 승인된 두 번째 이미지 피드백을 사이트 출력에 적용했다. 출력 영역 기준 좌우 16px, 상단 30px, 큰 내용 구간 사이 30px로 맞췄다. 설명·마무리의 흰 배경과 왼쪽 테두리를 제거하고 중복 들여쓰기를 없앴다. 색상 소제목의 좌우 패딩도 제거해 글자 시작을 맞췄다. 목록 흰 배경과 구분선은 유지한다.
