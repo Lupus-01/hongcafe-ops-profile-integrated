@@ -2,7 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import AdmZip from 'adm-zip';
-const { decodeText, outputNames, createZip } = createRequire(import.meta.url)('./profile-code-files.js');
+const { MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES, decodeText, outputNames, createZip, readFile } = createRequire(import.meta.url)('./profile-code-files.js');
+
+test('200-file ZIP preserves every result and rejects 201; byte limits stay unchanged', async () => {
+    assert.equal(MAX_FILES, 200);
+    assert.equal(MAX_FILE_BYTES, 30 * 1024 * 1024);
+    assert.equal(MAX_TOTAL_BYTES, 60 * 1024 * 1024);
+    const files = Array.from({ length: 200 }, (_, index) => ({ name: `상담-${index}.txt`, code: `\ufeff<p>원문 ${index}  &amp;</p>\r\n` }));
+    const zip = new AdmZip(Buffer.from(await createZip(files).arrayBuffer()));
+    assert.equal(zip.getEntries().length, 200);
+    for (const file of files) assert.deepEqual(zip.readFile(file.name), Buffer.from(file.code));
+    assert.throws(() => createZip([...files, { name: '초과.txt', code: '초과' }]));
+    await assert.rejects(readFile({ name: '초과.txt', size: MAX_FILE_BYTES + 1, arrayBuffer() { throw new Error('must not read'); } }), /30MB/);
+});
 
 test('TXT preserves BOM, CRLF, tabs, repeated spaces and HTML entities without guessing encoding', () => {
     const text = '\ufeff<h2>제목 &amp; 내용</h2>\r\n\t  공백  유지\r\n';

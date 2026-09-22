@@ -2,7 +2,7 @@
     'use strict';
     const MAX_FILE_BYTES = 30 * 1024 * 1024;
     const MAX_TOTAL_BYTES = 60 * 1024 * 1024;
-    const MAX_FILES = 50;
+    const MAX_FILES = 200;
     const fail = (message) => { throw new Error(message); };
     function decodeText(bytes) {
         const data = new Uint8Array(bytes);

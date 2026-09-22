@@ -1,5 +1,49 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-09-22 일괄 처리 상한 200개 검증 및 적용
+
+기준 HEAD `582caae`. 사용자 승인 후 파일 개수와 ZIP 저장 상한을 50개에서 200개로 확대했다. 파일당 30MiB, 선택 파일 합계 60MiB, 읽은/추출한 코드 합계 60MiB 및 Word 압축 해제 제한은 유지한다. 화면 표기는 기존처럼 MB를 사용한다. 200개는 검증한 운영상 상한이며 기술적 최대치나 모든 파일에 대한 성능 보장이 아니다.
+
+- 제품 수정: `profile-code-files.js`의 MAX_FILES, `profile-code-resizer-ui.js`의 초과 안내(상수 참조), `index.html`의 제한 안내만 부분 수정했다.
+- 검사 추가: `profile-code-files.test.mjs`의 200개 ZIP 독립 재읽기·201개 거부·파일 용량 제한, `profile-code-batch-browser.test.mjs`의 실제 UI/로컬 Word API 처리 및 전체 ZIP 내용 비교.
+- 201개 또는 입력 합계 초과 시 기존 목록·출력이 유지되는지 확인했다. 변환 핵심·원문 보존 검증·서버 제품 코드는 수정하지 않았다.
+- `script.js`, `style.css`, `profile-site-preview.js`의 SHA-256은 아래 이전 작업 기록과 동일하다. 기존 package.json 변경 및 미추적 사용자 파일을 보존했다.
+
+실험: Windows, Ryzen 5 8600G, OS 보고 메모리 약 15GiB, Node v24.14.0, Headless Chrome 154. 네트워크 가상 시간 없이 실제 경과 시간을 측정했다. 샌드박스 Chrome은 GPU 권한 오류로 종료되어 승인된 권한 확장으로 실행했다. 브라우저 textarea의 CRLF 표시 정규화를 테스트 기대값에 반영했고, 실제 결과는 BOM/CRLF를 포함한 ZIP 내용 전체 비교로 검증했다.
+
+개인정보 없는 합성 HTML은 파일당 72,972바이트(본문 60문단), DOCX는 반복 문구 압축으로 파일당 833바이트이며 추출 HTML은 TXT와 동일하다. 각 조건은 1회 측정했다. Word API는 로컬 루프백에서 실제 업로드·압축 해제를 수행했고 총 350회 요청했다. 운영 인증/프록시/회선 지연, 실제 사용자 파일, 브라우저 최대 메모리는 측정하지 않았다.
+
+| 형식 | 개수 | 읽기 | 변환·검증 | 재검증·ZIP 생성 | 최대 타이머 응답 간격 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TXT | 50 | 120ms | 501ms | 257ms | 265ms |
+| TXT | 100 | 237ms | 1,059ms | 483ms | 512ms |
+| TXT | 200 | 1,999ms | 3,249ms | 955ms | 982ms |
+| DOCX | 50 | 324ms | 492ms | 256ms | 280ms |
+| DOCX | 100 | 681ms | 1,104ms | 523ms | 551ms |
+| DOCX | 200 | 2,622ms | 3,464ms | 916ms | 958ms |
+
+200개 추출 합계 14,594,400바이트, 출력 ZIP 16,747,002바이트. ZIP은 다운로드 Blob과 각 항목의 정확한 내용을 검증했으며 실제 디스크 다운로드는 대체 함수로 검사했다. 저장 시 동기 재검증/ZIP 생성으로 약 1초 응답 지연이 관찰됐다. 일반 작업은 100개 단위, 이 샘플과 비슷한 크기는 최대 200개를 사용할 수 있도록 한다. 60MiB에 가까운 입력이나 복잡한 HTML은 더 작은 묶음으로 처리하는 것을 권한다. 60MiB 전체 용량 성능 시험이나 200개 초과 실험은 하지 않았다.
+
+검증 완료: `npm run check`, 관련 Node 테스트 38/38, 신규 일괄 브라우저 검사 1개(6조건), 기존 브라우저 검사 3개(사이트 레이아웃 48조합 포함), `git diff --check` 및 전체 변경 검토. 커밋·푸시·배포·PM2 조작은 실행하지 않았다.
+
+추가 검사 실행:
+
+```powershell
+node --test profile-maker/profile-code-batch-browser.test.mjs
+```
+
+이번 작업 파일만 커밋하는 명령(안내용):
+
+```powershell
+git add profile-maker/profile-code-files.js profile-maker/profile-code-resizer-ui.js profile-maker/index.html profile-maker/profile-code-files.test.mjs profile-maker/profile-code-batch-browser.test.mjs PROFILE_CODE_RESIZER_REPORT.md
+git diff --cached --check
+git diff --cached
+git commit -m "개선: 프로필 코드 일괄 처리 상한 200개 확대 및 검증"
+git push origin main
+```
+
+정적 파일 변경이므로 PM2 재시작은 필요하지 않다. 운영 반영은 아래 기존 운영 절차를 참고하되, 이 절의 변경 범위와 최신 커밋을 기준으로 확인한다.
+
 ## 2026-09-22 생성 디자인 보존 및 변환기 CSS 외 원문 변경 차단
 
 기준 HEAD `9c85423`. 사용자의 진행 요청에 따라 기존 생성 디자인과 폰트 기준을 유지하면서 변환기만 보완했다. 이 절의 원문 보존 규칙이 아래 9월 18일의 목록 기호 교체·추가·삭제 동작을 대체한다.

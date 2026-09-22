@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const files = Array.from(event.target.files || []);
         if (!files.length) return;
         if (files.length > ProfileCodeFiles.MAX_FILES || files.reduce((sum, file) => sum + file.size, 0) > ProfileCodeFiles.MAX_TOTAL_BYTES) {
-            setStatus('한 번에 최대 50개, 합계 60MB 이하로 선택해주세요. 기존 목록은 유지됩니다.', 'error'); return;
+            setStatus(`한 번에 최대 ${ProfileCodeFiles.MAX_FILES}개, 합계 60MB 이하로 선택해주세요. 기존 목록은 유지됩니다.`, 'error'); return;
         }
         const sequence = ++generation;
         readController?.abort(); readController = new AbortController();
