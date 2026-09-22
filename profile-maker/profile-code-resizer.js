@@ -1,4 +1,4 @@
-/* 원문 위치를 기준으로 허용한 스타일과 목록 기호만 수정한다. HTML 재직렬화는 하지 않는다. */
+/* 원문 위치를 기준으로 허용한 style 속성만 수정한다. 내용과 HTML 구조는 보존한다. */
 (function (host) {
     'use strict';
     const voidTags = new Set('area base br col embed hr img input link meta param source track wbr'.split(' '));
@@ -48,7 +48,7 @@
                 const value = attr[2] ?? attr[3] ?? attr[4] ?? '';
                 const quoted = attr[2] !== undefined || attr[3] !== undefined;
                 const valueOffset = attr[0].indexOf('=') < 0 ? attr[0].length : attr[0].indexOf('=') + 1 + /^\s*/.exec(attr[0].slice(attr[0].indexOf('=') + 1))[0].length + (quoted ? 1 : 0);
-                node.attrs[name] = { value, quoted, start: cursor + valueOffset, end: cursor + valueOffset + value.length };
+                node.attrs[name] = { value, quoted, attributeStart: cursor, attributeEnd: cursor + attr[0].length, start: cursor + valueOffset, end: cursor + valueOffset + value.length };
                 cursor += attr[0].length;
             }
             if (cursor >= source.length) fail('닫히지 않은 태그가 있습니다.');
@@ -204,6 +204,12 @@
         }
         if (has('-points')) add({ margin: '0', padding: '0', display: 'flex', 'flex-direction': 'column', gap: '6px', 'list-style': 'none' });
         if (node.siteListItem) add({ position: 'relative', margin: '0', padding: '0 0 0 16px', display: 'block', 'list-style': 'none', 'box-sizing': 'border-box' });
+        if (node.siteListItem && !node.siteMarker) add({ display: 'list-item', 'margin-left': '16px', padding: '0', 'list-style': '&quot;· &quot; outside' });
+        if (node.siteMarkerText !== undefined) {
+            add({ position: 'absolute', left: '0', top: '0', width: '10px', 'min-width': '0', height: 'auto', margin: '0', padding: '0', 'font-size': `${bodySize}px`, 'line-height': '1.5', 'text-align': 'left', 'border-radius': '0', background: 'transparent' });
+            // 이전 코드의 빈 원형 기호는 텍스트를 넣지 않고 CSS 도형으로 유지한다.
+            if (!node.siteMarkerText.trim()) add({ top: '0.7em', width: '2px', height: '2px', 'border-radius': '50%', background: 'currentColor' });
+        }
         const media = has('-portrait') || has('-photo');
         if (media) add({ display: 'block', width: '100%', 'max-width': '100%', 'min-width': '0', margin: '0', padding: '0', 'border-radius': '8px', overflow: 'hidden', 'min-height': '0', height: 'auto', 'box-sizing': 'border-box' });
         if (node.tag === 'img' && node.classes.has('pb-uploaded-img') && node.inMedia) add({ width: '100%', 'max-width': '100%', height: '100%', display: 'block', 'border-radius': '8px' });
@@ -219,6 +225,11 @@
         const roots = nodes.filter((node) => node.classes.has('pb-presentation'));
         if (!roots.length) fail('사이트 디자인을 적용할 프로필 영역을 식별할 수 없습니다.');
         const wrappers = new Set(roots.map((node) => node.parent).filter((node) => node && (node.attrs.id?.value === 'pb-canvas' || node.classes.has('pb-export-capture') || node.classes.has('pb-site-profile-output'))));
+        const children = new Map();
+        for (const node of nodes) {
+            if (!children.has(node.parent)) children.set(node.parent, []);
+            children.get(node.parent).push(node);
+        }
         const patch = (start, end, after) => {
             const before = source.slice(start, end);
             if (before !== after) patches.push({ start, end, before, after });
@@ -232,10 +243,15 @@
             if (node.siteOwn === 'skip' && node.parent?.siteKind === 'chip' && !node.classes.has('pb-export-point-marker') && !node.classes.has('pb-presentation-eyebrow')) node.siteOwn = null;
             node.siteKind = node.siteOwn || node.parent?.siteKind || null;
             node.siteListItem = node.tag === 'li' && node.parent?.classes.has('pb-presentation-points');
+            if (node.siteListItem) {
+                const markers = (children.get(node) || []).filter((child) => child.classes.has('pb-export-point-marker'));
+                if (markers.length > 1) fail('목록 기호가 여러 개 있어 CSS만으로 안전하게 정리할 수 없습니다. 원본을 확인해주세요.');
+                node.siteMarker = markers[0] || null;
+            }
             if (node.siteOwn === 'title' || node.siteOwn === 'body') counts[node.siteOwn] += 1;
             if (node.classes.has('pb-export-point-marker')) {
                 if (!node.parent?.siteListItem || node.tag !== 'span' || !/^[\s·•]*$/.test(source.slice(node.end, node.closeStart))) fail('목록 기호에 예상하지 못한 내용이 있어 변환을 중단했습니다.');
-                continue;
+                node.siteMarkerText = source.slice(node.end, node.closeStart);
             }
             const styles = siteStyles(node, titleSize, bodySize);
             if (!Object.keys(styles).length) continue;
@@ -255,12 +271,6 @@
             patch(style.start, style.end, rest + separator + suffix);
         }
         if (!counts.title || !counts.body) fail('제목과 본문을 모두 식별할 수 없습니다. 기존 프로필 등록용 HTML인지 확인해주세요.');
-        const marker = `<span class="pb-export-point-marker" aria-hidden="true" style="position: absolute !important;left: 0 !important;top: 0 !important;width: 10px !important;font-size: ${bodySize}px !important;line-height: 1.5 !important;text-align: left !important;">·</span>`;
-        for (const node of nodes.filter((item) => item.siteListItem)) {
-            const markers = nodes.filter((item) => item.parent === node && item.classes.has('pb-export-point-marker'));
-            if (!markers.length) patch(node.end, node.end, marker);
-            markers.forEach((item, index) => patch(item.start, item.outerEnd, index === 0 ? marker : ''));
-        }
         patches.sort((a, b) => a.start - b.start);
         let cursor = 0, code = '';
         for (const change of patches) {
@@ -269,12 +279,40 @@
             cursor = change.end;
         }
         code += source.slice(cursor);
+        verifyStyleOnlySource(source, code);
         return { code, counts, changes: patches.length, verified: true };
+    }
+
+    function verifyStyleOnlySource(source, code) {
+        const before = parse(source), after = parse(code);
+        if (before.length !== after.length) fail('CSS 외 HTML 구조 변경이 감지되었습니다.');
+        // 결과의 style 값만 원래대로 돌린 뒤 원본 바이트와 비교한다.
+        const restores = [];
+        before.forEach((node, index) => {
+            const original = node.attrs.style, modified = after[index].attrs.style;
+            if (original) {
+                if (!modified) fail('원본 style 속성이 누락되었습니다.');
+                restores.push({ start: modified.start, end: modified.end, value: original.value });
+            } else if (modified) {
+                const start = modified.attributeStart - 1;
+                if (code[start] !== ' ' || code.slice(modified.attributeStart, modified.start) !== 'style="' || !modified.quoted) fail('허용하지 않은 속성 추가가 감지되었습니다.');
+                restores.push({ start, end: modified.attributeEnd, value: '' });
+            }
+        });
+        let restored = '', cursor = 0;
+        for (const change of restores) {
+            restored += code.slice(cursor, change.start) + change.value;
+            cursor = change.end;
+        }
+        restored += code.slice(cursor);
+        if (restored !== source) fail('CSS 외 원본 내용 또는 HTML 속성 변경이 감지되었습니다.');
+        return true;
     }
 
     function verifySiteDOM(source, code, document, titleSize, bodySize) {
         // 속성 전체를 허용하는 대신, 원문에서 재계산한 지정 변경과 정확히 같은지 확인한다.
         if (applySiteDesign(source, titleSize, bodySize).code !== code) fail('허용한 사이트 디자인 외의 변경이 감지되었습니다.');
+        verifyStyleOnlySource(source, code);
         const fragments = [source, code].map((text) => {
             const template = document.createElement('template');
             template.innerHTML = text;
@@ -285,8 +323,6 @@
                 if (element.localName !== token.tag || elements.indexOf(element.parentElement) !== (token.parent ? tokens.indexOf(token.parent) : -1)) fail('원본 태그 구조가 브라우저 해석과 달라 변환을 중단했습니다.');
                 element.removeAttribute('style');
             });
-            template.content.querySelectorAll('.pb-presentation .pb-presentation-points > li > .pb-export-point-marker').forEach((element) => element.remove());
-            template.content.normalize();
             return template.content;
         });
         if (!fragments[0].isEqualNode(fragments[1])) fail('내용 또는 HTML 속성 변경이 감지되었습니다.');
@@ -319,7 +355,7 @@
         if (!original.content.isEqualNode(modified.content)) fail('내용 또는 HTML 속성 변경이 감지되었습니다.');
         return true;
     }
-    const api = { resize, applySiteDesign, parse, verifyDOM };
+    const api = { resize, applySiteDesign, parse, verifyDOM, verifyStyleOnlySource };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else host.ProfileCodeResizer = api;
 })(globalThis);

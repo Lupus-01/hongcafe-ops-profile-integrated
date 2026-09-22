@@ -35,7 +35,7 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
         for (const variant of ['tarot', 'saju', 'sinjeom']) {
             templates[variant] = { ...template, variant };
             for (const width of [320, 375, 430, 720]) {
-              for (const resizeLegacy of [false, true]) {
+              for (const resizeLegacy of [false, 'empty', 'text', 'missing']) {
                 const root = document.createElement('div');
                 root.innerHTML = buildPresentationMarkup(variant);
                 const imageUrl = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="350"><rect width="640" height="350" fill="#ccc3de"/></svg>');
@@ -46,8 +46,18 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                     // 이전 큰 글자·장식·여백이 있는 HTML을 최신 기준으로 변환한다.
                     applyEditorFriendlyExportStyles(root, { outputMode: 'capture' });
                     root.querySelectorAll('style').forEach((node) => node.remove());
+                    root.querySelectorAll('.pb-export-point-marker').forEach((node) => node.remove());
+                    if (resizeLegacy !== 'missing') root.querySelectorAll('li').forEach((item) => {
+                        const marker = document.createElement('span');
+                        marker.className = 'pb-export-point-marker';
+                        marker.setAttribute('aria-hidden', 'true');
+                        marker.style.cssText = 'display:inline-block;width:7px;height:7px;margin-top:0.68em;border-radius:999px;background:#6335b4';
+                        marker.textContent = resizeLegacy === 'text' ? '·' : '';
+                        item.prepend(marker);
+                    });
                     const original = root.outerHTML;
                     const result = ProfileCodeResizer.applySiteDesign(original);
+                    check(ProfileCodeResizer.verifyStyleOnlySource(original, result.code), 'every non-style source byte preserved');
                     check(ProfileCodeResizer.verifyDOM(original, result.code, document, { mode: 'site' }), 'converted DOM preservation');
                     check(ProfileCodeResizer.applySiteDesign(result.code).code === result.code, 'repeated conversion is stable');
                     root.outerCode = result.code;
@@ -60,7 +70,7 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                 frame.innerHTML = root.outerCode || root.outerHTML; // 실제 저장과 같은 직렬화 이후 검사
                 document.body.appendChild(frame);
                 const output = frame.firstElementChild;
-                check(output.querySelectorAll('.pb-export-point-marker').length === 3, 'one bullet per item after repeated export');
+                check(output.querySelectorAll('.pb-export-point-marker').length === (resizeLegacy === 'missing' ? 0 : 3), 'marker elements are never added or deleted by conversion');
                 check(output.textContent.replace(/[·\s]/g, '') === originalText, 'copy preserved');
                 output.querySelectorAll('img').forEach((img) => check(img.getAttribute('src') === imageUrl, 'image URL preserved'));
                 const left = output.getBoundingClientRect().left + 16;
@@ -99,10 +109,18 @@ test('serialized site output preserves bullets, alignment and spacing at mobile 
                 }
                 const items = [...output.querySelectorAll('li')];
                 close(items[1].getBoundingClientRect().top - items[0].getBoundingClientRect().bottom, 6, 'list gap');
-                check(getComputedStyle(items[1]).paddingLeft === '16px', 'wrapped list text indent');
+                if (resizeLegacy === 'missing') {
+                    check(getComputedStyle(items[1]).paddingLeft === '0px' && getComputedStyle(items[1]).marginLeft === '16px', 'native CSS marker text indent');
+                    check(getComputedStyle(items[1]).display === 'list-item' && getComputedStyle(items[1]).listStyleType.includes('·'), 'native CSS marker is visible');
+                } else {
+                    check(getComputedStyle(items[1]).paddingLeft === '16px', 'wrapped list text indent');
+                    const marker = output.querySelector('.pb-export-point-marker');
+                    check(marker.textContent === (resizeLegacy === 'empty' ? '' : '·'), 'original marker content preserved');
+                    check(marker.getBoundingClientRect().width > 0 && marker.getBoundingClientRect().height > 0, 'original marker remains visible');
+                }
                 check(frame.scrollWidth <= width, 'no horizontal overflow');
                 output.querySelectorAll('h2,h3,p,li,.pb-presentation-chip').forEach((node) => check(node.scrollWidth <= node.clientWidth + 1, 'no clipped text'));
-                if (variant !== 'tarot' || width !== 375 || !resizeLegacy) frame.remove();
+                if (variant !== 'tarot' || width !== 375 || resizeLegacy !== 'text') frame.remove();
               }
             }
         }

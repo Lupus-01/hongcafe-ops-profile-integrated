@@ -81,6 +81,21 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             const siteCode = ProfileCodeResizer.applySiteDesign(original).code;
             assert(get('pb-resize-output').value === siteCode, 'default site design conversion');
             assert(ProfileCodeResizer.verifyDOM(original, siteCode, document, { mode: 'site' }), 'site design DOM preservation');
+            const contentFixture = original.replace('</div>', '<ul class="pb-presentation-points"><li><span class="pb-export-point-marker" aria-hidden="true" data-note="보존">•</span>원본  문구 &amp; 줄바꿈<br><a href="https://example.com/a?x=1&amp;y=2">링크</a><img src="data:image/png;base64,AAAA" alt="원본"></li><li>기호 요소 없음</li></ul></div>');
+            const preservedCode = ProfileCodeResizer.applySiteDesign(contentFixture).code;
+            assert(ProfileCodeResizer.verifyDOM(contentFixture, preservedCode, document, { mode: 'site' }), 'strict DOM preservation includes existing marker text and attributes');
+            assert(ProfileCodeResizer.verifyStyleOnlySource(contentFixture, preservedCode), 'exact non-CSS source preservation');
+            for (const changed of [preservedCode.replace('>•</span>', '>·</span>'), preservedCode.replace('data-note="보존"', 'data-note="변경"'), preservedCode.replace('원본  문구', '원본 문구')]) {
+                let refused = false;
+                try { ProfileCodeResizer.verifyDOM(contentFixture, changed, document, { mode: 'site' }); } catch { refused = true; }
+                assert(refused, 'marker and whitespace changes must block output');
+            }
+            get('pb-resize-source').value = contentFixture.replace('>•</span>', '>•</span><span class="pb-export-point-marker">·</span>');
+            get('pb-resize-source').dispatchEvent(new Event('input'));
+            get('pb-resize-apply').click();
+            assert(get('pb-resize-status').dataset.state === 'error' && !get('pb-resize-output').value && get('pb-resize-copy').disabled && get('pb-resize-save').disabled, 'ambiguous marker input blocks output without deleting content');
+            get('pb-resize-source').value = original;
+            get('pb-resize-source').dispatchEvent(new Event('input'));
             for (const mutated of [siteCode.replace('제목 원문', '다른 제목'), siteCode.replace('padding: 30px', 'padding: 99px'), siteCode.replace('font-weight:800', 'font-weight:400')]) {
                 let refused = false;
                 try { ProfileCodeResizer.verifyDOM(original, mutated, document, { mode: 'site' }); } catch { refused = true; }

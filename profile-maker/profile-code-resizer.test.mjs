@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
-const { resize, applySiteDesign, parse } = createRequire(import.meta.url)('./profile-code-resizer.js');
+const { resize, applySiteDesign, parse, verifyStyleOnlySource } = createRequire(import.meta.url)('./profile-code-resizer.js');
 
 export const fixture = (category = 'tarot') => `<div class="pb-presentation pb-theme-${category}" style="background:#f7f6fb;padding:13px;border:1px solid red;width:640px">
 <!-- 원본 공백과 주석 유지 -->
@@ -94,23 +94,47 @@ test('site design converts all categories without losing content, colors, URLs o
         assert.ok(result.code.includes('<img src="data:image/png;base64,AAAA" style="width:100%;aspect-ratio:16 / 8.6" alt="사진 > 설명">'));
         assert.ok(result.code.startsWith('\ufeff'));
         assert.ok(result.code.includes('<!-- 원본 공백과 주석 유지 -->'));
-        assert.equal((result.code.match(/>·<\/span>/g) || []).length, 1);
+        assert.equal((result.code.match(/>•<\/span>/g) || []).length, 1);
+        assert.equal(verifyStyleOnlySource(original, result.code), true);
         assert.equal(applySiteDesign(result.code).code, result.code);
         assert.equal(applySiteDesign(result.code).changes, 0);
         assert.equal(applySiteDesign(applySiteDesign(result.code, 30, 18).code).code, result.code);
     }
 });
 
-test('site design adds missing markers, deduplicates designated markers and preserves unknown content', () => {
+test('site design preserves markers and uses CSS without adding HTML; ambiguous duplicates are rejected', () => {
     const base = fixture().replace('<span class="pb-export-point-marker" style="width:7px;height:7px;font-size:7px">•</span>', '');
-    assert.equal((applySiteDesign(base).code.match(/>·<\/span>/g) || []).length, 1);
+    const converted = applySiteDesign(base).code;
+    assert.equal(parse(converted).filter((node) => node.classes.has('pb-export-point-marker')).length, 0);
+    assert.match(converted, /list-style: &quot;· &quot; outside !important/);
+    assert.equal(verifyStyleOnlySource(base, converted), true);
+    assert.equal(applySiteDesign(converted).code, converted);
     const duplicate = base.replace('<li>', '<li><span class="pb-export-point-marker">·</span><span class="pb-export-point-marker"></span>');
-    assert.equal((applySiteDesign(duplicate).code.match(/>·<\/span>/g) || []).length, 1);
+    assert.throws(() => applySiteDesign(duplicate), /목록 기호가 여러 개/);
     assert.throws(() => applySiteDesign(base.replace('<li>', '<li><span class="pb-export-point-marker">보존할 내용</span>')), /예상하지 못한 내용/);
     const outside = '<p style="font-size:99px">프로필 밖 내용</p>';
     assert.ok(applySiteDesign(base + outside).code.endsWith(outside));
     assert.throws(() => applySiteDesign('<h2 class="pb-presentation-title">제목</h2><p class="pb-presentation-body">본문</p>'), /프로필 영역/);
     assert.throws(() => applySiteDesign(base, 0, 16), /정수/);
+});
+
+test('CSS-only source verification rejects every non-style change including whitespace and markers', () => {
+    const original = '\ufeff' + fixture().replaceAll('\n', '\r\n').replace('>•</span>', ' data-note="기호 보존" aria-hidden="true">•</span>');
+    const code = applySiteDesign(original).code;
+    assert.equal(verifyStyleOnlySource(original, code), true);
+    for (const changed of [
+        code.replace('기존 본문', '변경 본문'),
+        code.replace('>•</span>', '>·</span>'),
+        code.replace('data-note="기호 보존"', 'data-note="변경"'),
+        code.replace('aria-hidden="true"', 'aria-hidden="false"'),
+        code.replace('https://example.com/', 'https://changed.example/'),
+        code.replace('base64,AAAA', 'base64,BBBB'),
+        code.replace('<!-- 원본 공백과 주석 유지 -->', ''),
+        code.replace(/\r\n/g, '\n'),
+        code.slice(1),
+        code.replace('기존 본문 ', '기존 본문  '),
+        code.replace('</li>', '<span></span></li>')
+    ]) assert.throws(() => verifyStyleOnlySource(original, changed), /CSS 외/);
 });
 
 test('site design preserves CSS entities, backgrounds, separators and nested chip typography', () => {

@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : ProfileCodeResizer.resize(text, titleSize, bodySize);
     const verificationOptions = (result) => ({ mode: result.mode, titleSize: result.title, bodySize: result.body });
     const successMessage = () => mode.value === 'site'
-        ? '검증 완료: 지정된 디자인과 목록 기호만 변경하고 문구·이미지 URL·링크를 보존했습니다.'
+        ? '검증 완료: CSS만 변경하고 원본 문구·목록 기호·이미지 URL·링크·HTML 구조를 보존했습니다.'
         : '검증 완료: 글자 크기 외 내용·구조·스타일 보존을 확인했습니다.';
     const refresh = () => {
         const item = current();
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyAll.textContent = siteMode ? '전체 디자인 적용 및 검증' : '전체 크기 적용 및 검증';
         byId('pb-resize-design-summary').hidden = !siteMode;
         byId('pb-resize-mode-help').textContent = siteMode
-            ? '글자 크기·줄 간격·여백·박스·목록 기호를 적용합니다. 문구·이미지 URL·링크·글꼴·프로필별 색상은 유지합니다.'
+            ? '최신 사이트 CSS만 적용합니다. 원본 문구·목록 기호·이미지 URL·링크·HTML 구조는 그대로 보존합니다. 프로필 생성 디자인은 변경하지 않습니다.'
             : '제목·본문 글자 크기만 변경합니다. 원본의 다른 스타일과 목록 기호는 유지합니다.';
         byId('pb-resize-description').textContent = siteMode
             ? '최신 사이트 디자인을 적용합니다. 수정 결과를 확인한 뒤 사이트 등록 HTML을 교체해주세요.'
