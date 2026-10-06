@@ -216,11 +216,48 @@
         return styles;
     }
 
+    const legacySiteCSS = "@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); .pb-site-profile-output, .pb-site-profile-output * { box-sizing: border-box !important; font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important; }";
+    function prepareSiteSource(source) {
+        const nodes = parse(source), removals = [];
+        for (const node of nodes.filter((item) => item.tag === 'style')) {
+            const css = source.slice(node.end, node.closeStart).replace(/\s+/g, ' ').trim();
+            if (Object.keys(node.attrs).length !== 1 || node.attrs['data-pb-site-protection-style']?.value !== 'true'
+                || css !== legacySiteCSS || !node.parent?.classes.has('pb-site-profile-output')
+                || !nodes.some((item) => item.classes.has('pb-presentation') && item.parent === node.parent)) {
+                fail('확인되지 않은 style 블록이 있습니다. 자동 삭제하지 않고 사이트 변환을 중단합니다.');
+            }
+            removals.push(node);
+        }
+        let text = '', cursor = 0;
+        for (const node of removals) {
+            text += source.slice(cursor, node.start);
+            cursor = node.outerEnd;
+        }
+        text += source.slice(cursor);
+        // 일반 본문으로 남은 CSS도 추측해서 지우지 않는다. 태그/주석/속성은 검사에서 제외한다.
+        let textCursor = 0, visibleSource = '';
+        for (const node of parse(text)) {
+            visibleSource += text.slice(textCursor, node.start).replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '');
+            textCursor = node.end;
+        }
+        visibleSource += text.slice(textCursor).replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '');
+        if (/@import\b|\.pb-site-profile-output\s*[,\{*]|data-pb-site-protection-style/i.test(visibleSource)) {
+            fail('본문에 CSS로 의심되는 내용이 남아 있습니다. 원문 확인이 필요하여 사이트 변환을 중단합니다.');
+        }
+        return { text, removedStyles: removals.length };
+    }
+
+    function verifySiteSource(source, code) {
+        return verifyStyleOnlySource(prepareSiteSource(source).text, code);
+    }
+
     function applySiteDesign(source, titleSize = 26, bodySize = 16) {
         if (typeof source !== 'string' || !source.trim()) fail('원본 코드를 입력해주세요.');
         for (const size of [titleSize, bodySize]) {
             if (!Number.isInteger(size) || size < 1 || size > 200) fail('글자 크기는 1~200 사이의 정수 px로 입력해주세요.');
         }
+        const prepared = prepareSiteSource(source);
+        source = prepared.text;
         const nodes = parse(source), patches = [], counts = { title: 0, body: 0 };
         const roots = nodes.filter((node) => node.classes.has('pb-presentation'));
         if (!roots.length) fail('사이트 디자인을 적용할 프로필 영역을 식별할 수 없습니다.');
@@ -235,10 +272,11 @@
             if (before !== after) patches.push({ start, end, before, after });
         };
         for (const node of nodes) {
+            node.siteProtection = prepared.removedStyles > 0 && (node.classes.has('pb-site-profile-output') || Boolean(node.parent?.siteProtection));
             node.inProfile = node.classes.has('pb-presentation') || Boolean(node.parent?.inProfile);
             node.siteWrapper = wrappers.has(node);
             node.inMedia = node.parent?.classes.has('pb-presentation-portrait') || node.parent?.classes.has('pb-presentation-photo') || Boolean(node.parent?.inMedia);
-            if (!node.inProfile && !node.siteWrapper) continue;
+            if (!node.inProfile && !node.siteWrapper && !node.siteProtection) continue;
             node.siteOwn = node.classes.has('pb-presentation-chip') ? 'chip' : classify(node);
             if (node.siteOwn === 'skip' && node.parent?.siteKind === 'chip' && !node.classes.has('pb-export-point-marker') && !node.classes.has('pb-presentation-eyebrow')) node.siteOwn = null;
             node.siteKind = node.siteOwn || node.parent?.siteKind || null;
@@ -254,6 +292,10 @@
                 node.siteMarkerText = source.slice(node.end, node.closeStart);
             }
             const styles = siteStyles(node, titleSize, bodySize);
+            if (node.siteProtection) Object.assign(styles, {
+                'box-sizing': 'border-box',
+                'font-family': 'Pretendard, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, sans-serif'
+            });
             if (!Object.keys(styles).length) continue;
             const suffix = Object.entries(styles).map(([property, value]) => `${property}: ${value} !important;`).join('');
             const style = node.attrs.style;
@@ -279,8 +321,10 @@
             cursor = change.end;
         }
         code += source.slice(cursor);
+        // 보호 속성을 추가한 뒤에도 재변환 결과가 같도록 기존 선언 순서로 정규화한다.
+        if (prepared.removedStyles) code = applySiteDesign(code, titleSize, bodySize).code;
         verifyStyleOnlySource(source, code);
-        return { code, counts, changes: patches.length, verified: true };
+        return { code, counts, changes: patches.length, removedStyles: prepared.removedStyles, verified: true };
     }
 
     function verifyStyleOnlySource(source, code) {
@@ -312,6 +356,7 @@
     function verifySiteDOM(source, code, document, titleSize, bodySize) {
         // 속성 전체를 허용하는 대신, 원문에서 재계산한 지정 변경과 정확히 같은지 확인한다.
         if (applySiteDesign(source, titleSize, bodySize).code !== code) fail('허용한 사이트 디자인 외의 변경이 감지되었습니다.');
+        source = prepareSiteSource(source).text;
         verifyStyleOnlySource(source, code);
         const fragments = [source, code].map((text) => {
             const template = document.createElement('template');
@@ -355,7 +400,7 @@
         if (!original.content.isEqualNode(modified.content)) fail('내용 또는 HTML 속성 변경이 감지되었습니다.');
         return true;
     }
-    const api = { resize, applySiteDesign, parse, verifyDOM, verifyStyleOnlySource };
+    const api = { resize, applySiteDesign, parse, verifyDOM, verifyStyleOnlySource, verifySiteSource };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else host.ProfileCodeResizer = api;
 })(globalThis);

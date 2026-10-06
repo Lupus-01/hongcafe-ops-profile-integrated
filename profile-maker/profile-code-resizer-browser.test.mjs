@@ -20,9 +20,27 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
     // Windows Chrome의 최소 창 너비와 무관하게 요청한 좁은 레이아웃 폭을 검사한다.
     const layoutWidth = Number((process.env.PROFILE_TEST_WINDOW_SIZE || '1440,1000').split(',')[0]);
     page = page.replace('</head>', `<style>html{width:${layoutWidth}px;max-width:100%}</style></head>`);
+    const realCases = [process.env.PROFILE_REPAIR_INPUT, process.env.PROFILE_REPAIR_CONTROL].filter(Boolean).map((file) => fs.readFileSync(file, 'utf8'));
+    page = page.replace('</head>', `<script>window.PB_REAL_CASES=${JSON.stringify(realCases).replaceAll('<', '\\u003c')};</script></head>`);
     const run = async () => {
         const assert = (condition, message) => { if (!condition) throw new Error(message); };
         const get = (id) => document.getElementById(id);
+        for (const [index, source] of window.PB_REAL_CASES.entries()) {
+            const repaired = ProfileCodeResizer.applySiteDesign(source);
+            ProfileCodeResizer.verifyDOM(source, repaired.code, document, { mode: 'site' });
+            assert(!/<style\b|@import/.test(repaired.code), 'real output has no stylesheet text');
+            assert(ProfileCodeResizer.applySiteDesign(repaired.code).code === repaired.code, 'real output is idempotent');
+            if (index === 1) assert(repaired.code === source, 'normal real control unchanged');
+            const host = document.createElement('div');
+            // 실제 외부 이미지는 요청하지 않고 레이아웃/텍스트만 검사한다.
+            const template = document.createElement('template'); template.innerHTML = repaired.code;
+            template.content.querySelectorAll('img').forEach((img) => img.removeAttribute('src'));
+            host.append(template.content); document.body.append(host);
+            assert(getComputedStyle(host.querySelector('.pb-presentation-title')).fontSize === '26px', 'real title size');
+            assert(getComputedStyle(host.querySelector('.pb-presentation-body')).fontSize === '16px', 'real body size');
+            assert(!host.innerText.includes('@import') && !host.innerText.includes('.pb-site-profile-output'), 'real rendered CSS absent');
+            host.remove();
+        }
         const waitUntil = async (predicate) => {
             for (let i = 0; i < 300; i += 1) { if (predicate()) return; await new Promise((resolve) => setTimeout(resolve, 1)); }
             throw new Error('browser operation timed out');
@@ -185,7 +203,14 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
                 assert(decoded === expectedCodes[i], 'individual file exact source preservation including CRLF/BOM');
             }
             get('pb-resize-save-all').click();
-            assert(download === 'profile-font-size-results.zip', 'batch ZIP name');
+            assert(get('pb-resize-save-all').disabled && download !== 'profile-font-size-results.zip', 'mixed batch cannot save partial ZIP');
+            Object.defineProperty(get('pb-resize-file'), 'files', { configurable: true, value: files.slice(0, 3) });
+            get('pb-resize-file').dispatchEvent(new Event('change'));
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            get('pb-resize-apply-all').click();
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            get('pb-resize-save-all').click();
+            assert(download === 'profile-font-size-results.zip', 'complete batch ZIP name');
             const archive = new Uint8Array(await savedBlob.arrayBuffer()), view = new DataView(archive.buffer);
             const actualFiles = []; let offset = 0;
             while (view.getUint32(offset, true) === 0x04034b50) {
@@ -243,7 +268,14 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
             get('pb-resize-preview').click();
             assert(get('pb-resize-after').srcdoc.includes(expectedSiteCodes[2]), 'site preview uses verified result');
             get('pb-resize-save-all').click();
-            assert(download === 'profile-site-design-results.zip', 'site ZIP name');
+            assert(get('pb-resize-save-all').disabled && download !== 'profile-site-design-results.zip', 'site mixed batch cannot save partial ZIP');
+            Object.defineProperty(get('pb-resize-file'), 'files', { configurable: true, value: files.slice(0, 3) });
+            get('pb-resize-file').dispatchEvent(new Event('change'));
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            get('pb-resize-apply-all').click();
+            await waitUntil(() => !get('pb-resize-file').disabled);
+            get('pb-resize-save-all').click();
+            assert(download === 'profile-site-design-results.zip', 'complete site ZIP name');
             const siteArchive = new Uint8Array(await savedBlob.arrayBuffer()), siteView = new DataView(siteArchive.buffer);
             let siteOffset = 0, siteIndex = 0;
             while (siteView.getUint32(siteOffset, true) === 0x04034b50) {
@@ -253,6 +285,12 @@ test('browser validates DOM, computed styles, tabs and stale output protection',
                 siteOffset = start + length;
             }
             assert(siteIndex === 3, 'site ZIP excludes failed files');
+            const lastSaved = savedBlob, verifyBeforeSave = ProfileCodeResizer.verifyDOM;
+            let saveChecks = 0;
+            ProfileCodeResizer.verifyDOM = (...args) => { if (++saveChecks === 2) throw new Error('forced save verification failure'); return verifyBeforeSave(...args); };
+            get('pb-resize-save-all').click();
+            ProfileCodeResizer.verifyDOM = verifyBeforeSave;
+            assert(savedBlob === lastSaved && get('pb-resize-save-all').disabled && get('pb-resize-status').dataset.state === 'error', 'save-time failure blocks entire ZIP');
             get('pb-resize-mode').value = 'size';
             get('pb-resize-mode').dispatchEvent(new Event('change'));
             assert(get('pb-resize-save-all').disabled && !get('pb-resize-output').value, 'mode change invalidates whole batch');

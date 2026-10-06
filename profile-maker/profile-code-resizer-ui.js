@@ -31,12 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
         byId('pb-resize-after').removeAttribute('srcdoc');
     };
     const validResult = (record) => Boolean(record?.result && record.result.mode === mode.value && record.result.title === Number(title.value) && record.result.body === Number(body.value));
+    const allResultsReady = () => records.length > 0 && records.every((record) => record.state === 'success' && validResult(record));
     const convertCode = (text, titleSize, bodySize, selectedMode) => selectedMode === 'site'
         ? ProfileCodeResizer.applySiteDesign(text, titleSize, bodySize)
         : ProfileCodeResizer.resize(text, titleSize, bodySize);
     const verificationOptions = (result) => ({ mode: result.mode, titleSize: result.title, bodySize: result.body });
     const successMessage = () => mode.value === 'site'
-        ? '검증 완료: CSS만 변경하고 원본 문구·목록 기호·이미지 URL·링크·HTML 구조를 보존했습니다.'
+        ? '검증 완료: 사이트 스타일을 적용하고 확인된 과거 생성기 CSS 블록만 정리했습니다. 원본 문구·목록 기호·이미지 URL·링크를 보존했습니다.'
         : '검증 완료: 글자 크기 외 내용·구조·스타일 보존을 확인했습니다.';
     const refresh = () => {
         const item = current();
@@ -45,14 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
         copy.disabled = save.disabled = preview.disabled = busy || !validResult(item);
         apply.disabled = busy || !item?.raw;
         applyAll.disabled = busy || !records.some((record) => record.raw);
-        saveAll.disabled = busy || !records.some(validResult);
+        saveAll.disabled = busy || !allResultsReady();
         title.disabled = body.disabled = mode.disabled = byId('pb-resize-site').disabled = busy;
         const siteMode = mode.value === 'site';
         apply.textContent = siteMode ? '디자인 적용 및 검증' : '크기 적용 및 검증';
         applyAll.textContent = siteMode ? '전체 디자인 적용 및 검증' : '전체 크기 적용 및 검증';
         byId('pb-resize-design-summary').hidden = !siteMode;
         byId('pb-resize-mode-help').textContent = siteMode
-            ? '최신 사이트 CSS만 적용합니다. 원본 문구·목록 기호·이미지 URL·링크·HTML 구조는 그대로 보존합니다. 프로필 생성 디자인은 변경하지 않습니다.'
+            ? '최신 사이트 스타일을 적용하고 정확히 확인된 과거 생성기 CSS 블록만 제거합니다. 문구·목록 기호·이미지 URL·링크를 보존하며 불명확한 CSS는 자동 삭제하지 않습니다.'
             : '제목·본문 글자 크기만 변경합니다. 원본의 다른 스타일과 목록 기호는 유지합니다.';
         byId('pb-resize-description').textContent = siteMode
             ? '최신 사이트 디자인을 적용합니다. 수정 결과를 확인한 뒤 사이트 등록 HTML을 교체해주세요.'
@@ -71,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.append(name, detail); button.addEventListener('click', () => selectRecord(index)); list.appendChild(button);
         });
         byId('pb-resize-batch-summary').textContent = records.length
-            ? `전체 ${records.length}개 · 완료 ${records.filter(validResult).length}개 · 실패 ${records.filter((record) => record.state === 'error').length}개` : '';
+            ? `전체 ${records.length}개 · 성공 ${records.filter((record) => record.state === 'success' && validResult(record)).length}개 · 실패 ${records.filter((record) => record.state === 'error').length}개 · 미처리 ${records.filter((record) => record.state !== 'error' && !(record.state === 'success' && validResult(record))).length}개` : '';
     };
     function selectRecord(index) {
         if (selected < 0) manual.raw = Object.freeze({ text: source.value });
@@ -204,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         busy = false; refresh();
         const failed = records.filter((item) => item.state === 'error').length;
-        setStatus(`전체 처리 완료: 성공 ${records.filter(validResult).length}개, 실패 ${failed}개. 실패 파일은 저장에서 제외됩니다.`, failed ? 'error' : 'success');
+        setStatus(allResultsReady() ? `전체 ${records.length}개 변환·검증 완료. 전체 ZIP을 저장할 수 있습니다.` : `처리 결과: 성공 ${records.filter(validResult).length}개, 실패 ${failed}개. 실패·미처리 파일이 있어 전체 ZIP 저장을 차단했습니다. 파일별 사유를 확인해주세요.`, allResultsReady() ? 'success' : 'error');
     });
     copy.addEventListener('click', async () => {
         const item = current(), snapshot = item?.result;
@@ -231,15 +232,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     saveAll.addEventListener('click', () => {
         try {
+            if (busy || !allResultsReady()) throw new Error('모든 파일이 변환·검증을 통과해야 전체 ZIP을 저장할 수 있습니다.');
             const files = [];
-            for (const item of records.filter(validResult)) {
+            for (const item of records) {
                 try { files.push({ name: item.outputName, code: verifyRecord(item) }); }
                 catch (error) { item.result = null; item.state = 'error'; item.error = error.message; }
             }
             refresh();
+            if (!allResultsReady() || files.length !== records.length) throw new Error('저장 직전 재검증에 실패하여 전체 ZIP 저장을 중단했습니다. 실패 파일을 확인해주세요.');
             if (!files.length) throw new Error('검증을 통과한 결과가 없습니다.');
             download(ProfileCodeFiles.createZip(files), mode.value === 'site' ? 'profile-site-design-results.zip' : 'profile-font-size-results.zip');
-            setStatus(`검증된 ${files.length}개 결과의 ZIP 저장을 요청했습니다. 실패 파일은 포함하지 않았습니다.`, 'success');
+            setStatus(`전체 ${files.length}개 결과를 재검증하고 ZIP 저장을 요청했습니다.`, 'success');
         } catch (error) { setStatus(error.message, 'error'); }
     });
     preview.addEventListener('click', () => {

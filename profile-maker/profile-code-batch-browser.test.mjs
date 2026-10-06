@@ -14,7 +14,7 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 const chrome = process.env.PROFILE_TEST_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 // 실제 UI와 로컬 Word API만 사용한다. 운영 인증/AI/외부 서비스에는 연결하지 않는다.
-test('50/100/200 TXT and DOCX files preserve source through UI conversion and ZIP export', { skip: !fs.existsSync(chrome), timeout: 180000 }, async () => {
+test('50/100/120/200 TXT and DOCX batches preserve source and block incomplete ZIP export', { skip: !fs.existsSync(chrome), timeout: 180000 }, async () => {
     const app = express();
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'hongcafe-batch-'));
     const paragraph = '<p class="pb-presentation-body" style="font-size:35px">' + '샘플  원문 &amp; 공백 보존. '.repeat(32) + '</p>\r\n';
@@ -57,7 +57,7 @@ test('50/100/200 TXT and DOCX files preserve source through UI conversion and ZI
             HTMLAnchorElement.prototype.click = function () {};
             const rows = [];
             for (const kind of ['txt', 'docx']) {
-                for (const count of [50, 100, 200]) {
+                for (const count of [50, 100, 120, 200]) {
                     const files = Array.from({ length: count }, (_, i) => new File([kind === 'txt' ? fixture.original : bytes], `sample-${i}.${kind}`));
                     let maxGap = 0, last = performance.now();
                     const heartbeat = setInterval(() => { const now = performance.now(); maxGap = Math.max(maxGap, now - last); last = now; }, 20);
@@ -98,6 +98,17 @@ test('50/100/200 TXT and DOCX files preserve source through UI conversion and ZI
             check(document.querySelectorAll('.pb-resize-file-item').length === 200 && get('pb-resize-output').value === previous, 'rejected selection preserves records');
             select([{ name: 'large.txt', size: ProfileCodeFiles.MAX_TOTAL_BYTES + 1 }]);
             check(get('pb-resize-status').dataset.state === 'error' && get('pb-resize-output').value === previous, 'total byte limit preserved');
+            const mixed = Array.from({ length: 120 }, (_, i) => new File([i === 73 ? 'invalid HTML' : fixture.original], `mixed-${i}.txt`));
+            select(mixed); await ready();
+            get('pb-resize-apply-all').click(); await ready();
+            check(document.querySelectorAll('.pb-resize-file-item[data-state="success"]').length === 119, '119 valid files succeed');
+            check(document.querySelectorAll('.pb-resize-file-item[data-state="error"]').length === 1, 'one failed file identified');
+            saved = null; get('pb-resize-save-all').click();
+            check(get('pb-resize-save-all').disabled && saved === null, 'partial 120 batch ZIP blocked');
+            select(mixed.map((_file, i) => new File([fixture.original], `cancel-${i}.txt`))); await ready();
+            get('pb-resize-apply-all').click();
+            get('pb-resize-cancel').click(); await pause(10);
+            check(get('pb-resize-save-all').disabled && !get('pb-resize-status').textContent.includes('변환·검증 완료'), 'canceled batch is not complete');
             await fetch('/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, userAgent: navigator.userAgent }) });
         } catch (error) {
             await fetch('/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.stack }) });
@@ -120,8 +131,8 @@ test('50/100/200 TXT and DOCX files preserve source through UI conversion and ZI
         timer = setTimeout(() => rejectResult(new Error(`Browser timeout: ${stderr}`)), 165000);
         const report = await result;
         assert.ifError(report.error);
-        assert.equal(report.rows.length, 6);
-        assert.equal(wordRequests, 350);
+        assert.equal(report.rows.length, 8);
+        assert.equal(wordRequests, 470);
         console.log(JSON.stringify({ environment: { node: process.version, platform: os.platform(), cpu: os.cpus()[0].model, memoryGB: Math.round(os.totalmem() / 1024 ** 3) }, ...report }));
     } finally {
         clearTimeout(timer);

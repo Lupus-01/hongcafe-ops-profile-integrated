@@ -1,5 +1,71 @@
 # 프로필 코드 글자 크기 조정
 
+## 2026-10-06 과거 생성기 CSS 정리 및 불완전한 일괄 ZIP 차단
+
+사용자 승인 후 `profile-code-resizer.js`, `profile-code-resizer-ui.js`, `index.html`과 관련 테스트 3개를 부분 수정했다. 기준 HEAD는 `6782408`이며 기존 package.json 변경 및 미추적 사용자 항목은 보존했다. 생성기 script.js 및 이미지 저장 기능은 수정하지 않았다.
+
+- 사이트 디자인 모드에서 `data-pb-site-protection-style="true"` 단독 속성, 알려진 CSS 원문(공백 정규화 후 비교), 사이트 출력 부모 및 프로필 자식 구조가 모두 일치하는 style 블록만 제거한다. 해당 규칙의 font-family와 box-sizing은 사이트 출력 요소에 인라인 important로 보완한다. 외부 폰트 import는 제거하며 폰트 파일 로딩을 보장하지 않는다.
+- 미확인 style 블록과 본문에 남은 알려진 CSS 패턴은 자동 삭제하지 않고 변환을 차단한다. 임의 CSS를 모두 판별하는 기능은 아니다. 글자 크기만 조정하는 기존 모드는 그대로 유지하며 CSS 정리는 기본 사이트 디자인 모드에서 수행한다.
+- 기존 `verifyStyleOnlySource()`의 엄격한 비교는 유지한다. 새 `verifySiteSource()`와 사이트 DOM 검증은 식별된 블록만 제외한 원문을 기준으로 비교한다. 그 외 문구·이미지·링크·구조·속성·공백·줄바꿈·BOM·주석 변경을 허용하지 않는다. DOM 검증에서는 변환 결과를 재계산해 허용된 스타일과 정확히 일치하는지도 검사한다.
+- 전체 파일이 성공한 경우에만 ZIP 저장을 허용한다. 저장 직전 재검증 실패 시 일부 ZIP도 생성하지 않는다. 개별 저장은 유지하며 성공·실패·미처리 수와 파일별 오류를 표시한다.
+
+검증: `npm run check`, 관련 Node 테스트 25/25, 실제 홍자·선화령 파일을 포함한 브라우저 검사 1개, TXT/DOCX 50·100·120·200건 및 혼합 실패·취소를 검사한 일괄 브라우저 검사 1개 통과. 최초 샌드박스 Chrome GPU 권한 오류 후 승인된 권한 확장으로 실행했다. 브라우저 검사에서 복사와 다운로드는 대체 함수/Blob으로 검증한다. 실제 결과 TXT는 별도로 디스크에 쓰고 다시 읽어 동일성을 확인했다. 외부 이미지 요청은 차단했으며 실제 이미지 로딩·아테나 저장 및 운영 화면은 미검증이다.
+
+실제 홍자 사례: style 블록 1개 제거, 요소 26개의 인라인 스타일 변경, 제목 26px·본문 16px 계산 스타일 확인, 이미지 주소 2개 보존, CSS 텍스트 비노출 및 재변환 동일성 확인. 선화령 사례: 출력과 입력 문자열 완전 일치. 원본 두 파일은 검사 전후 SHA-256이 동일하다. 당시 120건 처리에서 홍자 코드가 누락된 원인은 이 결과만으로 확정하지 않는다.
+
+- 홍자 입력 SHA-256: `e5124142ccc768469933ad37e2c8d68acdabba9567ae02819c83ce5fa8ce6888`
+- 정상 대조 입력 SHA-256: `54c9ed4a4d4796593abd0f74cf0cff64ad695dfbedf2de39b38f69ff0fef6641`
+- 홍자 출력 SHA-256: `7b11e50fcc8afb9b2319a6894974448a5eb28e82e02546d7577042675a78ae1a`
+- 결과 파일: `C:\Users\Public\Documents\ESTsoft\CreatorTemp\hongcafe-profile-repair-20261006\hongja-site-repaired.txt` (원본과 별도 보관, 저장소 커밋 대상 아님)
+
+120건 합성 TXT 입력은 약 8.8MB이며 읽기 603ms, 변환 1,509ms, 재검증·ZIP 644ms였다. DOCX 120건은 읽기 883ms, 변환 1,384ms, 저장 632ms였다. 1회 로컬 측정으로 운영 성능이나 모든 파일의 성공을 보장하지 않는다. 저장 단계는 동기 처리이므로 큰 묶음에서 잠시 화면이 멈출 수 있다.
+
+재검증 명령:
+
+```powershell
+npm run check
+node --test profile-maker/profile-code-resizer.test.mjs profile-maker/profile-code-output.test.mjs profile-maker/profile-code-files.test.mjs
+node --test profile-maker/profile-code-resizer-browser.test.mjs profile-maker/profile-code-batch-browser.test.mjs
+git diff --check
+git diff
+```
+
+브라우저 검사에 실제 사례를 추가하려면 `PROFILE_REPAIR_INPUT`에 문제 TXT 경로, `PROFILE_REPAIR_CONTROL`에 정상 TXT 경로를 지정한다. 경로와 상담 원문은 테스트 코드에 포함하지 않았다.
+
+권장 커밋 메시지: `수정: 과거 프로필 CSS 정리 및 불완전한 일괄 저장 차단`
+
+승인 후 사용할 로컬 명령(미실행):
+
+```powershell
+git add -- profile-maker/profile-code-resizer.js profile-maker/profile-code-resizer-ui.js profile-maker/index.html profile-maker/profile-code-resizer.test.mjs profile-maker/profile-code-resizer-browser.test.mjs profile-maker/profile-code-batch-browser.test.mjs PROFILE_CODE_RESIZER_REPORT.md
+git diff --cached --check
+git diff --cached
+git commit -m "수정: 과거 프로필 CSS 정리 및 불완전한 일괄 저장 차단"
+git push origin main
+git status --short --branch
+```
+
+현재 운영 서버는 삭제된 상태다. 아래는 새 서버 구축·저장소 배치·환경 설정·서비스 등록 후, 기존 경로 및 서비스 이름을 동일하게 사용하는 경우의 반영 명령 예시다. 새 서버 설치 명령이나 현재 실행 가능한 배포 절차로 간주하지 않는다. 추적 파일 변경이 있으면 pull 전에 확인한다. 정적 파일 변경 자체에는 PM2 재시작이 필요 없으며 운영 절차상 필요할 때만 reload한다.
+
+```bash
+cd /opt/hongcafe-ops-profile-integrated
+git status --short --branch
+git pull --ff-only origin main
+npm run check
+git log -1 --oneline
+pm2 describe hongcafe-ops-profile
+# 웹 서비스 이름 확인 및 별도 승인 후 필요할 때만 실행
+pm2 reload hongcafe-ops-profile
+curl -fsS -w '\nHTTP %{http_code}\n' http://127.0.0.1:3000/api/health
+curl -fsS -o /dev/null -w 'RESIZER_HTTP %{http_code}\n' http://127.0.0.1:3000/profile-maker/profile-code-resizer.js
+pm2 status
+pm2 logs hongcafe-ops-profile --lines 50 --nostream
+git status --short --branch
+git log -1 --oneline
+```
+
+정상 기준: 적용 커밋 일치, 웹 서비스 online, 헬스체크 HTTP 200 및 `ok: true`, 변환기 파일 HTTP 200, 새로운 오류 로그 없음. 사이트 모드로 실제 한 건을 검증하고 아테나 등록 후 CSS 글자 비노출·본문·이미지·배치를 별도 확인한다. 커밋·푸시·운영 반영·PM2 조작은 수행하지 않았다.
+
 ## 2026-09-22 일괄 처리 상한 200개 검증 및 적용
 
 기준 HEAD `582caae`. 사용자 승인 후 파일 개수와 ZIP 저장 상한을 50개에서 200개로 확대했다. 파일당 30MiB, 선택 파일 합계 60MiB, 읽은/추출한 코드 합계 60MiB 및 Word 압축 해제 제한은 유지한다. 화면 표기는 기존처럼 MB를 사용한다. 200개는 검증한 운영상 상한이며 기술적 최대치나 모든 파일에 대한 성능 보장이 아니다.

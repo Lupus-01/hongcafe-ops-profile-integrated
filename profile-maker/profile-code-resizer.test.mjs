@@ -1,7 +1,31 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
-const { resize, applySiteDesign, parse, verifyStyleOnlySource } = createRequire(import.meta.url)('./profile-code-resizer.js');
+const { resize, applySiteDesign, parse, verifyStyleOnlySource, verifySiteSource } = createRequire(import.meta.url)('./profile-code-resizer.js');
+
+test('legacy site CSS is removed only by exact identification; content and repeat output stay intact', () => {
+    const css = "@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); .pb-site-profile-output, .pb-site-profile-output * { box-sizing: border-box !important; font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important; }";
+    const block = `<style data-pb-site-protection-style="true">${css}</style>`;
+    const original = `\ufeff<!-- keep -->\r\n<div class="pb-site-profile-output">${block}${fixture()}</div>`;
+    const result = applySiteDesign(original);
+    assert.equal(result.removedStyles, 1);
+    assert.equal(parse(result.code).filter((node) => node.tag === 'style').length, 0);
+    assert.equal(verifySiteSource(original, result.code), true);
+    assert.throws(() => verifyStyleOnlySource(original, result.code));
+    assert.equal(applySiteDesign(result.code).code, result.code);
+    for (const node of parse(result.code)) {
+        assert.match(node.attrs.style.value, /box-sizing: border-box !important/);
+        assert.match(node.attrs.style.value, /font-family: Pretendard, &quot;Apple SD Gothic Neo&quot;/);
+    }
+    for (const changed of [result.code.replace('기존 본문', '손상'), result.code.slice(1), result.code.replace('base64,AAAA', 'base64,BBBB'), result.code.replace('<!-- keep -->', ''), result.code.replace('\r\n', '\n')]) {
+        assert.throws(() => verifySiteSource(original, changed));
+    }
+    for (const unsafe of [original.replace('border-box !important', 'content-box !important'), original.replace('data-pb-site-protection-style="true"', ''), original.replace(block, `<style>${css}</style>`), original.replace(block, css), original.replace(block, '<style>.other{color:red}</style>')]) {
+        assert.throws(() => applySiteDesign(unsafe), /CSS|style/);
+    }
+    const singleQuotes = original.replace('style="background:#f7f6fb;padding:13px;border:1px solid red;width:640px"', "style='background:#f7f6fb;padding:13px;border:1px solid red;width:640px'");
+    assert.equal(verifySiteSource(singleQuotes, applySiteDesign(singleQuotes).code), true);
+});
 
 export const fixture = (category = 'tarot') => `<div class="pb-presentation pb-theme-${category}" style="background:#f7f6fb;padding:13px;border:1px solid red;width:640px">
 <!-- 원본 공백과 주석 유지 -->
