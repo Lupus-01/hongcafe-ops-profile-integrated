@@ -68,6 +68,37 @@ test('PPTX slides are ordered and extracted', () => {
     assert.match(parsed.combinedText, /\[slide 1\]\n첫 번째[\s\S]*\[slide 2\]\n두 번째/);
 });
 
+test('PPTX drawing metadata never enters text or exhausts the prompt budget', () => {
+    const buffer = createZipBuffer({
+        'ppt/presentation.xml': '<p:presentation/>',
+        'ppt/slides/slide1.xml': `<p:sld><p:sp>
+            <p:spPr><a:ln><a:tailEnd/></a:ln><a:extLst>${'metadata'.repeat(800)}</a:extLst></p:spPr>
+            <p:txBody><a:p><a:r><a:t>약력사항</a:t></a:r></a:p>
+            <a:p><a:r><a:t>상담 경력 </a:t></a:r><a:r><a:t>6</a:t></a:r><a:r><a:t>년</a:t></a:r></a:p></p:txBody>
+            </p:sp><p:sp><p:txBody><a:p><a:r><a:t>상담분야</a:t></a:r></a:p>
+            <a:p><a:r><a:t>#재회 #속마음 #진로</a:t></a:r></a:p></p:txBody></p:sp></p:sld>`
+    });
+    const parsed = parseDocumentFiles([{ originalname: 'profile.pptx', buffer }]);
+    assert.equal(parsed.combinedText, '[slide 1]\n약력사항\n상담 경력 6년\n\n상담분야\n#재회 #속마음 #진로');
+    assert.equal(buildLimitedDocumentText(parsed, 5000), parsed.combinedText);
+});
+
+test('PPTX preserves runs, paragraph and table boundaries, breaks, tabs and escaped text', () => {
+    const buffer = createZipBuffer({
+        'ppt/presentation.xml': '<p:presentation/>',
+        'ppt/slides/slide1.xml': `<p:sld><p:sp><p:txBody>
+            <a:p><a:r><a:t>타로심리상담사</a:t></a:r><a:r><a:t>1</a:t></a:r><a:r><a:t>급 보유</a:t></a:r></a:p>
+            <a:p><a:r><a:t xml:space="preserve">온 </a:t></a:r><a:r><a:t>&amp; 오프라인</a:t></a:r><a:br/><a:r><a:t>상담</a:t></a:r><a:tab/><a:r><a:t>안내</a:t></a:r></a:p>
+            <a:p><a:fld id="field"><a:t>&lt;원문&gt;</a:t></a:fld></a:p>
+            </p:txBody></p:sp><a:tbl><a:tr>
+            <a:tc><a:txBody><a:p><a:r><a:t>항목</a:t></a:r></a:p></a:txBody></a:tc>
+            <a:tc><a:txBody><a:p><a:r><a:t>내용</a:t></a:r></a:p></a:txBody></a:tc>
+            </a:tr></a:tbl></p:sld>`
+    });
+    const parsed = parseDocumentBuffer(buffer, 'profile.pptx');
+    assert.equal(parsed.slides[0].text, '타로심리상담사1급 보유\n온 & 오프라인\n상담 안내\n<원문>\n\n항목\n\n내용');
+});
+
 test('XLSX and legacy XLS spreadsheets are extracted', () => {
     for (const fileType of ['xlsx', 'xls']) {
         const parsed = parseDocumentBuffer(createWorkbookBuffer(fileType), `profile.${fileType}`);

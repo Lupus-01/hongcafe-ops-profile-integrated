@@ -64,11 +64,17 @@ function getZipEntries(buffer, requiredEntryPattern, label) {
     return entries;
 }
 
-function extractTaggedTexts(xml, tagName) {
-    const pattern = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'g');
-    return [...String(xml || '').matchAll(pattern)]
-        .map((match) => normalizeDocumentText(decodeXmlEntities(match[1])))
-        .filter(Boolean);
+function extractPptxText(xml) {
+    // Match complete tag names: a:tailEnd is drawing metadata, not a:t text.
+    // Formatting runs in one paragraph must retain their original spaces.
+    const tokens = /<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t\s*>|<a:(br|tab)(?=[\s/>])[^>]*>|<\/(a:p|p:txBody|a:tc)\s*>/g;
+    const parts = [];
+    for (const match of String(xml || '').matchAll(tokens)) {
+        if (match[1] !== undefined) parts.push(decodeXmlEntities(match[1]));
+        else if (match[2] === 'tab') parts.push('\t');
+        else parts.push('\n');
+    }
+    return normalizeDocumentText(parts.join(''));
 }
 
 export function parsePptxBuffer(buffer) {
@@ -82,7 +88,7 @@ export function parsePptxBuffer(buffer) {
         });
     const slides = slideEntries.map((entry, index) => ({
         index: index + 1,
-        text: extractTaggedTexts(entry.getData().toString('utf8'), 'a:t').join('\n')
+        text: extractPptxText(entry.getData().toString('utf8'))
     })).filter((slide) => slide.text);
     return {
         fileType: 'pptx',
